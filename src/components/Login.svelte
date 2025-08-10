@@ -1,46 +1,34 @@
-<script>
-    let username = '';
-    let password = '';
-    let error = '';
-
-    function handleLogin(event) {
-        event.preventDefault();
-        if (!username || !password) {
-            error = 'Please enter both username and password.';
-            return;
-        }
-        // Add your login logic here (e.g., call an API)
-        error = '';
-        // Example: console.log({ username, password });
-    }
-</script>
-
-<form class="container mt-5 p-4 bg-white rounded shadow-sm" on:submit|preventDefault={handleLogin}>
-    <h2 class="mb-4">Login</h2>
-    {#if error}
-        <div class="alert alert-danger mb-2">{error}</div>
-    {/if}
-    <div class="mb-3">
-        <label class="form-label" for="username">Username</label>
-        <input
-            id="username"
-            type="text"
-            bind:value={username}
-            class="form-control"
-            autocomplete="username"
-        />
-    </div>
-    <div class="mb-3">
-        <label class="form-label" for="password">Password</label>
-        <input
-            id="password"
-            type="password"
-            bind:value={password}
-            class="form-control"
-            autocomplete="current-password"
-        />
-    </div>
-    <button type="submit" class="btn btn-primary w-100">
-        Login
-    </button>
-</form>
+<div
+	class="modal fade"
+	id="signInModal"
+	tabindex="-1"
+	aria-labelledby="signInModalLabel"
+	aria-hidden="true"
+>
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="signInModalLabel">Sign In</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<!-- Your sign-in form elements go here -->
+				<form>
+					<div class="mb-3">
+						<label for="emailInput" class="form-label">Email address</label>
+						<input type="email" class="form-control" id="emailInput" aria-describedby="emailHelp" />
+					</div>
+					<div class="mb-3">
+						<label for="passwordInput" class="form-label">Password</label>
+						<input type="password" class="form-control" id="passwordInput" />
+					</div>
+					<button type="submit" class="btn btn-primary">Submit</button>
+				</form>
+			</div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#registerModal">Register</a>
+                <a href="#" class="btn btn-link">Forgot password?</a>
+            </div>
+		</div>
+	</div>
+</div>

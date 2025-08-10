@@ -1,7 +1,7 @@
 <script lang="ts">
     import Login from '../components/Login.svelte';
-    import RegisterUser from '../components/RegisterUser.svelte';
-    import { Styles } from '@sveltestrap/sveltestrap';
+    import Register from '../components/Register.svelte';
+    // import RegisterUser from '../components/RegisterUser.svelte';
  
     let data = $state();
     let ebayItems = $state();
@@ -68,6 +68,6 @@
 
 <p><button class="btn btn-primary" onclick={auth}>Auth</button></p>
 
-<RegisterUser onRegister={event => handleRegister(event.username, event.password)} />
-<!-- <Login /> -->
-<Styles />
+<!-- <RegisterUser onRegister={event => handleRegister(event.username, event.password)} /> -->
+<Login />
+<Register onRegister={event => handleRegister(event.username, event.password)} />
