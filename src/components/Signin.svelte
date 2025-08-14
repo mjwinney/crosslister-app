@@ -12,7 +12,7 @@
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<div class="modal-body">
-				<!-- Your sign-in form elements go here -->
+				<!-- Your sign-in form elements go hereL -->
 				<form>
 					<div class="mb-3">
 						<label for="emailInput" class="form-label">Email address</label>

@@ -1,3 +1,28 @@
+<script lang="ts">
+  import Signin from '../components/Signin.svelte';
+	import Register from '../components/Register.svelte';
+
+  /**
+   * @param {{ username: string; password: string }} param0
+   */
+  async function handleRegister(username: string, password: string) {
+    console.log('Registering user:', username, password);
+    const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+    });
+    if (!response.ok) {
+        const error = await response.text();
+        alert(`Registration failed: ${error}`);
+    } else {
+        alert('Registration successful!');
+    }
+  }
+</script>
+
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container-fluid">
     <a class="navbar-brand" href="#">X-Lister</a>
@@ -5,7 +30,7 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
-      <!-- <ul class="navbar-nav me-auto mb-2 mb-lg-0"> -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <!-- <li class="nav-item">
           <a class="nav-link active" aria-current="page" href="#">Home</a>
         </li>
@@ -26,17 +51,15 @@
         <!-- <li class="nav-item">
           <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
         </li> -->
-      <!-- </ul> -->
-      <!-- <form class="d-flex">
-        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success" type="submit">Sign In</button>
-      </form> -->
+        <li class="nav-item">
+        </li>
+      </ul>
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
+        Sign In
+      </button>
     </div>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
-      Sign In
-    </button>
-    <!-- <form class="d-flex">
-      <button class="btn btn-outline-success" type="submit">Sign In</button>
-    </form> -->
   </div>
 </nav>
+<Signin />
+<Register onRegister={event => handleRegister(event.username, event.password)} />
+

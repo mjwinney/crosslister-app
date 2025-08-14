@@ -1,7 +1,9 @@
 import fetch from 'node-fetch'; // Ensure you have node-fetch installed
 import { json } from '@sveltejs/kit';
 // If EBAY_USER_TOKEN is defined in your .env file, use the dynamic import:
-import { env } from '$env/dynamic/private';
+// import { env } from '$env/dynamic/private';
+import { EBAY_CLIENT_ID, EBAY_RU_NAME } from '$env/static/private';
+import { connectToDatabase } from '$lib/server/DatabaseUtils';
 
 // Example: Retrieve listed items from eBay API
 export async function GET() {
@@ -12,9 +14,9 @@ export async function GET() {
 
     // TODO implement state param at some point
     const qsParams = new URLSearchParams({
-        client_id: env.EBAY_CLIENT_ID ?? '',
+        client_id: EBAY_CLIENT_ID ?? '',
         // redirect_uri: encodeURIComponent('http://localhost:5173/callback'),
-        redirect_uri: env.EBAY_RU_NAME ?? '',
+        redirect_uri: EBAY_RU_NAME ?? '',
         response_type: 'code',
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'
     });
