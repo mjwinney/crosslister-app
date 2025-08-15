@@ -61,5 +61,5 @@
   </div>
 </nav>
 <Signin />
-<Register onRegister={event => handleRegister(event.username, event.password)} />
+<Register />
 

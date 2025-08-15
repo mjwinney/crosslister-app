@@ -1,3 +1,9 @@
+<script lang="ts">
+	let username = "";
+	let password = "";
+
+</script>
+
 <div
 	class="modal fade"
 	id="signInModal"
@@ -15,12 +21,12 @@
 				<!-- Your sign-in form elements go hereL -->
 				<form>
 					<div class="mb-3">
-						<label for="emailInput" class="form-label">Email address</label>
-						<input type="email" class="form-control" id="emailInput" aria-describedby="emailHelp" />
+						<label for="username" class="form-label">Username</label>
+						<input type="text" class="form-control" id="signin-username" bind:value={username} />
 					</div>
 					<div class="mb-3">
 						<label for="passwordInput" class="form-label">Password</label>
-						<input type="password" class="form-control" id="passwordInput" />
+						<input type="password" class="form-control" id="signin-passwordInput" bind:value={password} />
 					</div>
 					<button type="submit" class="btn btn-primary">Submit</button>
 				</form>
