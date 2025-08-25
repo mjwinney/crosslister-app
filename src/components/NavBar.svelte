@@ -1,26 +1,7 @@
 <script lang="ts">
+  // import { authClient } from '../lib/auth-client'; //import the auth client
   import Signin from '../components/Signin.svelte';
 	import Register from '../components/Register.svelte';
-
-  /**
-   * @param {{ username: string; password: string }} param0
-   */
-  async function handleRegister(username: string, password: string) {
-    console.log('Registering user:', username, password);
-    const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-    });
-    if (!response.ok) {
-        const error = await response.text();
-        alert(`Registration failed: ${error}`);
-    } else {
-        alert('Registration successful!');
-    }
-  }
 </script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">

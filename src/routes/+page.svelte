@@ -1,6 +1,7 @@
 <script lang="ts">
     import Signin from '../components/Signin.svelte';
     import Register from '../components/Register.svelte';
+    import { goto } from '$app/navigation';
  
     let data = $state();
     let ebayItems = $state();
@@ -32,10 +33,11 @@
     // }
 
     async function auth() {
-        const response = await fetch('/ebay-api/auth');
-        if (!response.ok) {
-            throw new Error(`Failed auth: ${response.statusText}`);
-        }
+        goto('/auth'); // Goto the routes/auth page
+        // const response = await fetch('/auth'); // Goto the routes/auth page
+        // if (!response.ok) {
+        //     throw new Error(`Failed auth: ${response.statusText}`);
+        // }
     }
 
     /**
