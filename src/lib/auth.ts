@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import { sveltekitCookies } from "better-auth/svelte-kit";
+import { getRequestEvent } from "$app/server";
 import client from "./server/db"; // Import the client promise from db.ts
 
 const db = client.db();
@@ -17,4 +19,5 @@ export const auth = betterAuth({
             clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
         },
     },
+    plugins: [sveltekitCookies(getRequestEvent)], // make sure this is the last plugin in the array
 });

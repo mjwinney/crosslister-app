@@ -1,7 +1,7 @@
 <script lang="ts">
   // import { authClient } from '../lib/auth-client'; //import the auth client
-  import Signin from '../components/Signin.svelte';
-	import Register from '../components/Register.svelte';
+import Signin from '../components/Signin.svelte';
+import Register from '../components/Register.svelte';
 </script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">

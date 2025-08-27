@@ -1,22 +1,23 @@
 <script lang="ts">
 	import { authClient } from '../lib/auth-client'; //import the auth client
+	import { onMount } from 'svelte';
 
 	let email = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
 	let displayName = $state('');
 	let userError = $state('');
+	let success = $state(false);
 	let enableRegisterButton = $derived((email === '') || (password === '') || (confirmPassword === '') || (displayName === ''));
 	let myModalElement: HTMLDivElement; // Bind this to your modal's root element
 	
 	// Svelte lifecycle hook to attach the event listener so we can see when dialog is closed
 	// and clear down the variables.
-	import { onMount } from 'svelte';
 	onMount(() => {
 		console.log('Component mounted');
 		if (myModalElement) {
 			myModalElement.addEventListener('hidden.bs.modal', () => {
-				console.log('Bootstrap Modal is now hidden..Cleanup dialog variables!');
+				console.log('Register Modal is now hidden..Cleanup dialog variables!');
 				handleModalReset();
 			});
 		}
@@ -28,10 +29,13 @@
 		password = '';
 		confirmPassword = '';
 		userError = ''
+		displayName = '';
 	}
 
 	// Handle registration with the authClient
 	async function handleRegister(event: Event) {
+		userError = '';
+
 		event.preventDefault();
 		if (!email || !password || !confirmPassword) {
 			userError = 'All fields are required.';
@@ -57,11 +61,9 @@
 		        console.log('onRequest call to authClient.signUp.email:');
 			},
 			onSuccess: (ctx) => {
-				//redirect to the dashboard or sign in page
-				console.log('onSuccess call to authClient.signUp.email:');
-				// ctx.response = new Response({ body: 'Signup successful', status: 200 });
-				// return json({ message: 'Registration Success', code: 200}, { status: 201 });
-				// return Promise.resolve();
+				// Display a success message and then show button to signin
+				handleModalReset();
+				success = true;
 			},
 			onError: (ctx) => {
 				//show error
@@ -132,6 +134,13 @@
 					{#if userError}
 						<div class="alert alert-danger mb-2">{userError}</div>
 					{/if}
+					{#if success}
+						<div class="alert alert-success mb-2">Registration successful! You can now sign in.
+							<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
+								Sign In
+							</button>
+						</div>
+					{/if}
 					<div class="mb-3">
 						<label for="email" class="form-label">Email</label>
 						<input type="email" class="form-control" id="register-email" bind:value={email} />
@@ -166,13 +175,13 @@
 					<button type="submit" class="btn btn-primary" disabled={enableRegisterButton}>Register</button>
 				</form>
 			</div>
-			<div class="modal-footer d-flex justify-content-center">
-				<!-- {#if success}
+			<!-- <div class="modal-footer d-flex justify-content-center">
+				{#if success}
 						<div class="text-success">{success}
 							<a href="#" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#signInModal">Sign In</a>
 						</div>
-				{/if} -->
-            </div>
+				{/if}
+            </div> -->
 		</div>
 	</div>
 </div>
