@@ -59,6 +59,8 @@
 		const { data, error } = await authClient.signIn.email({
         	email: email.toString() || "", // user email address
         	password: password.toString() || "", // user password -> min 8 characters by default
+			rememberMe: false,
+			callbackURL: "/dashboard",
 		}, {
 			onRequest: (ctx) => {
 				//show loading

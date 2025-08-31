@@ -1,7 +1,12 @@
 <script lang="ts">
-  // import { authClient } from '../lib/auth-client'; //import the auth client
+import { authClient } from "$lib/auth-client";
 import Signin from '../components/Signin.svelte';
 import Register from '../components/Register.svelte';
+
+  // let signedIn = $state(false);
+
+  const session = authClient.useSession();
+
 </script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -35,9 +40,23 @@ import Register from '../components/Register.svelte';
         <li class="nav-item">
         </li>
       </ul>
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
-        Sign In
-      </button>
+      {#if $session?.data}
+        <!-- <div>
+          <p>
+              {$session?.data?.user.name}
+          </p>
+          <p>
+              {$session?.data?.user.email}
+          </p> -->
+        <button type="button" class="btn btn-primary" onclick={async () => await authClient.signOut()}>
+          Sign Out
+        </button>
+        <!-- </div> -->
+      {:else}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
+          Sign In
+        </button>
+      {/if}
     </div>
   </div>
 </nav>
