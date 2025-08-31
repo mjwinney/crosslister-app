@@ -1,12 +1,20 @@
 <script lang="ts">
-import { authClient } from "$lib/auth-client";
-import Signin from '../components/Signin.svelte';
-import Register from '../components/Register.svelte';
-
-  // let signedIn = $state(false);
+  import { authClient } from "$lib/auth-client";
+  import Signin from '../components/Signin.svelte';
+  import Register from '../components/Register.svelte';
+	import { goto } from "$app/navigation";
 
   const session = authClient.useSession();
 
+  function handleLogout() {
+    authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          goto('/'); // Goto the homepage
+        },
+      },
+    });
+  }
 </script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -17,12 +25,15 @@ import Register from '../components/Register.svelte';
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <!-- <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="#">Home</a>
+         <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="/">Home</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="#">Link</a>
-        </li> -->
+          <a class="nav-link active" aria-current="page" href="/dashboard">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Import</a>
+        </li>
         <!-- <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             Dropdown
@@ -48,8 +59,8 @@ import Register from '../components/Register.svelte';
           <p>
               {$session?.data?.user.email}
           </p> -->
-        <button type="button" class="btn btn-primary" onclick={async () => await authClient.signOut()}>
-          Sign Out
+        <button type="button" class="btn btn-primary" onclick={handleLogout}>
+          Log Out
         </button>
         <!-- </div> -->
       {:else}

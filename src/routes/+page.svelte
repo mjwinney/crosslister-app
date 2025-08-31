@@ -66,11 +66,11 @@
 
 // console.log(`HOMEPAGE session=${JSON.stringify(session)}`);
 // import { authClient } from "$lib/auth-client";
-const session = authClient.useSession();
+// const session = authClient.useSession();
 </script>
 
 <h1>Home Page</h1>
-<div>
+<!-- <div>
     {#if $session}
         <div>
         <p>
@@ -98,7 +98,7 @@ const session = authClient.useSession();
         Continue with GitHub
         </button>
     {/if}
-</div>
+</div> -->
 <!-- <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
 
 <p><button class="btn btn-primary" onclick={roll}>Click to roll dice</button></p>
