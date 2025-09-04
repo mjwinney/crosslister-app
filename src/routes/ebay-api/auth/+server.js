@@ -2,7 +2,7 @@ import fetch from 'node-fetch'; // Ensure you have node-fetch installed
 import { json } from '@sveltejs/kit';
 // If EBAY_USER_TOKEN is defined in your .env file, use the dynamic import:
 // import { env } from '$env/dynamic/private';
-import { EBAY_CLIENT_ID, EBAY_RU_NAME } from '$env/static/private';
+import { EBAY_CLIENT_ID, EBAY_RU_NAME, EBAY_AUTH_ENDPOINT } from '$env/static/private';
 import { connectToDatabase } from '$lib/server/DatabaseUtils';
 
 // Example: Retrieve listed items from eBay API
@@ -21,9 +21,11 @@ export async function GET() {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'
     });
 
-    const endpoint = `https://auth.sandbox.ebay.com/oauth2/authorize?${qsParams.toString()}`;
+    const endpoint = `${EBAY_AUTH_ENDPOINT}?${qsParams.toString()}`;
 
     console.log('endpoint:', JSON.stringify(endpoint));
+
+    // return new Response('Authentication successful', { status: 200 });
 
     try {
         const response = await fetch(endpoint, {

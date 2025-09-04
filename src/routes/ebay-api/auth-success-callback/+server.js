@@ -1,7 +1,14 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { EbayToken } from '$lib/server/models/ebay-token';
+import { connectToDatabase, StatusCodes, updateEbayToken } from '$lib/server/DatabaseUtils.js';
 
-export async function GET({ url }) {
+export async function GET({ locals, url }) {
+    console.log(`eBay Auth Success Callback: ${url}`);
+    // If you need to access session data, you can do so here
+    const userId = locals?.session?.userId;
+    console.log(`eBay Auth Success Callback userId: ${userId}`);
+
     const code = url.searchParams.get('code');
 
     if (!code) {
@@ -36,6 +43,21 @@ export async function GET({ url }) {
 
         if (!response.ok) {
             return json({ error: data }, { status: response.status });
+        }
+
+        console.log(`eBay Auth Success Callback data: ${JSON.stringify(data)}`);
+
+        const { access_token, refresh_token, expires_in } = data;
+
+        console.log(`eBay Auth access_token: ${access_token}`);
+        console.log(`eBay Auth refresh_token: ${refresh_token}`);
+        console.log(`eBay Auth expires_in: ${expires_in}`);
+
+        // Update eBay token in the database
+        const status = await updateEbayToken(userId || '', access_token, refresh_token, expires_in);
+
+        if (status !== StatusCodes.OK) {
+            return json({ error: 'Failed to update eBay token.' }, { status: 500 });
         }
 
         // Return token response

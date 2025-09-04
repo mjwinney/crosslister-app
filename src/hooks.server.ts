@@ -21,7 +21,7 @@ export async function handle({ event, resolve }) {
   }
  
   // Define protected routes or patterns
-  const protectedRoutes = ["/dashboard"];
+  const protectedRoutes = ["/dashboard", "/ebay-api/auth", "/ebay-api/auth-success-callback"];
 
   // Check if the current route is protected and the user is not authenticated
   if (protectedRoutes.includes(event.url.pathname) && !event.locals.session) {

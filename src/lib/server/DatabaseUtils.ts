@@ -1,8 +1,7 @@
 // src/lib/server/DatabaseUtils.ts
 import mongoose from 'mongoose';
 import { MONGODB_URI } from '$env/static/private'; // Assuming you've set up environment variables in SvelteKit
-import { UserModel } from './models/User';
-import { error } from 'console';
+import { EbayToken } from './models/ebay-token';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -37,7 +36,7 @@ export enum StatusCodes {
     ErrorCreatingUser
 }
 
-export async function registerUser(username: string, password: string): Promise<StatusCodes> {
+export async function updateEbayToken(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<StatusCodes> {
     // Ensure the database connection is established
     await connectToDatabase();
 
@@ -46,20 +45,17 @@ export async function registerUser(username: string, password: string): Promise<
         return StatusCodes.NoDatabaseConnection;
     }
 
-    // See if we can find the user already and exit
     try {
-        const existingUser = await UserModel.findOne({ username });
-
-        if (existingUser) {
-            console.log("User already exists:", username);
-            return StatusCodes.RegisteredUserAlreadyExists;
-        }
-
-        const newUser = new UserModel({ username, password });
-        await newUser.save();
+        await EbayToken.updateOne({ userId }, {
+            accessToken,
+            refreshToken,
+            expiresIn
+        },
+        { upsert: true } // Create a new document if one doesn't exist
+        );
         return StatusCodes.OK;
     } catch (error) {
-        console.log('Error creating user:', error);
+        console.error("Error updating eBay token:", error);
         return StatusCodes.ErrorCreatingUser;
     }
 }
