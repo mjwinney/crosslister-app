@@ -6,6 +6,8 @@ declare global {
 		interface Locals {
 			session: import("better-auth").Session | null;
 			user: import("better-auth").User | null;
+			ebayAccessToken: string | null;
+			ebayRefreshToken: string | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

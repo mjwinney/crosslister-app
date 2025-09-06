@@ -2,6 +2,7 @@ import { auth } from "$lib/auth"; // path to your auth file
 import { svelteKitHandler } from "better-auth/svelte-kit";
 import { building } from '$app/environment'
 import { redirect } from "@sveltejs/kit";
+import { getEbayTokensFromDB } from "$lib/server/DatabaseUtils";
  
 
 export async function handle({ event, resolve }) {
@@ -18,6 +19,17 @@ export async function handle({ event, resolve }) {
   if (session) {
     event.locals.session = session.session;
     event.locals.user = session.user;
+    const status = await getEbayTokensFromDB(session.user.id);
+    if (status.status === 'error') {
+      console.log("Error fetching eBay tokens from DB:", status.message);
+    }
+    else if (status.status === 'success') {
+      console.log("ebayAccessToken:", status.data.accessToken);
+      console.log("ebayRefreshToken:", status.data.refreshToken);
+      // Determine if the tokens are close to expiration and refresh if necessary
+      event.locals.ebayAccessToken = status.data.accessToken;
+      event.locals.ebayRefreshToken = status.data.refreshToken;
+    }
   }
  
   // Define protected routes or patterns
