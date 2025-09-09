@@ -137,15 +137,15 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
         console.log(`eBay Auth refresh_token: ${refresh_token}`);
         console.log(`eBay Auth expires_in: ${expires_in}`);
 
-        // Update eBay token in the database
-        const status = await updateEbayToken(userId || '', access_token, refresh_token, expires_in);
+        // // Update eBay token in the database
+        // const status = await updateEbayToken(userId || '', access_token, refresh_token, expires_in);
 
-        if (status !== StatusCodes.OK) {
-            return {
-                status: 'error',
-                message: 'Failed to update eBay token.'
-            };
-        }
+        // if (status !== StatusCodes.OK) {
+        //     return {
+        //         status: 'error',
+        //         message: 'Failed to update eBay token.'
+        //     };
+        // }
 
         // Return token response
         return {
