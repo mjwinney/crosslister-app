@@ -78,11 +78,6 @@ interface Failure {
   message: string;
 }
 
-interface Success<T> {
-    status: 'success';
-    data: T;
-}
-
 interface ExpiredToken {
     status: 'expired';
     message: string;
