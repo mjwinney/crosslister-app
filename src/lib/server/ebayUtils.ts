@@ -161,7 +161,7 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
     }
 }
 
-async function refreshEbayToken(locals: App.Locals) {
+export async function refreshEbayToken(locals: App.Locals) {
     console.log(`refreshEbayToken called`);
     // Prepare token request
     const clientId = env.EBAY_CLIENT_ID;
@@ -173,6 +173,8 @@ async function refreshEbayToken(locals: App.Locals) {
         refresh_token: locals.ebayRefreshToken || '',
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'
     });
+
+    console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
 
     try {
         const refreshResponse = await fetch(env.EBAY_TOKEN_ENDPOINT, {
@@ -193,17 +195,72 @@ async function refreshEbayToken(locals: App.Locals) {
         console.log(`refreshEbayToken Callback data: ${JSON.stringify(data)}`);
 
         if (refreshResponse.ok) {
-            tokenStore.accessToken = data.access_token;
-            tokenStore.expiresAt = Date.now() + data.expires_in * 1000;
+            const userId = locals?.session?.userId;
+            console.log(`refreshEbayToken userId: ${userId}`);
+            console.log(`New access token: ${data.access_token}`);
+            console.log(`New refresh token: ${data.refresh_token}`);
+            console.log(`New expires in: ${data.expires_in}`);
+
+            // Update the token store and database
+            updateEbayToken(userId || '', data.access_token, data.refresh_token, data.expires_in);
+            // tokenStore.accessToken = data.access_token;
+            // tokenStore.expiresAt = Date.now() + data.expires_in * 1000;
         } else {
             // Handle error, e.g., if the refresh token is also expired or revoked
             // In this case, you must re-authenticate the user.
             console.error('Refresh token failed', data);
-            tokenStore = { accessToken: null, refreshToken: null, expiresAt: 0 };
+            // tokenStore = { accessToken: null, refreshToken: null, expiresAt: 0 };
             throw new Error('Could not refresh eBay access token. Re-authentication required.');
         }
     }  catch (error) {
         console.error('Error refreshing eBay token:', error);
+        throw error;
+    }
+}
+
+export async function retrieveAllInventoryItems(locals: App.Locals) {
+    console.log(`retrieveAllInventoryItems called, using access token: ${locals.ebayAccessToken}`);
+
+    const headers = {
+        'Accept-Language': 'en-US',
+        'Authorization': `Bearer ${locals.ebayAccessToken}`,
+    };
+
+    const qsParams = new URLSearchParams({
+        limit: '100',
+        offset: '0', // This is for pagination, adjust as needed
+    });
+
+    const endpoint = `${env.EBAY_INVENTORY_ITEM_ENDPOINT}?${qsParams.toString()}`;
+
+    console.log('retrieveAllInventoryItems endpoint:', JSON.stringify(endpoint));
+    console.log('retrieveAllInventoryItems headers:', JSON.stringify(headers));
+
+    // console.log(`retrieveAllInventoryItems called with ebayAccessToken=${locals.ebayAccessToken}`);
+
+    try {
+        const refreshResponse = await fetch(endpoint, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const data = await refreshResponse.json();
+
+        if (!refreshResponse.ok) {
+            console.log(`data: ${JSON.stringify(data)}`);
+            console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
+
+            return json({ error: data }, { status: refreshResponse.status });
+        }
+
+        console.log(`retrieveAllInventoryItems Callback data: ${JSON.stringify(data)}`);
+
+        return {
+            status: 'success',
+            data: data
+        };
+    }  catch (error) {
+        console.error('Error retrieveAllInventoryItems:', error);
         throw error;
     }
 }

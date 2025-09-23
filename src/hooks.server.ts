@@ -3,6 +3,7 @@ import { svelteKitHandler } from "better-auth/svelte-kit";
 import { building } from '$app/environment'
 import { redirect } from "@sveltejs/kit";
 import { getEbayTokensFromDB } from "$lib/server/DatabaseUtils";
+import { refreshEbayToken } from "$lib/server/ebayUtils";
  
 
 export async function handle({ event, resolve }) {
@@ -22,6 +23,13 @@ export async function handle({ event, resolve }) {
     const status = await getEbayTokensFromDB(session.user.id);
     if (status.status === 'error') {
       console.log("Error fetching eBay tokens from DB:", status.message);
+    }
+    else if (status.status === 'expired') {
+      console.log("eBay token is expired or about to expire:", status.data.accessToken, status.data.refreshToken);
+      // Here you might want to trigger a token refresh process
+      event.locals.ebayAccessToken = status.data.accessToken;
+      event.locals.ebayRefreshToken = status.data.refreshToken;
+      await refreshEbayToken(event.locals);
     }
     else if (status.status === 'success') {
       console.log("ebayAccessToken:", status.data.accessToken);

@@ -31,5 +31,4 @@ export async function GET({ locals, url }) {
     }
 
     return new Response(null, { status: 302, headers: { Location: '/' } });
-    // return new Response(null, { status: 302, headers: { Location: '/settings' } });
 }

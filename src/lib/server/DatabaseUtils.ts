@@ -78,9 +78,9 @@ interface Failure {
   message: string;
 }
 
-interface ExpiredToken {
+interface ExpiredToken<T> {
     status: 'expired';
-    message: string;
+    data: T;
 }
 
 interface EbayInfo {
@@ -89,7 +89,7 @@ interface EbayInfo {
 }
 
 // Combine them into a discriminated union
-type Result<T> = Success<T> | Failure | ExpiredToken;
+type Result<T> = Success<T> | Failure | ExpiredToken<T>;
 
 export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayInfo>>
 {
@@ -112,7 +112,7 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
         const now = new Date();
         const bufferTime = 5 * 60 * 1000;
         if (ebayData.expiresAt.getTime() < now.getTime() + bufferTime) {
-            return { status: 'expired', message: `eBay token for userId:${userId} is expired or about to expire` };
+            return { status: 'expired', data: { accessToken: ebayData.accessToken, refreshToken: ebayData.refreshToken } };
         }
 
         return { status: 'success', data: { accessToken: ebayData.accessToken, refreshToken: ebayData.refreshToken } };

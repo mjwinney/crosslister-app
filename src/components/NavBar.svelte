@@ -20,6 +20,10 @@
     goto('/ebay-api/auth');
 	};
 
+  function handleEbayItems() {
+    goto('/ebay-api/items');
+	};
+
 </script>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -35,6 +39,9 @@
         </li>
         <li class="nav-item">
           <a class="nav-link active" aria-current="page" href="/dashboard">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="#" onclick={handleEbayItems}>Ebay Items</a>
         </li>
         <li class="nav-item">
           <a class="nav-link active" aria-current="page" href="#" onclick={handleEbayAuth}>Ebay Auth</a>
