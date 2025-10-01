@@ -21,7 +21,7 @@
 	};
 
   function handleEbayItems() {
-    goto('/ebay-api/items');
+    goto('/ebay-api/inventory_item');
 	};
 
 </script>

@@ -37,7 +37,7 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
         client_id: EBAY_CLIENT_ID ?? '',
         redirect_uri: EBAY_RU_NAME ?? '',
         response_type: 'code',
-        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'
+        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
     const endpoint = `${EBAY_AUTH_ENDPOINT}?${qsParams.toString()}`;
