@@ -171,7 +171,7 @@ export async function refreshEbayToken(locals: App.Locals) {
     const params = new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: locals.ebayRefreshToken || '',
-        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory.readonly'
+        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
     console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
@@ -218,7 +218,7 @@ export async function refreshEbayToken(locals: App.Locals) {
     }
 }
 
-export async function retrieveAllInventoryItems(locals: App.Locals) {
+export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`retrieveAllInventoryItems called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
@@ -250,17 +250,93 @@ export async function retrieveAllInventoryItems(locals: App.Locals) {
             console.log(`data: ${JSON.stringify(data)}`);
             console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
 
-            return json({ error: data }, { status: refreshResponse.status });
+            return {
+                status: refreshResponse.status,
+                message: JSON.stringify(data)
+            };
         }
 
         console.log(`retrieveAllInventoryItems Callback data: ${JSON.stringify(data)}`);
 
         return {
-            status: 'success',
+            status: 200,
             data: data
         };
     }  catch (error) {
         console.error('Error retrieveAllInventoryItems:', error);
-        throw error;
+        return {
+            status: 500,
+            data: {}
+        };
     }
 }
+
+export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`retrieveAllOffers called, using access token: ${locals.ebayAccessToken}`);
+
+    // Call the retrieveAllInventoryItems to retrieve the SKUs
+    const inventoryResponse = await retrieveAllInventoryItems(locals);
+    if (inventoryResponse.status != 200) {
+        console.log('Failed to retrieve inventory items, cannot proceed to get offers.');
+        return inventoryResponse;
+    }
+
+    // We have the inventory items, now retrieve the offers
+    // For simplicity, let's assume we want to get offers for each SKU
+    let skus: string[] = [];
+    if ('data' in inventoryResponse && inventoryResponse.status === 200 && 'inventoryItems' in inventoryResponse.data) {
+        skus = inventoryResponse.data.inventoryItems.map((item: any) => item.sku);
+        console.log(`Retrieved SKUs: ${JSON.stringify(skus)}`);
+    } else {
+        console.log('No inventory items found or error occurred.');
+        return inventoryResponse;
+    }
+
+    const headers = {
+        'Accept-Language': 'en-US',
+        'Authorization': `Bearer ${locals.ebayAccessToken}`,
+    };
+
+    let offers: any[] = [];
+
+    for (const sku of skus) {
+        console.log(`Processing SKU: ${sku}`);
+
+        const qsParams = new URLSearchParams({ sku: sku });
+
+        const endpoint = `${env.EBAY_INVENTORY_OFFER_ENDPOINT}?${qsParams.toString()}`;
+
+        try {
+            const offerResponse = await fetch(endpoint, {
+                method: 'GET',
+                headers: headers
+            });
+
+            const data = await offerResponse.json();
+
+            if (offerResponse.ok) {
+                console.log(`data: ${JSON.stringify(data)}`);
+                console.log(`refreshResponse.status: ${JSON.stringify(offerResponse.status)}`);
+
+                // add the offer data to an array to return later
+                offers.push({
+                    sku: sku,
+                    data: data.offers[0]
+                });
+            }
+            console.log(`retrieveAllOffers for SKU ${sku} Callback data: ${JSON.stringify(data)}`);
+        } catch (error) {
+            console.error('Error retrieveAllOffers for SKU:', sku, error);
+            return {
+                status: 500,
+                data: offers
+            };
+        }
+    }
+
+    return {
+        status: 200,
+        data: offers
+    };
+}
+

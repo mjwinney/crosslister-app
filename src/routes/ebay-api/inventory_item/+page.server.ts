@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
 // If EBAY_USER_TOKEN is defined in your .env file, use the dynamic import:
 import { env } from '$env/dynamic/private';
-import { retrieveAllInventoryItems } from '$lib/server/ebayUtils';
+import { retrieveAllOffers } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 
-    const response = await retrieveAllInventoryItems(locals);
-    if (response.status === 'error') {
+    const response = await retrieveAllOffers(locals);
+    if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {
             status: 500,
             headers: { 'Content-Type': 'text/html' }
@@ -16,30 +16,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     console.log('eBay API request successful, returning data...');
     return {
-        post: response
+        post: response.data,
     };
-
-    // return new Response(JSON.stringify(response), {
-    //     headers: { 'Content-Type': 'application/json' }
-    // });
-
-
-
-    try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts/1'); // Replace with your external API endpoint
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return {
-            post: data
-        };
-    } catch (error) {
-        console.error('Error fetching data:', error);
-        return {
-            error: 'Failed to load data'
-        };
-    }
 };
 
 // Example: Retrieve listed items from eBay API

@@ -12,26 +12,11 @@
     });
     export let data;
 </script>
-<!-- <h1>Items</h1> -->
 
-<!-- {#if data.post}
-   <p>GOT data.post</p>
-{:else}
-   <p>NOT data.post</p>
-{/if}
-
-{#if data.post.data.inventoryItems}
-   <p>GOT data.post.data.inventoryItems</p>
-{:else}
-   <p>NOT data.post.data.inventoryItems</p>
-{/if} -->
-
-<!-- <pre>{JSON.stringify(data, null, 2)}</pre> -->
-{#if data.post.data.inventoryItems.length !== 0}
-    <h2>Inventory Items</h2>
-    <ul>
-        {#each data.post.data.inventoryItems as item}
-            <li>{item.sku} - {item.product.title}</li>
-        {/each}
-    </ul>
-{/if}
+<ul>
+{#each data.post as item}
+    <h2>Inventory Items for SKU: {item.sku}</h2>
+    <h2>JSON: {JSON.stringify(item)}</h2>
+    <li>Description: {item.data.listingDescription}</li>
+{/each}
+</ul>
