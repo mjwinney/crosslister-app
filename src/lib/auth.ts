@@ -20,6 +20,5 @@ export const auth = betterAuth({
             clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
         },
     },
-    baseURL: dev ? "http://localhost:5137" : `https://${process.env.VERCEL_URL}`,
     plugins: [sveltekitCookies(getRequestEvent)], // make sure this is the last plugin in the array
 });
