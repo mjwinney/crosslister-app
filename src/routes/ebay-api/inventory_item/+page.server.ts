@@ -1,5 +1,4 @@
 import { json } from '@sveltejs/kit';
-// If EBAY_USER_TOKEN is defined in your .env file, use the dynamic import:
 import { env } from '$env/dynamic/private';
 import { retrieveAllOffers } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';

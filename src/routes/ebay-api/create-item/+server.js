@@ -6,8 +6,8 @@ import { env } from '$env/dynamic/private';
 // Example: Retrieve listed items from eBay API
 export async function GET() {
     const sku = '1234567890AB';
-    const endpoint = `https://api.sandbox.ebay.com/sell/inventory/v1/inventory_item/${sku}`; // Replace with your endpoint
-    const token = env.EBAY_USER_TOKEN;
+    const endpoint = `${env.EBAY_API_ENDPOINT}sell/inventory/v1/inventory_item/${sku}`; // Replace with your endpoint
+    // const token = env.EBAY_USER_TOKEN;
 
     const headers = {
         'Authorization': `Bearer ${token}`,

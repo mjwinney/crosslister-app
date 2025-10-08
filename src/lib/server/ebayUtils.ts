@@ -26,7 +26,6 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
 
     const EBAY_CLIENT_ID = env.EBAY_CLIENT_ID;
     const EBAY_RU_NAME = env.EBAY_RU_NAME;
-    const EBAY_AUTH_ENDPOINT = env.EBAY_AUTH_ENDPOINT;
     const headers = {
         'Content-Type': 'application/json',
         'Content-language': 'en-US',
@@ -40,7 +39,7 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
-    const endpoint = `${EBAY_AUTH_ENDPOINT}?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_AUTHENDPOINT}oauth2/authorize?${qsParams.toString()}`;
 
     console.log('endpoint:', JSON.stringify(endpoint));
 
@@ -97,7 +96,6 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
     }
 
     // Prepare token request
-    const tokenEndpoint = env.EBAY_TOKEN_ENDPOINT;
     const clientId = env.EBAY_CLIENT_ID;
     const clientSecret = env.EBAY_CLIENT_SECRET;
     const redirectUri = env.EBAY_RU_NAME;
@@ -111,7 +109,7 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
     });
 
     try {
-        const response = await fetch(tokenEndpoint, {
+        const response = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${basicAuth}`,
@@ -177,7 +175,7 @@ export async function refreshEbayToken(locals: App.Locals) {
     console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
 
     try {
-        const refreshResponse = await fetch(env.EBAY_TOKEN_ENDPOINT, {
+        const refreshResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -231,7 +229,7 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
         offset: '0', // This is for pagination, adjust as needed
     });
 
-    const endpoint = `${env.EBAY_INVENTORY_ITEM_ENDPOINT}?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_API_ENDPOINT}sell/inventory/v1/inventory_item?${qsParams.toString()}`;
 
     console.log('retrieveAllInventoryItems endpoint:', JSON.stringify(endpoint));
     console.log('retrieveAllInventoryItems headers:', JSON.stringify(headers));
@@ -304,7 +302,7 @@ export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: n
 
         const qsParams = new URLSearchParams({ sku: sku });
 
-        const endpoint = `${env.EBAY_INVENTORY_OFFER_ENDPOINT}?${qsParams.toString()}`;
+        const endpoint = `${env.EBAY_API_ENDPOINT + 'sell/inventory/v1/offer'}?${qsParams.toString()}`;
 
         try {
             const offerResponse = await fetch(endpoint, {
