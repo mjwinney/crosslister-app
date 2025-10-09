@@ -39,7 +39,7 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
-    const endpoint = `${env.EBAY_AUTHENDPOINT}oauth2/authorize?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_API_ENDPOINT}oauth2/authorize?${qsParams.toString()}`;
 
     console.log('endpoint:', JSON.stringify(endpoint));
 
