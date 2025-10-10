@@ -27,6 +27,16 @@ export async function GET() {
     //         // return new Response(`eBay API error: ${response.status} - ${errorText}`, { status: response.status });
     // }
 
+    // // Redirect the client to the eBay authorization endpoint
+    // return new Response(null, {
+    //     status: 302,
+    //     headers: {
+    //         Location: encodeURIComponent(response.data),
+    //         // 'Content-Type': 'text/html',
+    //         // charset: 'utf-8'
+    //     }
+    // });        
+
     // Redirect the client to the eBay authorization endpoint
     return new Response(null, {
         status: 302,

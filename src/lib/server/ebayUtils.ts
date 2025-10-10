@@ -39,9 +39,15 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
-    const endpoint = `${env.EBAY_API_ENDPOINT}oauth2/authorize?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_AUTH_ENDPOINT}oauth2/authorize?${qsParams.toString()}`;
 
     console.log('endpoint:', JSON.stringify(endpoint));
+
+    // Redirect the client to the eBay authorization endpoint
+    return {
+        status: 'success',
+        data: endpoint
+    };
 
     // return new Response('Authentication successful', { status: 200 });
 
@@ -51,12 +57,14 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
             headers: headers
         });
 
-        const html = await response.text();
+        console.log('response.status:', JSON.stringify(response.status));
+
+        // const html = await response.text();
 
         if (!response.ok) {
             return {
                 status: 'error',
-                message: html
+                message: `eBay API error: ${response.status} - ${html}`
             };
             // const errorText = await response.text();
             // return new Response(`eBay API error: ${response.status} - ${errorText}`, { status: response.status });
