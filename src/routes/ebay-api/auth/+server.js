@@ -1,11 +1,11 @@
-import { authenticateEbayUser } from '$lib/server/ebayUtils';
+import { buildEbayAuthURL } from '$lib/server/ebayUtils';
 
 // Example: Retrieve listed items from eBay API
 export async function GET() {
     console.log('Starting eBay user authentication process...');
 
     // Call the function to authenticate the user
-    const response = await authenticateEbayUser();
+    const response = await buildEbayAuthURL();
 
     const headers = {
         'Content-Type': 'application/json',

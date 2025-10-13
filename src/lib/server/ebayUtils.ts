@@ -21,8 +21,8 @@ interface EbayTokens {
 // Combine them into a discriminated union
 type Result<T> = Success<T> | Failure;
 
-export async function authenticateEbayUser() : Promise<Result<string>> {
-    console.log('authenticateEbayUser called');
+export async function buildEbayAuthURL() : Promise<Result<string>> {
+    console.log('buildEbayAuthURL called');
 
     const EBAY_CLIENT_ID = env.EBAY_CLIENT_ID;
     const EBAY_RU_NAME = env.EBAY_RU_NAME;
@@ -48,44 +48,6 @@ export async function authenticateEbayUser() : Promise<Result<string>> {
         status: 'success',
         data: endpoint
     };
-
-    // return new Response('Authentication successful', { status: 200 });
-
-    try {
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: headers
-        });
-
-        console.log('response.status:', JSON.stringify(response.status));
-
-        // const html = await response.text();
-
-        if (!response.ok) {
-            return {
-                status: 'error',
-                message: `eBay API error: ${response.status} - ${html}`
-            };
-            // const errorText = await response.text();
-            // return new Response(`eBay API error: ${response.status} - ${errorText}`, { status: response.status });
-        }
-
-        // Redirect the client to the eBay authorization endpoint
-        return {
-            status: 'success',
-            data: endpoint
-        };
-
-        // return new Response(html, {
-        //     headers: { 'Content-Type': 'text/html' }
-        // });
-    } catch (error) {
-        console.error('Error making eBay API request:', error);
-        return {
-            status: 'error',
-            message: 'Internal server error'
-        };
-    }
 }
 
 export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): Promise<Result<EbayTokens>> {
