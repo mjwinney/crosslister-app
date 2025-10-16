@@ -24,16 +24,16 @@
                             <input class="form-check-input" type="checkbox" value="" id="itemCheckbox1">
                             <label class="form-check-label" for="itemCheckbox1"></label>
                         </div>
-                        <img src={item.PictureDetails.GalleryURL} class="img-fluid item-image" alt={item.Title}>
+                        <img src={item.PictureDetails.GalleryURL} class="border img-fluid item-image" alt={item.Title}>
                     </div>
                     <div class="col-md">
                         <div class="card-body card-body-custom">
                             <div>
                                 <h5 class="card-title">{item.Title}</h5>
-                                <p class="card-text text-muted">A rare collector's edition action figure from the 1980s. Still in its original packaging. A must-have for any enthusiast.</p>
+                                <p class="card-text text-muted">Item ID: {item.ItemID}</p>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <h4 class="mb-0 text-success">${item.SellingStatus.CurrentPrice}</h4>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <h4 class="mb-0">${item.SellingStatus.CurrentPrice}</h4>
                                 <a href="#" class="btn btn-primary btn-sm">View Item</a>
                             </div>
                         </div>
@@ -53,7 +53,7 @@
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .item-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-1px);
         box-shadow: 0 6px 10px rgba(0,0,0,0.15);
     }
     .item-image {
