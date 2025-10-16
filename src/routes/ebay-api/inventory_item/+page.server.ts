@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { retrieveAllOffers } from '$lib/server/ebayUtils';
+import { getMyEbaySelling } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 
-    const response = await retrieveAllOffers(locals);
+    const response = await getMyEbaySelling(locals);
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {
             status: 500,

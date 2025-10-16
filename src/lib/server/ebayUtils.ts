@@ -1,6 +1,7 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
 import { StatusCodes, updateEbayToken } from "./DatabaseUtils";
+import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
     status: 'success';
@@ -306,5 +307,74 @@ export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: n
         status: 200,
         data: offers
     };
+}
+
+export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`getMyEbaySelling called, using access token: ${locals.ebayAccessToken}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+    };
+
+    console.log('getMyEbaySelling headers:', JSON.stringify(headers));
+
+    // Now build the XML body for the request
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <ActiveList>
+            <Sort>StartTimeDescending</Sort>
+            <Pagination>
+                <EntriesPerPage>20</EntriesPerPage>
+                <PageNumber>1</PageNumber>
+            </Pagination>
+        </ActiveList>
+    </GetMyeBaySellingRequest>`;
+
+    console.log('getMyEbaySelling xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`getMyEbaySelling data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbaySelling response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbaySelling data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbaySelling response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbaySelling:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
 }
 
