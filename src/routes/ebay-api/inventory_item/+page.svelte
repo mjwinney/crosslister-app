@@ -10,6 +10,21 @@
             goto('/');
         }
     });
+
+    // function handleOpenTabUsingPuppeteer() {
+    //     (async () => {
+    //         const browser = await puppeteer.launch({
+    //             headless: false,
+    //             executablePath: '/usr/bin/google-chrome-stable',
+    //             args: ['--no-sandbox', '--disable-setuid-sandbox']
+    //         });
+    //         const page = await browser.newPage();
+    //         await page.goto('https://www.scrapingbee.com/');
+    //         await page.waitForNetworkIdle({ idleTime: 2000 });
+    //         await browser.close();
+    //     })();
+    // }
+
     export let data;
 </script>
 
@@ -34,7 +49,7 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mt-1">
                                 <h4 class="mb-0">${item.SellingStatus.CurrentPrice}</h4>
-                                <a href="#" class="btn btn-primary btn-sm">View Item</a>
+                                <a href="javascript:void(0);" class="btn btn-primary btn-sm">View Item</a>
                             </div>
                         </div>
                     </div>
@@ -43,6 +58,11 @@
         </div>
     {/each}
 </div>
+
+<form method="POST" action="?/openBrowser" use:enhance>
+    <input type="text" name="someInput" placeholder="Enter something" />
+    <button type="submit">Call Server Function</button>
+</form>
 
 <style>
     .item-card {

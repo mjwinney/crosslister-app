@@ -1,7 +1,11 @@
-import { json } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+// import { json } from '@sveltejs/kit';
+// import { env } from '$env/dynamic/private';
 import { getMyEbaySelling } from '$lib/server/ebayUtils';
+// import puppeteer from 'puppeteer-core/lib/cjs/puppeteer/puppeteer-core.js';
 import type { PageServerLoad } from './$types';
+// src/routes/your-page/+page.server.ts
+import type { Actions } from './$types';
+import puppeteer from 'puppeteer';
 
 export const load: PageServerLoad = async ({ locals }) => {
 
@@ -19,6 +23,36 @@ export const load: PageServerLoad = async ({ locals }) => {
     return {
         post: response.data,
     };
+};
+
+export const actions: Actions = {
+    async openBrowser({ request }) {
+       console.log('openBrowser: ENTER');
+
+    const browser = await puppeteer.launch({
+        headless: false, // Set to true for headless mode (no UI)
+        userDataDir: "C:\\Users\\winneymj\\AppData\\Local\\Google\\Chrome\\User Data", // Path to your Chrome user data directory
+        executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Path to your Chrome executable
+       });
+
+    //    const browser = await puppeteer.launch({
+    //     headless: false, // Set to true for headless mode (no UI)
+    //     userDataDir: "C:\\Users\\winneymj\\AppData\\Local\\Google\\Chrome\\User Data\\Default", // Path to your Chrome user data directory
+    //     executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Path to your Chrome executable
+    //    });
+
+        // const browser = await puppeteer.launch({
+        //     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Example path for Windows
+        //     headless: false // Set to true for headless mode (no UI)
+        // });
+        const page = await browser.newPage();
+        await page.goto('https://poshmark.com'); // Replace with your desired URL
+
+        console.log('Page loaded successfully!');
+
+        // Perform server-side logic here
+        return { success: true, message: 'Operation complete!' };
+    }
 };
 
 // Example: Retrieve listed items from eBay API
