@@ -5,7 +5,7 @@ import { getMyEbaySelling } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 // src/routes/your-page/+page.server.ts
 import type { Actions } from './$types';
-import puppeteer from 'puppeteer';
+// import puppeteer from 'puppeteer';
 
 export const load: PageServerLoad = async ({ locals }) => {
 
@@ -29,11 +29,11 @@ export const actions: Actions = {
     async openBrowser({ request }) {
        console.log('openBrowser: ENTER');
 
-    const browser = await puppeteer.launch({
-        headless: false, // Set to true for headless mode (no UI)
-        userDataDir: "C:\\Users\\winneymj\\AppData\\Local\\Google\\Chrome\\User Data", // Path to your Chrome user data directory
-        executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Path to your Chrome executable
-       });
+    // const browser = await puppeteer.launch({
+    //     headless: false, // Set to true for headless mode (no UI)
+    //     userDataDir: "C:\\Users\\winneymj\\AppData\\Local\\Google\\Chrome\\User Data", // Path to your Chrome user data directory
+    //     executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" // Path to your Chrome executable
+    //    });
 
     //    const browser = await puppeteer.launch({
     //     headless: false, // Set to true for headless mode (no UI)
@@ -45,8 +45,8 @@ export const actions: Actions = {
         //     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Example path for Windows
         //     headless: false // Set to true for headless mode (no UI)
         // });
-        const page = await browser.newPage();
-        await page.goto('https://poshmark.com'); // Replace with your desired URL
+        // const page = await browser.newPage();
+        // await page.goto('https://poshmark.com'); // Replace with your desired URL
 
         console.log('Page loaded successfully!');
 
