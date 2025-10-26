@@ -1,6 +1,7 @@
 <script lang="ts">
   import { authClient } from "$lib/auth-client";
 	import { goto } from "$app/navigation";
+	import Signin from "./Signin.svelte";
 
   const session = authClient.useSession();
 
@@ -16,10 +17,6 @@
 
 	function handleEbayAuth() {
     goto('/ebay-api/auth');
-	};
-
-  function handleEbayItems() {
-    goto('/ebay-api/inventory_item');
 	};
 
 </script>
@@ -80,23 +77,5 @@
 </header>
 <!-- header end-->
 
-<style>
-.form-control-dark {
-  border-color: var(--bs-gray);
-}
-.form-control-dark:focus {
-  border-color: #fff;
-  box-shadow: 0 0 0 .25rem rgba(255, 255, 255, .25);
-}
-
-.text-small {
-  font-size: 85%;
-}
-
-.dropdown-toggle:not(:focus) {
-  outline: 0;
-}
-</style>
-
-<!-- <Signin />
-<Register /> -->
+<Signin />
+<!--Register /> -->
