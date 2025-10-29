@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { StatusCodes, updateEbayToken } from "./DatabaseUtils";
+import { getEbayMetadata, insertActiveEbayItems, StatusCodes, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
@@ -9,20 +9,20 @@ interface Success<T> {
 }
 
 interface Failure {
-  status: 'error';
-  message: string;
+    status: 'error';
+    message: string;
 }
 
 interface EbayTokens {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
 }
 
 // Combine them into a discriminated union
 type Result<T> = Success<T> | Failure;
 
-export async function buildEbayAuthURL() : Promise<Result<string>> {
+export async function buildEbayAuthURL(): Promise<Result<string>> {
     console.log('buildEbayAuthURL called');
 
     const EBAY_CLIENT_ID = env.EBAY_CLIENT_ID;
@@ -181,7 +181,7 @@ export async function refreshEbayToken(locals: App.Locals) {
             // tokenStore = { accessToken: null, refreshToken: null, expiresAt: 0 };
             throw new Error('Could not refresh eBay access token. Re-authentication required.');
         }
-    }  catch (error) {
+    } catch (error) {
         console.error('Error refreshing eBay token:', error);
         throw error;
     }
@@ -231,7 +231,7 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
             status: 200,
             data: data
         };
-    }  catch (error) {
+    } catch (error) {
         console.error('Error retrieveAllInventoryItems:', error);
         return {
             status: 500,
@@ -309,7 +309,7 @@ export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: n
     };
 }
 
-export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`getMyEbaySelling called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
@@ -321,7 +321,7 @@ export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: nu
         'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
     };
 
-    console.log('getMyEbaySelling headers:', JSON.stringify(headers));
+    console.log('getMyEbaySellingActive headers:', JSON.stringify(headers));
 
     // Now build the XML body for the request
     const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
@@ -338,7 +338,7 @@ export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: nu
         </ActiveList>
     </GetMyeBaySellingRequest>`;
 
-    console.log('getMyEbaySelling xmlBody:', xmlBody);
+    console.log('getMyEbaySellingActive xmlBody:', xmlBody);
 
     try {
         const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
@@ -353,16 +353,42 @@ export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: nu
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            console.log(`getMyEbaySelling data: ${JSON.stringify(jsonData)}`);
-            console.log(`getMyEbaySelling response.status: ${JSON.stringify(response.status)}`);
+            console.log(`getMyEbaySellingActive data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbaySellingActive response.status: ${JSON.stringify(response.status)}`);
+
+            // Update: Store active items in the database
+            for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
+                const itemId = item.ItemID;
+                const startDate = new Date(item.ListingDetails.StartTime);
+
+                const status = await insertActiveEbayItems(itemId, startDate);
+                if (status !== StatusCodes.OK) {
+                    console.error(`Failed to insert active eBay item for itemId:${itemId}`);
+                    return {
+                        status: 500,
+                        data: {}
+                    };
+                }
+
+                // Gather the metadata for the item and combine it into the returned JSON
+                const metadata = await getEbayMetadata(itemId);
+
+                if (metadata === StatusCodes) {
+                    // Do nothing here, just a type guard
+                }
+                else {
+                    // Must have gotten metadata back so combine the data into the item
+                    item.Metadata = metadata;
+                }
+            }
 
             return {
                 status: response.status,
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbaySelling data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbaySelling response.status: ${JSON.stringify(response.status)}`);
+            console.log(`getMyEbaySellingActive data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbaySellingActive response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,
@@ -370,7 +396,7 @@ export async function getMyEbaySelling(locals: App.Locals): Promise<{ status: nu
             };
         }
     } catch (error) {
-        console.error('Error getMyEbaySelling:', error);
+        console.error('Error getMyEbaySellingActive:', error);
         return {
             status: 500,
             data: {}

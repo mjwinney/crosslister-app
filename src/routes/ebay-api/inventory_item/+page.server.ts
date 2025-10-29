@@ -1,6 +1,6 @@
 // import { json } from '@sveltejs/kit';
 // import { env } from '$env/dynamic/private';
-import { getMyEbaySelling } from '$lib/server/ebayUtils';
+import { getMyEbaySellingActive } from '$lib/server/ebayUtils';
 // import puppeteer from 'puppeteer-core/lib/cjs/puppeteer/puppeteer-core.js';
 import type { PageServerLoad } from './$types';
 // src/routes/your-page/+page.server.ts
@@ -9,7 +9,7 @@ import type { Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 
-    const response = await getMyEbaySelling(locals);
+    const response = await getMyEbaySellingActive(locals);
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {
             status: 500,

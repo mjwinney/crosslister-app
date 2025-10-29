@@ -3,6 +3,10 @@
 	import { authClient } from '$lib/auth-client';
 	import { onMount } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
+	import { DatePicker } from '@svelte-plugins/datepicker';
+	import { format } from 'date-fns';
+	import WrapperCurrencyInput from '../../../components/WrapperCurrencyInput.svelte';
+	import type { FocusEventHandler } from 'svelte/elements';
 
 	onMount(async () => {
 		const session = await authClient.getSession();
@@ -48,13 +52,38 @@
 //     target.setSelectionRange(cursorStart, cursorEnd);
 // }
 
-    let amount = 123.45;
+	let amount = 123.45;
 
-    export let data;
+	let startDate = new Date();
+	let dateFormat = 'MM/dd/yy';
+	let isOpen = false;
+
+	const toggleDatePicker = () => (isOpen = !isOpen);
+
+	const formatDate = (dateString) => {
+		if (isNaN(new Date(dateString))) {
+		return '';
+		}
+
+		return dateString && format(new Date(dateString), dateFormat) || '';
+	};
+
+
+	let formattedStartDate = formatDate(startDate);
+
+	function handleOnblur(event: FocusEvent) {
+		console.log('Blur event received from WrapperCurrencyInput:', event);
+	}
+
+	// $: formattedStartDate = formatDate(startDate);
+
+	const { data } = $props();
+	let dataItems = $state(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
+
 </script>
 
 <div class="row row-cols-1 g-4">
-	{#each data.post.GetMyeBaySellingResponse.ActiveList.ItemArray.Item as item}
+	{#each dataItems.Item as item}
 		<!-- Item Card Example 1 -->
 		<div class="col">
 			<div class="card item-card">
@@ -74,28 +103,37 @@
 						<div class="card-body card-body-custom">
 							<form>
 								<div class="row">
-									<div class="col-md-3">
+									<div class="col-md-2">
                                         <p class="card-title fs-6 mb-0">{item.Title}</p>
                                         <p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
                                         <p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
 									</div>
-									<div class="col-md-3">
-										<div class="form-group">
-                                            <label for="originalPrice">Original Price</label>
-                                            <CurrencyInput bind:value={amount} currency="USD" locale="en-US" />
-                                            <!-- <input type="tel" class="form-control" id="originalPrice" placeholder="0.00"> -->
+									<div class="col-md-2">
+										<div class="form-group" onfocusout={handleOnblur}>
+                                            <label for="originalPrice">Purchase Price</label>
+                                            <CurrencyInput bind:value={item.Metadata.purchasePrice} currency="USD" locale="en-US" />
 										</div>
 									</div>
-									<div class="col-md-3">
+									<div class="col-md-2">
+										<div class="form-group">
+                                            <label for="originalPrice">Purchase Date</label>
+											<input type="text" class="form-control" placeholder="Select date" bind:value={formattedStartDate} onclick={toggleDatePicker} />
+											<div style="position: relative;">
+												<DatePicker bind:isOpen bind:startDate>
+												</DatePicker>
+											</div>
+										</div>
+									</div>
+									<div class="col-md-2">
 										<div class="form-group">
 											<label for="purchaseLocation">Purchase Location</label>
-											<input type="text" class="form-control" id="purchaseLocation" />
+											<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={handleOnblur} />
 										</div>
 									</div>
-									<div class="col-md-3">
+									<div class="col-md-2">
 										<div class="form-group">
 											<label for="storageLocation">Storage Location</label>
-											<input type="text" class="form-control" id="storageLocation" />
+											<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={handleOnblur} />
 										</div>
 									</div>
 								</div>

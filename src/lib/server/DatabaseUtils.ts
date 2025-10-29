@@ -2,6 +2,8 @@
 import mongoose, { now } from 'mongoose';
 import { MONGODB_URI } from '$env/static/private'; // Assuming you've set up environment variables in SvelteKit
 import { EbayToken } from './models/ebay-token';
+import { EbayActiveItems } from './models/ebay-active-items';
+import { EbayItemMetadata } from './models/ebay-item-metadata';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -33,7 +35,8 @@ export enum StatusCodes {
     BadRequest,
     NoDatabaseConnection,
     RegisteredUserAlreadyExists,
-    ErrorCreatingUser
+    ErrorCreatingUser,
+    InsertFailed
 }
 
 export async function updateEbayToken(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<StatusCodes> {
@@ -120,5 +123,86 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
     } catch (error) {
         console.error(`Error finding eBay data for userId:${userId}`, error);
         return { status: 'error', message: `Thrown Error finding eBay data for userId:${userId}` };
+    }
+}
+
+export async function insertActiveEbayItems(itemId: string, startDate: Date) : Promise<StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        await EbayActiveItems.updateOne({ _id: itemId }, {
+            startDate
+        },
+        { upsert: true } // Create a new document if one doesn't exist
+        );
+        return StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`Error inserting active eBay data for itemId:${itemId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
+export type MetaDataModel = {
+    purchasePrice?: number,
+    purchaseDate?: Date,
+    purchaseLocation?: string,
+    storageLocation?: string,
+}
+
+export async function updateEbayMetadata(itemId: string, metaDataModel: MetaDataModel) : Promise<StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        await EbayItemMetadata.updateOne({ _id: itemId }, {
+            ...metaDataModel
+        },
+        { upsert: true } // Create a new document if one doesn't exist
+        );
+        return StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`Error inserting eBay metadata for itemId:${itemId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
+export async function getEbayMetadata(itemId: string) : Promise<MetaDataModel | StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        const metaData = await EbayItemMetadata.findById(itemId).exec();
+
+        return metaData ? {
+            purchasePrice: metaData.purchasePrice || undefined,
+            purchaseDate: metaData.purchaseDate || undefined,
+            purchaseLocation: metaData.purchaseLocation || undefined,
+            storageLocation: metaData.storageLocation || undefined,
+        } : { }; StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`Error inserting eBay metadata for itemId:${itemId}`, error);
+        return StatusCodes.InsertFailed;
     }
 }
