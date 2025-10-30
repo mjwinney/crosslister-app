@@ -5,8 +5,7 @@
     import CurrencyInput from '@canutin/svelte-currency-input';
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
-	import WrapperCurrencyInput from '../../../components/WrapperCurrencyInput.svelte';
-	import type { FocusEventHandler } from 'svelte/elements';
+	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 
 	onMount(async () => {
 		const session = await authClient.getSession();
@@ -52,39 +51,67 @@
 //     target.setSelectionRange(cursorStart, cursorEnd);
 // }
 
-	let amount = 123.45;
+	function isoToShortDate(isoString: string): string {
+		const date = new Date(isoString);
 
-	let startDate = new Date();
-	let dateFormat = 'MM/dd/yy';
-	let isOpen = false;
+		const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
+		const day = date.getUTCDate().toString().padStart(2, '0');
+		const year = date.getUTCFullYear().toString().slice(-2); // Get last two digits
 
-	const toggleDatePicker = () => (isOpen = !isOpen);
-
-	const formatDate = (dateString) => {
-		if (isNaN(new Date(dateString))) {
-		return '';
-		}
-
-		return dateString && format(new Date(dateString), dateFormat) || '';
-	};
-
-
-	let formattedStartDate = formatDate(startDate);
-
-	function handleOnblur(event: FocusEvent) {
-		console.log('Blur event received from WrapperCurrencyInput:', event);
+		return `${month}/${day}/${year}`;
 	}
 
-	// $: formattedStartDate = formatDate(startDate);
+	async function postMetaData(itemID: string, metaData: MetaDataModel) {
+		console.log('postMetaData called:', itemID, metaData);
+
+		const formData = new FormData();
+		formData.append('itemId', itemID);
+		formData.append('metaData', JSON.stringify(metaData));
+
+		const response = await fetch('/ebay-api/inventory_item?/updateItem', {
+			method: 'POST',
+			body: formData
+		});
+	}
+
+	function handleDateInput(event: Event, itemID: string, metaData: MetaDataModel) {
+		console.log('handleDateInput event received:', itemID, metaData);
+		const input = (event.target as HTMLInputElement).value;
+
+		// Convert MM/DD/YY to ISO
+		const [month, day, year] = input.split('/').map(Number);
+		const fullYear = year < 100 ? 2000 + year : year;
+		// const iso = new Date(Date.UTC(fullYear, month - 1, day)).toISOString();
+		const iso = new Date(Date.UTC(fullYear, month - 1, day));
+
+		metaData.purchaseDate = iso;
+		// Write the data to the database
+		postMetaData(itemID, metaData);	
+	}
+
+	function getDisplayDate(iso: string): string {
+		if (!iso) {
+			return '';
+		}
+		try {
+			return isoToShortDate(iso);
+		} catch {
+			return '';
+		}
+	}
+
+	function handleOnblur(itemID: string, metaData: MetaDataModel) {
+		console.log('Blur event received:', itemID, metaData);
+		// Write the data to the database
+		postMetaData(itemID, metaData);
+	}
 
 	const { data } = $props();
 	let dataItems = $state(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
-
 </script>
 
 <div class="row row-cols-1 g-4">
 	{#each dataItems.Item as item}
-		<!-- Item Card Example 1 -->
 		<div class="col">
 			<div class="card item-card">
 				<div class="row g-0">
@@ -109,7 +136,7 @@
                                         <p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
 									</div>
 									<div class="col-md-2">
-										<div class="form-group" onfocusout={handleOnblur}>
+										<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
                                             <label for="originalPrice">Purchase Price</label>
                                             <CurrencyInput bind:value={item.Metadata.purchasePrice} currency="USD" locale="en-US" />
 										</div>
@@ -117,7 +144,7 @@
 									<div class="col-md-2">
 										<div class="form-group">
                                             <label for="originalPrice">Purchase Date</label>
-											<input type="text" class="form-control" placeholder="Select date" bind:value={formattedStartDate} onclick={toggleDatePicker} />
+											<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
 											<div style="position: relative;">
 												<DatePicker bind:isOpen bind:startDate>
 												</DatePicker>
@@ -127,13 +154,13 @@
 									<div class="col-md-2">
 										<div class="form-group">
 											<label for="purchaseLocation">Purchase Location</label>
-											<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={handleOnblur} />
+											<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 										</div>
 									</div>
 									<div class="col-md-2">
 										<div class="form-group">
 											<label for="storageLocation">Storage Location</label>
-											<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={handleOnblur} />
+											<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 										</div>
 									</div>
 								</div>

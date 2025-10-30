@@ -167,6 +167,10 @@ export async function updateEbayMetadata(itemId: string, metaDataModel: MetaData
         return StatusCodes.NoDatabaseConnection;
     }
 
+    if (!metaDataModel) {
+        return StatusCodes.BadRequest;
+    }
+
     try {
         await EbayItemMetadata.updateOne({ _id: itemId }, {
             ...metaDataModel

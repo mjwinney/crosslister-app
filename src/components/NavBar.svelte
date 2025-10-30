@@ -64,7 +64,7 @@
     </div>
     <div class="d-flex align-items-right justify-content-end">
       {#if $session?.data}
-        <button type="button" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" onclick="{handleLogout}">
           Log Out
         </button>
       {:else}
