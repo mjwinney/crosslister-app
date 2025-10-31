@@ -8,7 +8,7 @@
   	});
 
 	// import 'bootstrap/dist/js/bootstrap.bundle.min.js';
-	import '$lib/app.scss';
+	// import '$lib/app.scss';
 	import NavBar from '../components/NavBar.svelte';
 	import NavSideBar from "../components/NavSideBar.svelte";
 
