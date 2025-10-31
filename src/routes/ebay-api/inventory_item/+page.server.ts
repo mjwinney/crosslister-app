@@ -1,16 +1,27 @@
 // import { json } from '@sveltejs/kit';
 // import { env } from '$env/dynamic/private';
 import { updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
-import { getMyEbaySellingActive } from '$lib/server/ebayUtils';
+import { getMyEbaySellingActive, getMyEbaySellingSold } from '$lib/server/ebayUtils';
+import type { get } from 'http';
 // import puppeteer from 'puppeteer-core/lib/cjs/puppeteer/puppeteer-core.js';
 import type { PageServerLoad } from './$types';
 // src/routes/your-page/+page.server.ts
 import type { Actions } from './$types';
 // import puppeteer from 'puppeteer';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ request, locals }) => {
 
-    const response = await getMyEbaySellingActive(locals);
+    // retrieve the type from the query string parameter
+    const url = new URL(request.url);
+    const type = url.searchParams.get('type');
+
+    let response: { status: number; data: any; } | { status: number; message: string; } = { status: 500, message: 'Invalid type' };
+    if (type === 'active') {
+        response = await getMyEbaySellingActive(locals);
+    } else if (type === 'sold') {
+        response = await getMyEbaySellingSold(locals);
+    }
+
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {
             status: 500,
@@ -48,11 +59,11 @@ export const actions: Actions = {
         console.log('eBay API request successful, response.data:', JSON.stringify(response.data));
 
         console.log('eBay API request successful, returning data...');
-        return {
-            post: response.data,
-        };
+        // return {
+        //     post: response.data,
+        // };
 
         // Perform server-side logic here
         return { success: true, message: 'Operation complete!' };
-    }
+    },
 };

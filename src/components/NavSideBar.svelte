@@ -18,8 +18,8 @@
     goto('/ebay-api/auth');
 	};
 
-  function handleEbayItems() {
-    goto('/ebay-api/inventory_item');
+  async function handleEbayItems(type: string) {
+    goto(`/ebay-api/inventory_item?type=${type}`);
 	};
 
 	let { children } = $props();
@@ -46,15 +46,15 @@
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{handleEbayItems}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems('active')}"
                       >Active</a
                     >
                   </li>
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Updates</a
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems('sold')}"
+                      >Sold</a
                     >
                   </li>
                   <li>

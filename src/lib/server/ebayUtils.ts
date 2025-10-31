@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { getEbayMetadata, insertActiveEbayItems, StatusCodes, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { getEbayMetadata, insertActiveEbayItems, insertSoldEbayItems, StatusCodes, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
@@ -310,7 +310,7 @@ export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: n
 }
 
 export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`getMyEbaySelling called, using access token: ${locals.ebayAccessToken}`);
+    console.log(`getMyEbaySellingActive called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -355,6 +355,15 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
             const jsonData = parser.parse(data);
             console.log(`getMyEbaySellingActive data: ${JSON.stringify(jsonData)}`);
             console.log(`getMyEbaySellingActive response.status: ${JSON.stringify(response.status)}`);
+
+            // See if any active items were returned
+            if (!jsonData.GetMyeBaySellingResponse?.ActiveList) {
+                console.log('No active items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
 
             // Update: Store active items in the database
             for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
@@ -404,3 +413,106 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
     }
 }
 
+export async function getMyEbaySellingSold(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`getMyEbaySellingSold called, using access token: ${locals.ebayAccessToken}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+    };
+
+    console.log('getMyEbaySellingSold headers:', JSON.stringify(headers));
+
+    // Now build the XML body for the request
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <SoldList>
+            <Sort>EndTimeDescending</Sort>
+            <Pagination>
+                <EntriesPerPage>20</EntriesPerPage>
+                <PageNumber>1</PageNumber>
+            </Pagination>
+        </SoldList>
+    </GetMyeBaySellingRequest>`;
+
+    console.log('getMyEbaySellingSold xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`getMyEbaySellingSold data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbaySellingSold response.status: ${JSON.stringify(response.status)}`);
+
+            // Update: Store sold items in the database
+            // See if any sold items were returned
+            if (!jsonData.GetMyeBaySellingResponse?.SoldList) {
+                console.log('No sold items found in the response.');
+                return {
+                    status: response.status,
+                    data: jsonData
+                };
+            }
+
+            for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
+                const itemId = item.ItemID;
+                const startDate = new Date(item.ListingDetails.StartTime);
+
+                const status = await insertSoldEbayItems(itemId, startDate);
+                if (status !== StatusCodes.OK) {
+                    console.error(`Failed to insert sold eBay item for itemId:${itemId}`);
+                    return {
+                        status: 500,
+                        data: {}
+                    };
+                }
+
+                // Gather the metadata for the item and combine it into the returned JSON
+                const metadata = await getEbayMetadata(itemId);
+
+                if (metadata === StatusCodes) {
+                    // Do nothing here, just a type guard
+                }
+                else {
+                    // Must have gotten metadata back so combine the data into the item
+                    item.Metadata = metadata;
+                }
+            }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbaySellingActive data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbaySellingActive response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbaySellingActive:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}

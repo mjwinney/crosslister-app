@@ -4,6 +4,7 @@ import { MONGODB_URI } from '$env/static/private'; // Assuming you've set up env
 import { EbayToken } from './models/ebay-token';
 import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
+import { EbaySoldItems } from './models/ebay-sold-items';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -146,6 +147,30 @@ export async function insertActiveEbayItems(itemId: string, startDate: Date) : P
 
     } catch (error) {
         console.error(`Error inserting active eBay data for itemId:${itemId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
+export async function insertSoldEbayItems(itemId: string, startDate: Date) : Promise<StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        await EbaySoldItems.updateOne({ _id: itemId }, {
+            startDate
+        },
+        { upsert: true } // Create a new document if one doesn't exist
+        );
+        return StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`Error inserting sold eBay data for itemId:${itemId}`, error);
         return StatusCodes.InsertFailed;
     }
 }
