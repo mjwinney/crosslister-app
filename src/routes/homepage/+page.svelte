@@ -5,12 +5,13 @@
 
     onMount( async () => {
         const session = await authClient.getSession();
-        // console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
+        // console.log(`Homepage page load function: session=${JSON.stringify(session)}`);
         if (!session || !session?.data) {
-            goto('/');
+            goto('/homepage');
         }
 	});
 
 </script>
 
-<h1>Dashboard</h1>
+<h1>Homepage</h1>
+<p>Welcome to the homepage!</p>

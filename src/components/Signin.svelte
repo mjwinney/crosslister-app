@@ -60,7 +60,7 @@
         	email: email.toString() || "", // user email address
         	password: password.toString() || "", // user password -> min 8 characters by default
 			rememberMe: false,
-			callbackURL: "/dashboard",
+			callbackURL: "/auth/dashboard",
 		}, {
 			onRequest: (ctx) => {
 				//show loading

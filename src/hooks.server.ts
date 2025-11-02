@@ -14,13 +14,14 @@ export async function handle({ event, resolve }) {
   });
   // console.log('Session:', session);
  
-  console.log(`hooks.server.ts: event.url.pathname=${event.url.pathname}`);
+  console.log(`hooks.server.ts: event.url.pathname=${event.url.pathname}, session=${JSON.stringify(session)}`);
 
   // Make session and user available on server
   if (session) {
     event.locals.session = session.session;
     event.locals.user = session.user;
     const status = await getEbayTokensFromDB(session.user.id);
+
     if (status.status === 'error') {
       console.log("Error fetching eBay tokens from DB:", status.message);
     }
@@ -32,8 +33,8 @@ export async function handle({ event, resolve }) {
       await refreshEbayToken(event.locals);
     }
     else if (status.status === 'success') {
-      console.log("ebayAccessToken:", status.data.accessToken);
-      console.log("ebayRefreshToken:", status.data.refreshToken);
+      // console.log("ebayAccessToken:", status.data.accessToken);
+      // console.log("ebayRefreshToken:", status.data.refreshToken);
       // Determine if the tokens are close to expiration and refresh if necessary
       event.locals.ebayAccessToken = status.data.accessToken;
       event.locals.ebayRefreshToken = status.data.refreshToken;
@@ -41,11 +42,11 @@ export async function handle({ event, resolve }) {
   }
  
   // Define protected routes or patterns
-  const protectedRoutes = ["/dashboard", "/ebay-api/auth", "/ebay-api/inventory_item", "/ebay-api/auth-success-callback"];
+  const protectedRoutes = ["/auth/dashboard", "/auth/active-items", "/ebay-api/auth", "/ebay-api/inventory_item", "/ebay-api/auth-success-callback"];
 
   // Check if the current route is protected and the user is not authenticated
   if (protectedRoutes.includes(event.url.pathname) && !event.locals.session) {
-    throw redirect(302, "/"); // Redirect to your home page
+    throw redirect(302, "/homepage"); // Redirect to your home page
   }
 
   return svelteKitHandler({ event, resolve, auth, building });

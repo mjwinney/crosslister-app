@@ -9,14 +9,14 @@
     authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          goto('/'); // Goto the homepage
+          goto('/homepage'); // Goto the homepage
         },
       },
     });
   };
 
 	function handleEbayAuth() {
-    goto('/ebay-api/auth');
+    goto('/auth/ebay-auth');
 	};
 
 </script>

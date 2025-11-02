@@ -10,7 +10,7 @@ let cachedDb: mongoose.Connection | null = null; // Cache for the database conne
 
 export async function connectToDatabase() {
     if (cachedDb) {
-        console.log("Using existing database connection");
+        // console.log("Using existing database connection");
         return cachedDb;
     }
 
@@ -22,7 +22,7 @@ export async function connectToDatabase() {
             socketTimeoutMS: 45000, // How long the MongoDB driver will wait before killing a socket due to inactivity after initial connection.
             retryWrites: true // Enable retryable writes for fault tolerance (set to false if using a database that does not support them like AWS DocumentDB).
         });
-        console.log("New database connection established");
+        // console.log("New database connection established");
         cachedDb = db.connection; // Store the Mongoose connection object
         return cachedDb;
     } catch (error) {

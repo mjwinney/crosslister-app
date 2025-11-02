@@ -19,7 +19,7 @@
 	};
 
   async function handleEbayItems(type: string) {
-    goto(`/ebay-api/inventory_item?type=${type}`);
+    goto(`/auth/active-items?type=${type}`);
 	};
 
 	let { children } = $props();
@@ -60,8 +60,8 @@
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Reports</a
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto('/auth/market-places')}"
+                      >Market Places</a
                     >
                   </li>
                 </ul>
