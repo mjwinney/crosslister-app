@@ -366,12 +366,14 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
                 };
             }
 
+            const userId = locals?.session?.userId || '';
+
             // Update: Store active items in the database
             for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
                 const itemId = item.ItemID;
                 const startDate = new Date(item.ListingDetails.StartTime);
 
-                const status = await insertActiveEbayItems(itemId, startDate);
+                const status = await insertActiveEbayItems(userId, itemId, startDate);
                 if (status !== StatusCodes.OK) {
                     console.error(`Failed to insert active eBay item for itemId:${itemId}`);
                     return {
@@ -381,7 +383,7 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
                 }
 
                 // Gather the metadata for the item and combine it into the returned JSON
-                const metadata = await getEbayMetadata(itemId);
+                const metadata = await getEbayMetadata(userId, itemId);
 
                 if (metadata === StatusCodes) {
                     // Do nothing here, just a type guard

@@ -3,6 +3,8 @@
 	import { authClient } from '$lib/auth-client';
 	import { onMount } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
+	import { DatePicker } from '@svelte-plugins/datepicker';
+	import { format } from 'date-fns';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 
 	onMount(async () => {
@@ -59,11 +61,8 @@
 		return `${month}/${day}/${year}`;
 	}
 
-	async function postMetaData(itemID: string, metaData: MetaDataModel) {
+	async function postMetaData(userId: string, itemID: string, metaData: MetaDataModel) {
 		console.log('postMetaData called:', itemID, metaData);
-
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
 
 		const formData = new FormData();
 		formData.append('itemId', itemID);
@@ -76,7 +75,7 @@
 		});
 	}
 
-	function handleDateInput(event: Event, itemID: string, metaData: MetaDataModel) {
+	async function handleDateInput(event: Event, itemID: string, metaData: MetaDataModel) {
 		console.log('handleDateInput event received:', itemID, metaData);
 		const input = (event.target as HTMLInputElement).value;
 
@@ -86,9 +85,13 @@
 		// const iso = new Date(Date.UTC(fullYear, month - 1, day)).toISOString();
 		const iso = new Date(Date.UTC(fullYear, month - 1, day));
 
+		// Get user ID from session
+		const session = await authClient.getSession();
+		const userId = session.data?.session.userId || '';
+
 		metaData.purchaseDate = iso;
 		// Write the data to the database
-		postMetaData(itemID, metaData);	
+		postMetaData(userId, itemID, metaData);	
 	}
 
 	function getDisplayDate(iso: string): string {
@@ -112,73 +115,71 @@
 	let dataItems = $state(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
 </script>
 
-<div class="scroll-wrapper">
-	<div class="row row-cols-1 g-4">
-		{#each dataItems.Item as item}
-			<div class="col">
-				<div class="card item-card">
-					<div class="row g-0">
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-							<div class="form-check me-3">
-								<input class="form-check-input" type="checkbox" value="" id="itemCheckbox1" />
-								<label class="form-check-label" for="itemCheckbox1"></label>
-							</div>
-							<img
-								src={item.PictureDetails.GalleryURL}
-								class="border img-fluid item-image"
-								alt={item.Title}
-							/>
+<div class="row row-cols-1 g-4">
+	{#each dataItems.Item as item}
+		<div class="col">
+			<div class="card item-card">
+				<div class="row g-0">
+					<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+						<div class="form-check me-3">
+							<input class="form-check-input" type="checkbox" value="" id="itemCheckbox1" />
+							<label class="form-check-label" for="itemCheckbox1"></label>
 						</div>
-						<div class="col-md">
-							<div class="card-body card-body-custom">
-								<form>
-									<div class="row">
-										<div class="col-md-2">
-											<p class="card-title fs-6 mb-0">{item.Title}</p>
-											<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-											<p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
-												<label for="originalPrice">Purchase Price</label>
-												<CurrencyInput bind:value={item.Metadata.purchasePrice} currency="USD" locale="en-US" />
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="originalPrice">Purchase Date</label>
-												<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="purchaseLocation">Purchase Location</label>
-												<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="storageLocation">Storage Location</label>
-												<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-											</div>
+						<img
+							src={item.PictureDetails.GalleryURL}
+							class="border img-fluid item-image"
+							alt={item.Title}
+						/>
+					</div>
+					<div class="col-md">
+						<div class="card-body card-body-custom">
+							<form>
+								<div class="row">
+									<div class="col-md-2">
+                                        <p class="card-title fs-6 mb-0">{item.Title}</p>
+                                        <p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
+                                        <p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+                                            <label for="originalPrice">Purchase Price</label>
+                                            <CurrencyInput bind:value={item.Metadata.purchasePrice} currency="USD" locale="en-US" />
 										</div>
 									</div>
-								</form>
-								<!-- <div>
-									<p class="card-title">{item.Title}</p>
-									<p class="card-text text-muted">Item ID: {item.ItemID}</p>
+									<div class="col-md-2">
+										<div class="form-group">
+                                            <label for="originalPrice">Purchase Date</label>
+											<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group">
+											<label for="purchaseLocation">Purchase Location</label>
+											<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+										</div>
+									</div>
+									<div class="col-md-2">
+										<div class="form-group">
+											<label for="storageLocation">Storage Location</label>
+											<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+										</div>
+									</div>
 								</div>
-								<div class="d-flex justify-content-between align-items-center mt-1">
-									<p class="mb-0">${item.SellingStatus.CurrentPrice}</p>
-									<a href="javascript:void(0);" class="btn btn-primary btn-sm">View Item</a>
-								</div> -->
-							</div>
+							</form>
+							<!-- <div>
+                                <p class="card-title">{item.Title}</p>
+                                <p class="card-text text-muted">Item ID: {item.ItemID}</p>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <p class="mb-0">${item.SellingStatus.CurrentPrice}</p>
+                                <a href="javascript:void(0);" class="btn btn-primary btn-sm">View Item</a>
+                            </div> -->
 						</div>
 					</div>
 				</div>
 			</div>
-		{/each}
-	</div>
+		</div>
+	{/each}
 </div>
 
 <style>
@@ -206,10 +207,5 @@
 	}
 	.form-check-label {
 		cursor: pointer;
-	}
-	.scroll-wrapper {
-	max-height: 100vh; /* or a specific height like 600px */
-	overflow-y: auto;
-	padding: 1rem;
 	}
 </style>

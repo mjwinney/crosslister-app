@@ -127,7 +127,7 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
     }
 }
 
-export async function insertActiveEbayItems(itemId: string, startDate: Date) : Promise<StatusCodes>
+export async function insertActiveEbayItems(userId: string, itemId: string, startDate: Date) : Promise<StatusCodes>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -138,7 +138,7 @@ export async function insertActiveEbayItems(itemId: string, startDate: Date) : P
     }
 
     try {
-        await EbayActiveItems.updateOne({ _id: itemId }, {
+        await EbayActiveItems.updateOne({ _id: itemId, userId }, {
             startDate
         },
         { upsert: true } // Create a new document if one doesn't exist
@@ -182,7 +182,7 @@ export type MetaDataModel = {
     storageLocation?: string,
 }
 
-export async function updateEbayMetadata(itemId: string, metaDataModel: MetaDataModel) : Promise<StatusCodes>
+export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel) : Promise<StatusCodes>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -197,7 +197,7 @@ export async function updateEbayMetadata(itemId: string, metaDataModel: MetaData
     }
 
     try {
-        await EbayItemMetadata.updateOne({ _id: itemId }, {
+        await EbayItemMetadata.updateOne({ _id: itemId, userId }, {
             ...metaDataModel
         },
         { upsert: true } // Create a new document if one doesn't exist
@@ -210,7 +210,7 @@ export async function updateEbayMetadata(itemId: string, metaDataModel: MetaData
     }
 }
 
-export async function getEbayMetadata(itemId: string) : Promise<MetaDataModel | StatusCodes>
+export async function getEbayMetadata(userId: string, itemId: string) : Promise<MetaDataModel | StatusCodes>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -221,7 +221,7 @@ export async function getEbayMetadata(itemId: string) : Promise<MetaDataModel | 
     }
 
     try {
-        const metaData = await EbayItemMetadata.findById(itemId).exec();
+        const metaData = await EbayItemMetadata.findOne({ _id: itemId, userId }).exec();
 
         return metaData ? {
             purchasePrice: metaData.purchasePrice || undefined,

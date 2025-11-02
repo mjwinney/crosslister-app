@@ -15,7 +15,12 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     const url = new URL(request.url);
     const type = url.searchParams.get('type');
 
-    const response = await getMyEbaySellingActive(locals);
+    let response: { status: number; data: any; } | { status: number; message: string; } = { status: 500, message: 'Invalid type' };
+    if (type === 'active') {
+        response = await getMyEbaySellingActive(locals);
+    } else if (type === 'sold') {
+        response = await getMyEbaySellingSold(locals);
+    }
 
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {
@@ -40,12 +45,9 @@ export const actions: Actions = {
         console.log('updateItem: request JSON:', JSON.stringify(formData));
         const itemId = formData.get('itemId') as string;
         const metaData: MetaDataModel = JSON.parse(formData.get('metaData') as string);
-        const userId = formData.get('userId') as string;
-
-        console.log('updateItem: userId:', userId);
 
         // const metaData = formData.get('metaData') as MetaDataModel;
-        const response = await updateEbayMetadata(userId, itemId, metaData);
+        const response = await updateEbayMetadata(itemId, metaData);
 
         // if (response.status !== 200 || !('data' in response)) {
         //     return new Response('Failed to retrieve eBay inventory items', {
