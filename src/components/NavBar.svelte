@@ -2,6 +2,7 @@
   import { authClient } from "$lib/auth-client";
 	import { goto } from "$app/navigation";
 	import Signin from "./Signin.svelte";
+	import Register from "./Register.svelte";
 
   const session = authClient.useSession();
 
@@ -78,4 +79,4 @@
 <!-- header end-->
 
 <Signin />
-<!--Register /> -->
+<Register />
