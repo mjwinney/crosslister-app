@@ -2,7 +2,7 @@
 import mongoose from 'mongoose';
 
 const EbayItemMetadataSchema = new mongoose.Schema({
-    _id: { type: String, required: true }, // Use eBay's item ID as the document ID
+    itemId: { type: String, required: true },
     userId: { type: String, required: true },
     purchasePrice: { type: Number, required: false },
     purchaseDate: { type: Date, required: false },
@@ -11,5 +11,8 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });
+
+// enforce uniqueness per user+item
+EbayItemMetadataSchema.index({ itemId: 1, userId: 1 }, { unique: true });
 
 export const EbayItemMetadata = mongoose.model('EbayItemMetadata', EbayItemMetadataSchema);

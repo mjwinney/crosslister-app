@@ -2,11 +2,14 @@
 import mongoose from 'mongoose';
 
 const EbayActiveItemsSchema = new mongoose.Schema({
-    _id: { type: String, required: true },  // Use eBay's item ID as the document ID
+    itemId: { type: String, required: true },
     userId: { type: String, required: true },
     StartTime: { type: Date, required: true },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });
+
+// enforce uniqueness per user+item
+EbayActiveItemsSchema.index({ itemId: 1, userId: 1 }, { unique: true });
 
 export const EbayActiveItems = mongoose.model('EbayActiveItems', EbayActiveItemsSchema);

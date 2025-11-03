@@ -127,26 +127,28 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
     }
 }
 
-export async function insertActiveEbayItems(userId: string, itemId: string, startDate: Date) : Promise<StatusCodes>
-{
-    // Ensure the database connection is established
-    await connectToDatabase();
+// ...existing code...
 
-    if (!cachedDb) {
-        console.log("No database connection available");
-        return StatusCodes.NoDatabaseConnection;
-    }
+export async function updateActiveEbayItem(userId: string, itemId: string, updates: Partial<{ startDate: Date; [key: string]: any }>, upsert = false): Promise<StatusCodes> {
+    // Ensure DB connection
+    await connectToDatabase();
+    if (!cachedDb) return StatusCodes.NoDatabaseConnection;
 
     try {
-        await EbayActiveItems.updateOne({ _id: itemId, userId }, {
-            startDate
-        },
-        { upsert: true } // Create a new document if one doesn't exist
-        );
-        return StatusCodes.OK;
+        const result = await EbayActiveItems.findOneAndUpdate(
+            { itemId, userId },               // filter: match both itemId and userId
+            { $set: updates },                // apply updates
+            { new: true, upsert }             // return the updated doc; optionally create if missing
+        ).exec();
 
+        if (!result) {
+            // if upsert was false and no doc matched, treat as insert failure or not found
+            return upsert ? StatusCodes.InsertFailed : StatusCodes.BadRequest;
+        }
+
+        return StatusCodes.OK;
     } catch (error) {
-        console.error(`Error inserting active eBay data for itemId:${itemId}`, error);
+        console.error(`Error updating active eBay item ${itemId} for user ${userId}:`, error);
         return StatusCodes.InsertFailed;
     }
 }
@@ -182,7 +184,7 @@ export type MetaDataModel = {
     storageLocation?: string,
 }
 
-export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel) : Promise<StatusCodes>
+export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -197,15 +199,21 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
     }
 
     try {
-        await EbayItemMetadata.updateOne({ _id: itemId, userId }, {
-            ...metaDataModel
-        },
-        { upsert: true } // Create a new document if one doesn't exist
-        );
+        const result = await EbayItemMetadata.findOneAndUpdate(
+            { itemId, userId },         // match by _id and userId
+            { $set: metaDataModel },    // apply provided metadata fields
+            { new: true, upsert }       // return updated doc; optionally create if missing
+        ).exec();
+
+        if (!result) {
+            // if upsert was false and no doc matched, treat as not found / bad request
+            return upsert ? StatusCodes.InsertFailed : StatusCodes.BadRequest;
+        }
+
         return StatusCodes.OK;
 
     } catch (error) {
-        console.error(`Error inserting eBay metadata for itemId:${itemId}`, error);
+        console.error(`Error updating eBay metadata for itemId:${itemId} userId:${userId}`, error);
         return StatusCodes.InsertFailed;
     }
 }
@@ -221,7 +229,7 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
     }
 
     try {
-        const metaData = await EbayItemMetadata.findOne({ _id: itemId, userId }).exec();
+        const metaData = await EbayItemMetadata.findOne({ itemId, userId }).exec();
 
         return metaData ? {
             purchasePrice: metaData.purchasePrice || undefined,

@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { getEbayMetadata, insertActiveEbayItems, insertSoldEbayItems, StatusCodes, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { getEbayMetadata, insertSoldEbayItems, StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
@@ -373,7 +373,7 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
                 const itemId = item.ItemID;
                 const startDate = new Date(item.ListingDetails.StartTime);
 
-                const status = await insertActiveEbayItems(userId, itemId, startDate);
+                const status = await updateActiveEbayItem(userId, itemId, startDate, true);
                 if (status !== StatusCodes.OK) {
                     console.error(`Failed to insert active eBay item for itemId:${itemId}`);
                     return {

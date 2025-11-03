@@ -1,13 +1,7 @@
-// import { json } from '@sveltejs/kit';
-// import { env } from '$env/dynamic/private';
-import { updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
+import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
 import { getMyEbaySellingActive, getMyEbaySellingSold } from '$lib/server/ebayUtils';
-import type { get } from 'http';
-// import puppeteer from 'puppeteer-core/lib/cjs/puppeteer/puppeteer-core.js';
 import type { PageServerLoad } from './$types';
-// src/routes/your-page/+page.server.ts
 import type { Actions } from './$types';
-// import puppeteer from 'puppeteer';
 
 export const load: PageServerLoad = async ({ request, locals }) => {
 
@@ -45,23 +39,20 @@ export const actions: Actions = {
         console.log('updateItem: userId:', userId);
 
         // const metaData = formData.get('metaData') as MetaDataModel;
-        const response = await updateEbayMetadata(userId, itemId, metaData);
+        const response = await updateEbayMetadata(userId, itemId, metaData, true);
 
-        // if (response.status !== 200 || !('data' in response)) {
-        //     return new Response('Failed to retrieve eBay inventory items', {
-        //         status: 500,
-        //         headers: { 'Content-Type': 'text/html' }
-        //     });
-        // }
-
-        console.log('eBay API request successful, response.data:', JSON.stringify(response.data));
+        if (response !== StatusCodes.OK) {
+            return new Response('Failed to update eBay item metadata', {
+                status: 500,
+                headers: { 'Content-Type': 'text/html' }
+            });
+        }
 
         console.log('eBay API request successful, returning data...');
-        // return {
-        //     post: response.data,
-        // };
 
-        // Perform server-side logic here
-        return { success: true, message: 'Operation complete!' };
+        return new Response('Operation complete!', {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' }
+        });
     },
 };
