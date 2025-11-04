@@ -18,8 +18,8 @@
     goto('/ebay-api/auth');
 	};
 
-  async function handleEbayItems(type: string) {
-    goto(`/auth/active-items?type=${type}`);
+  async function handleEbayItems() {
+    goto(`/auth/active-items`);
 	};
 
 	let { children } = $props();
@@ -46,14 +46,14 @@
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems('active')}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems()}"
                       >Active</a
                     >
                   </li>
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems('sold')}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems()}"
                       >Sold</a
                     >
                   </li>

@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { onMount } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
+	import Pagination from '$lib/components/Pagination.svelte';
+	import { page } from '$app/state';
+	// import { url } from 'inspector';
 
 	onMount(async () => {
 		const session = await authClient.getSession();
@@ -12,42 +15,6 @@
 			goto('/');
 		}
 	});
-
-//     export let value: number = 0; // Raw numeric value
-//     export let currency: string = 'USD';
-//     // export let locale: string = browser ? navigator.language : 'en-US';
-//     export let locale: string = 'en-US';
-
-//     let formattedValue: string = '';
-//     let inputElement: HTMLInputElement;
-
-//     const formatter = new Intl.NumberFormat(locale, {
-//         style: 'currency',
-//         currency,
-//         minimumFractionDigits: 2,
-//         maximumFractionDigits: 2,
-//     });
-
-//     function formatAndSetValue(newValue: number) {
-//         value = newValue;
-//         formattedValue = formatter.format(value);
-//     }
-
-// function handleInput(event: Event) {
-//     const target = event.target as HTMLInputElement;
-//     const rawInput = target.value.replace(/[^0-9.]/g, ''); // Allow only digits and one decimal
-//     const numericValue = parseFloat(rawInput) || 0; // Convert to number
-
-//     // Save and restore cursor position (more complex in a real implementation)
-//     const cursorStart = target.selectionStart;
-//     const cursorEnd = target.selectionEnd;
-
-//     formatAndSetValue(numericValue);
-
-//     // Restore cursor position (simplified)
-//     // You would need to calculate the new position based on added formatting characters
-//     target.setSelectionRange(cursorStart, cursorEnd);
-// }
 
 	function isoToShortDate(isoString: string): string {
 		const date = new Date(isoString);
@@ -108,11 +75,33 @@
 		postMetaData(itemID, metaData);
 	}
 
-	const { data } = $props();
-	let dataItems = $state(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
+    // Example: navigate to the same route with ?page=N
+    async function handlePageChange(newPage: number) {
+        currentPage = newPage;
+		const path = location.pathname;
+		// Option A: client-side navigation with query param
+        await goto(`?page=${newPage}`, { replaceState: true });
+		await invalidateAll(); // Force re-execution of load functions
+    }
+
+
+	// Figure out pagination
+	let { data } = $props();
+	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
+	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
+
+	let totalItems = data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries;
+	let totalNumberOfPages = data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages;
+
 </script>
 
 <div class="scroll-wrapper">
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		<h2>Active Items ({totalItems})</h2>
+		<div class="text-muted">
+			Showing {currentPage} of {totalNumberOfPages} pages
+		</div>
+	</div>
 	<div class="row row-cols-1 g-4">
 		{#each dataItems.Item as item}
 			<div class="col">
@@ -178,6 +167,9 @@
 				</div>
 			</div>
 		{/each}
+	</div>
+	<div class="my-3 d-flex justify-content-center">
+		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 	</div>
 </div>
 

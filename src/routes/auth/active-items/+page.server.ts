@@ -5,11 +5,12 @@ import type { Actions } from './$types';
 
 export const load: PageServerLoad = async ({ request, locals }) => {
 
-    // retrieve the type from the query string parameter
+    // Get the page query parameter
     const url = new URL(request.url);
-    const type = url.searchParams.get('type');
-
-    const response = await getMyEbaySellingActive(locals);
+    const pageParam = url.searchParams.get('page');
+    const pageNumber = pageParam ? parseInt(pageParam, 10) : 1;
+    console.log('load: pageNumber:', pageNumber);
+    const response = await getMyEbaySellingActive(locals, pageNumber);
 
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {

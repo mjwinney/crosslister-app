@@ -310,8 +310,8 @@ export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: n
     };
 }
 
-export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`getMyEbaySellingActive called, using access token: ${locals.ebayAccessToken}`);
+export async function getMyEbaySellingActive(locals: App.Locals, page: number = 1): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`getMyEbaySellingActive called, using access token: ${locals.ebayAccessToken}, for page: ${page}`);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -334,7 +334,7 @@ export async function getMyEbaySellingActive(locals: App.Locals): Promise<{ stat
             <Sort>StartTimeDescending</Sort>
             <Pagination>
                 <EntriesPerPage>20</EntriesPerPage>
-                <PageNumber>1</PageNumber>
+                <PageNumber>${page}</PageNumber>
             </Pagination>
         </ActiveList>
     </GetMyeBaySellingRequest>`;
