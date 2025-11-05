@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
@@ -82,6 +82,15 @@
 		// Option A: client-side navigation with query param
         await goto(`?page=${newPage}`, { replaceState: true });
 		await invalidateAll(); // Force re-execution of load functions
+		// window.scrollTo({ top: 0, behavior: 'smooth' });
+		// document.querySelector('.items-container')?.scrollIntoView({ behavior: 'smooth' });
+        await tick(); // wait for DOM to update with new data
+        const container = document.querySelector('.items-container') as HTMLElement | null;
+        if (container) {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     }
 
 
@@ -95,7 +104,8 @@
 
 </script>
 
-<div class="scroll-wrapper">
+<!-- <div class="scroll-wrapper"> -->
+ <div class="items-container">
 	<div class="d-flex justify-content-between align-items-center mb-3">
 		<h2>Active Items ({totalItems})</h2>
 		<div class="text-muted">
@@ -174,6 +184,14 @@
 </div>
 
 <style>
+    .items-container {
+        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
+        overflow-y: auto;
+        padding: 1rem;
+        /* Optional: Add a subtle scrollbar style */
+        scrollbar-width: thin;
+        scrollbar-color: #888 #f1f1f1;
+    }
 	.item-card {
 		border: 1px solid #dee2e6;
 		border-radius: 8px;
