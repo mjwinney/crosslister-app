@@ -79,32 +79,34 @@
     async function handlePageChange(newPage: number) {
         currentPage = newPage;
 		const path = location.pathname;
-		// Option A: client-side navigation with query param
         await goto(`?page=${newPage}`, { replaceState: true });
 		await invalidateAll(); // Force re-execution of load functions
-		// window.scrollTo({ top: 0, behavior: 'smooth' });
-		// document.querySelector('.items-container')?.scrollIntoView({ behavior: 'smooth' });
         await tick(); // wait for DOM to update with new data
-        const container = document.querySelector('.items-container') as HTMLElement | null;
-        if (container) {
+		const container = document.querySelector('.items-container') as HTMLElement | null;
+
+		if (container) {
             container.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
 
-
 	// Figure out pagination
 	let { data } = $props();
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
-	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 
-	let totalItems = data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries;
-	let totalNumberOfPages = data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages;
+	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);  // Reactive read-only; A must for pagination redraw
+	let editableItems = $state(dataItems); // Local writable copy for editing
+
+	$effect(() => {
+  		editableItems = dataItems; // keep in sync when derived changes
+	});
+
+	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
+	let totalItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries);
+	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages);
 
 </script>
 
-<!-- <div class="scroll-wrapper"> -->
  <div class="items-container">
 	<div class="d-flex justify-content-between align-items-center mb-3">
 		<h2>Active Items ({totalItems})</h2>
@@ -112,72 +114,66 @@
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-	<div class="row row-cols-1 g-4">
-		{#each dataItems.Item as item}
-			<div class="col">
-				<div class="card item-card">
-					<div class="row g-0">
+
+	<table class="table table-light table-striped mb-4">
+		<tbody>
+			{#each editableItems.Item as item}
+				<tr>
+					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-							<div class="form-check me-3">
-								<input class="form-check-input" type="checkbox" value="" id="itemCheckbox1" />
-								<label class="form-check-label" for="itemCheckbox1"></label>
-							</div>
 							<img
 								src={item.PictureDetails.GalleryURL}
-								class="border img-fluid item-image"
+								class="border item-image"
 								alt={item.Title}
 							/>
 						</div>
-						<div class="col-md">
-							<div class="card-body card-body-custom">
-								<form>
-									<div class="row">
-										<div class="col-md-2">
-											<p class="card-title fs-6 mb-0">{item.Title}</p>
-											<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-											<p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
-												<label for="originalPrice">Purchase Price</label>
-												<CurrencyInput bind:value={item.Metadata.purchasePrice} currency="USD" locale="en-US" />
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="originalPrice">Purchase Date</label>
-												<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="purchaseLocation">Purchase Location</label>
-												<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-											</div>
-										</div>
-										<div class="col-md-2">
-											<div class="form-group">
-												<label for="storageLocation">Storage Location</label>
-												<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-											</div>
-										</div>
-									</div>
-								</form>
-								<!-- <div>
-									<p class="card-title">{item.Title}</p>
-									<p class="card-text text-muted">Item ID: {item.ItemID}</p>
-								</div>
-								<div class="d-flex justify-content-between align-items-center mt-1">
-									<p class="mb-0">${item.SellingStatus.CurrentPrice}</p>
-									<a href="javascript:void(0);" class="btn btn-primary btn-sm">View Item</a>
-								</div> -->
-							</div>
+					</td>
+					<td>
+						<p class="card-title fs-6 mb-0">{item.Title}</p>
+						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
+						<p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
+					</td>
+					<td>
+						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+							<label for="originalPrice">Purchase Price</label>
+							<CurrencyInput
+								bind:value={item.Metadata.purchasePrice}
+								currency="USD"
+								locale="en-US"
+								inputClasses={
+									{
+										unformatted: "form-control",
+										formatted: "form-control",
+										formattedPositive: "form-control",
+										formattedNegative: "form-control",
+									}
+								}
+						/>
 						</div>
-					</div>
-				</div>
-			</div>
-		{/each}
-	</div>
+					</td>
+					<td>
+						<div class="form-group">
+							<label for="originalPrice">Purchase Date</label>
+							<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
+						</div>
+					</td>
+					<td>
+						<div class="form-group">
+							<label for="purchaseLocation">Purchase Location</label>
+							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+						</div>
+					</td>
+					<td>
+						<div class="form-group">
+							<label for="storageLocation">Storage Location</label>
+							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+						</div>
+					</td>
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+
 	<div class="my-3 d-flex justify-content-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 	</div>
@@ -206,7 +202,7 @@
 	.item-image {
 		width: 75px;
 		height: 75px;
-		object-fit: contain;
+		object-fit: contain;	
 		background-color: #f8f9fa;
 	}
 	.card-body-custom {
@@ -216,10 +212,5 @@
 	}
 	.form-check-label {
 		cursor: pointer;
-	}
-	.scroll-wrapper {
-	max-height: 100vh; /* or a specific height like 600px */
-	overflow-y: auto;
-	padding: 1rem;
 	}
 </style>
