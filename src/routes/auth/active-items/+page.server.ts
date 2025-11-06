@@ -49,11 +49,7 @@ export const actions: Actions = {
             });
         }
 
-        console.log('eBay API request successful, returning data...');
-
-        return new Response('Operation complete!', {
-            status: 200,
-            headers: { 'Content-Type': 'text/html' }
-        });
+        console.log('eBay API request successful, success');
+        return { success: true, message: 'Operation complete!' };
     },
 };

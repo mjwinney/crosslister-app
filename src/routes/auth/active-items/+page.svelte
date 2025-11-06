@@ -1,12 +1,16 @@
 <script lang="ts">
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { onMount, tick } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	// import { url } from 'inspector';
+	// import { Datepicker, DateRangePicker } from 'vanillajs-datepicker';
+	import { format } from 'date-fns';
+	import DatePicker from '$lib/components/DatePicker.svelte';
+
+	let selected: any;
 
 	onMount(async () => {
 		const session = await authClient.getSession();
@@ -15,6 +19,29 @@
 			goto('/');
 		}
 	});
+
+	// function onChangeDate(ev: { detail: { date: string | number | Date; datepicker: { element: { name: string }; }; }; }) {
+	// 		const date = format(ev.detail.date, 'yyyy-MM-dd');
+	// 		console.log(ev.detail.datepicker.element.name, date);
+	// 		// ctx[ev.detail.datepicker.element.name] = date;		
+	// }
+
+	// function actionDateRangePicker(node: HTMLElement, dates: { from: any; to: any; }) {
+	// 	const daterangepicker = new DateRangePicker(node, {
+	// 		buttonClass: 'btn',
+	// 		allowOneSidedRange: true,
+	// 		format: 'yyyy-mm-dd',
+	// 	});
+	// 	daterangepicker.setDates(dates.from, dates.to);
+	// 	return {
+	// 		update(newDates: { from: string | number | object | Date; to: string | number | object | Date; }) {
+	// 			daterangepicker.setDates(newDates.from, newDates.to);
+	// 		},
+	// 		destroy() {
+	// 			daterangepicker.destroy();
+	// 		}
+	// 	}
+	// }
 
 	function isoToShortDate(isoString: string): string {
 		const date = new Date(isoString);
@@ -114,7 +141,9 @@
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-
+	<div class="d-flex justify-content-between align-items-center mb-3">
+		<DatePicker bind:selectedDate={selected}/>
+	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
 			{#each editableItems.Item as item}
