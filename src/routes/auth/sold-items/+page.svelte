@@ -3,7 +3,6 @@
 	import { authClient } from '$lib/auth-client';
 	import { onMount } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
-	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 
