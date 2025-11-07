@@ -1,48 +1,86 @@
-<script>
-	/*
-	GUIDANCE
-	1. Put this file in your app directory and import into your main Svelte file
-	2. Remember to install [npm install --save-dev vanillajs-datepicker]
-	3. Make sure you have Bootstrap CSS installed in your app --- then delete CDN in svelte:head
-	*/
-	
-	
-	import {onMount} from "svelte"
-	
-	//import the Datepicker module. install using **npm install --save-dev vanillajs-datepicker** 
-	import { Datepicker } from 'vanillajs-datepicker';
+<script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
 
-	//call Datepicker constructor with the input element 
-	onMount(()=>{
-		const elem = document.querySelector('input[name="foo"]');
-		const datepicker = new Datepicker(elem, {
-  // ...options visit=> https://mymth.github.io/vanillajs-datepicker/#/options
-			buttonClass: 'btn',
-			allowOneSidedRange: true,
-			format: 'dd/mm/yyyy',
-}); 
-	})
-	
-	 export let selectedDate = new Date(Date.now()).toLocaleString().split(',')[0]
-	
-	
-	function onChangeDate(ev) {
-			selectedDate = ev.detail.datepicker.element.value;		
-	}
-	
+    // client only references
+    let inputEl: HTMLInputElement | null = null;
+    let dp: any = null;
+
+    export let selectedDate = new Date(Date.now()).toLocaleString().split(',')[0];
+
+    function onChangeDate(ev: Event) {
+        // the library dispatches a custom event with detail.datepicker
+        // fallback to input value if detail is not present
+        // @ts-ignore
+        selectedDate = (ev as CustomEvent).detail?.datepicker?.element?.value ?? inputEl?.value ?? selectedDate;
+    }
+
+    onMount(async () => {
+        // run only in the browser
+        if (typeof window === 'undefined' || !inputEl) return;
+
+        // dynamic import so module is not loaded during SSR
+        const mod = await import('vanillajs-datepicker');
+        const Datepicker = (mod as any).Datepicker ?? (mod as any).default ?? mod;
+
+        dp = new Datepicker(inputEl, {
+            buttonClass: 'btn btn-sm btn-outline-secondary', // use Bootstrap button style for controls
+            allowOneSidedRange: true,
+            format: 'mm/dd/yyyy'
+        });
+        // the library emits a custom 'changeDate' event on the input
+        inputEl.addEventListener('changeDate', onChangeDate as EventListener);
+    });
+
+    onDestroy(() => {
+        if (inputEl) inputEl.removeEventListener('changeDate', onChangeDate as EventListener);
+        dp?.destroy?.();
+    });
 </script>
 
-
-
-<!--- SVELTE HEAD TO ADD Bootstrap CDN and Styles for Date Picker ---->
 <svelte:head>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-	
-	<style>
-	.datepicker{display:none}.datepicker.active{display:block}.datepicker-dropdown{left:0;padding-top:4px;position:absolute;top:0;z-index:1000}.datepicker-dropdown.datepicker-orient-top{padding-bottom:4px;padding-top:0}.datepicker-picker{background-color:#fff;border-radius:.25rem;display:inline-block}.datepicker-dropdown .datepicker-picker{box-shadow:0 .5rem 1rem rgba(0,0,0,.175)}.datepicker-picker span{-webkit-touch-callout:none;border:0;border-radius:.25rem;cursor:default;display:block;flex:1;text-align:center;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.datepicker-main{padding:2px}.datepicker-footer{background-color:#f8f9fa;box-shadow:inset 0 1px 1px rgba(0,0,0,.1)}.datepicker-controls,.datepicker-grid,.datepicker-view,.datepicker-view .days-of-week{display:flex}.datepicker-grid{flex-wrap:wrap}.datepicker-view .days .datepicker-cell,.datepicker-view .dow{flex-basis:14.2857142857%}.datepicker-view.datepicker-grid .datepicker-cell{flex-basis:25%}.datepicker-cell,.datepicker-view .week{height:2.25rem;line-height:2.25rem}.datepicker-title{background-color:#f8f9fa;box-shadow:inset 0 -1px 1px rgba(0,0,0,.1);font-weight:700;padding:.375rem .75rem;text-align:center}.datepicker-header .datepicker-controls{padding:2px 2px 0}.datepicker-controls .btn{background-color:#fff;border-color:#f8f9fa}.datepicker-controls .btn:focus,.datepicker-controls .btn:hover{background-color:#e2e6ea;border-color:#dae0e5;color:#212529}.datepicker-controls .btn:focus{box-shadow:0 0 0 .2rem hsla(220,4%,85%,.5)}.datepicker-controls .btn:disabled{background-color:#f8f9fa;border-color:#f8f9fa;color:#212529}.datepicker-controls .btn:not(:disabled):active{background-color:#dae0e5;border-color:#d3d9df;color:#212529}.datepicker-controls .btn:not(:disabled):active:focus{box-shadow:0 0 0 .2rem hsla(220,4%,85%,.5)}.datepicker-header .datepicker-controls .btn{border-color:transparent;font-weight:700}.datepicker-footer .datepicker-controls .btn{border-radius:.2rem;font-size:.875rem;margin:calc(.375rem - 1px) .375rem;width:100%}.datepicker-controls .view-switch{flex:auto}.datepicker-controls .next-btn,.datepicker-controls .prev-btn{padding-left:.375rem;padding-right:.375rem;width:2.25rem}.datepicker-controls .next-btn.disabled,.datepicker-controls .prev-btn.disabled{visibility:hidden}.datepicker-view .dow{font-size:.9375rem;font-weight:700;height:1.5rem;line-height:1.5rem}.datepicker-view .week{color:#dee2e6;font-size:.875rem;width:2.25rem}@media (max-width:22.5rem){.datepicker-view .week{width:1.96875rem}}.datepicker-grid{width:15.75rem}@media (max-width:22.5rem){.calendar-weeks+.days .datepicker-grid{width:13.78125rem}}.datepicker-cell:not(.disabled):hover{background-color:#f9f9f9;cursor:pointer}.datepicker-cell.focused:not(.selected){background-color:#e2e6ea}.datepicker-cell.selected,.datepicker-cell.selected:hover{background-color:#007bff;color:#fff;font-weight:600}.datepicker-cell.disabled{color:#adb5bd}.datepicker-cell.next:not(.disabled),.datepicker-cell.prev:not(.disabled){color:#6c757d}.datepicker-cell.next.selected,.datepicker-cell.prev.selected{color:#e6e6e6}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today){background-color:#f8f9fa;border-radius:0}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today):not(.disabled):hover{background-color:#f1f3f5}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today).focused{background-color:#e2e6ea}.datepicker-cell.today:not(.selected){background-color:#20c997}.datepicker-cell.today:not(.selected):not(.disabled){color:#fff}.datepicker-cell.today.focused:not(.selected){background-color:#1ebe8f}.datepicker-cell.range-end:not(.selected),.datepicker-cell.range-start:not(.selected){background-color:#6c757d;color:#fff}.datepicker-cell.range-end.focused:not(.selected),.datepicker-cell.range-start.focused:not(.selected){background-color:#666f76}.datepicker-cell.range-start{border-radius:.25rem 0 0 .25rem}.datepicker-cell.range-end{border-radius:0 .25rem .25rem 0}.datepicker-cell.range{background-color:#e9ecef;border-radius:0}.datepicker-cell.range:not(.disabled):not(.focused):not(.today):hover{background-color:#e2e6ea}.datepicker-cell.range.disabled{color:#cbd3da}.datepicker-cell.range.focused{background-color:#dadfe4}.datepicker-view.datepicker-grid .datepicker-cell{height:4.5rem;line-height:4.5rem}.datepicker-input.in-edit{border-color:#66b0ff}.datepicker-input.in-edit:active,.datepicker-input.in-edit:focus{box-shadow:0 0 .25em .25em rgba(102,176,255,.2)}
-	</style>
-	
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <style>
+        .datepicker{display:none}.datepicker.active{display:block}.datepicker-dropdown{left:0;padding-top:4px;position:absolute;top:0;z-index:1000}.datepicker-dropdown.datepicker-orient-top{padding-bottom:4px;padding-top:0}.datepicker-picker{background-color:#fff;border-radius:.25rem;display:inline-block}.datepicker-dropdown .datepicker-picker{box-shadow:0 .5rem 1rem rgba(0,0,0,.175)}.datepicker-picker span{-webkit-touch-callout:none;border:0;border-radius:.25rem;cursor:default;display:block;flex:1;text-align:center;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.datepicker-main{padding:2px}.datepicker-footer{background-color:#f8f9fa;box-shadow:inset 0 1px 1px rgba(0,0,0,.1)}.datepicker-controls,.datepicker-grid,.datepicker-view,.datepicker-view .days-of-week{display:flex}.datepicker-grid{flex-wrap:wrap}.datepicker-view .days .datepicker-cell,.datepicker-view .dow{flex-basis:14.2857142857%}.datepicker-view.datepicker-grid .datepicker-cell{flex-basis:25%}.datepicker-cell,.datepicker-view .week{height:2.25rem;line-height:2.25rem}.datepicker-title{background-color:#f8f9fa;box-shadow:inset 0 -1px 1px rgba(0,0,0,.1);font-weight:700;padding:.375rem .75rem;text-align:center}.datepicker-header .datepicker-controls{padding:2px 2px 0}.datepicker-controls .btn{background-color:#fff;border-color:#f8f9fa}.datepicker-controls .btn:focus,.datepicker-controls .btn:hover{background-color:#e2e6ea;border-color:#dae0e5;color:#212529}.datepicker-controls .btn:focus{box-shadow:0 0 0 .2rem hsla(220,4%,85%,.5)}.datepicker-controls .btn:disabled{background-color:#f8f9fa;border-color:#f8f9fa;color:#212529}.datepicker-controls .btn:not(:disabled):active{background-color:#dae0e5;border-color:#d3d9df;color:#212529}.datepicker-controls .btn:not(:disabled):active:focus{box-shadow:0 0 0 .2rem hsla(220,4%,85%,.5)}.datepicker-header .datepicker-controls .btn{border-color:transparent;font-weight:700}.datepicker-footer .datepicker-controls .btn{border-radius:.2rem;font-size:.875rem;margin:calc(.375rem - 1px) .375rem;width:100%}.datepicker-controls .view-switch{flex:auto}.datepicker-controls .next-btn,.datepicker-controls .prev-btn{padding-left:.375rem;padding-right:.375rem;width:2.25rem}.datepicker-controls .next-btn.disabled,.datepicker-controls .prev-btn.disabled{visibility:hidden}.datepicker-view .dow{font-size:.9375rem;font-weight:700;height:1.5rem;line-height:1.5rem}.datepicker-view .week{color:#dee2e6;font-size:.875rem;width:2.25rem}@media (max-width:22.5rem){.datepicker-view .week{width:1.96875rem}}.datepicker-grid{width:15.75rem}@media (max-width:22.5rem){.calendar-weeks+.days .datepicker-grid{width:13.78125rem}}.datepicker-cell:not(.disabled):hover{background-color:#f9f9f9;cursor:pointer}.datepicker-cell.focused:not(.selected){background-color:#e2e6ea}.datepicker-cell.selected,.datepicker-cell.selected:hover{background-color:#007bff;color:#fff;font-weight:600}.datepicker-cell.disabled{color:#adb5bd}.datepicker-cell.next:not(.disabled),.datepicker-cell.prev:not(.disabled){color:#6c757d}.datepicker-cell.next.selected,.datepicker-cell.prev.selected{color:#e6e6e6}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today){background-color:#f8f9fa;border-radius:0}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today):not(.disabled):hover{background-color:#f1f3f5}.datepicker-cell.highlighted:not(.selected):not(.range):not(.today).focused{background-color:#e2e6ea}.datepicker-cell.today:not(.selected){background-color:#20c997}.datepicker-cell.today:not(.selected):not(.disabled){color:#fff}.datepicker-cell.today.focused:not(.selected){background-color:#1ebe8f}.datepicker-cell.range-end:not(.selected),.datepicker-cell.range-start:not(.selected){background-color:#6c757d;color:#fff}.datepicker-cell.range-end.focused:not(.selected),.datepicker-cell.range-start.focused:not(.selected){background-color:#666f76}.datepicker-cell.range-start{border-radius:.25rem 0 0 .25rem}.datepicker-cell.range-end{border-radius:0 .25rem .25rem 0}.datepicker-cell.range{background-color:#e9ecef;border-radius:0}.datepicker-cell.range:not(.disabled):not(.focused):not(.today):hover{background-color:#e2e6ea}.datepicker-cell.range.disabled{color:#cbd3da}.datepicker-cell.range.focused{background-color:#dadfe4}.datepicker-view.datepicker-grid .datepicker-cell{height:4.5rem;line-height:4.5rem}.datepicker-input.in-edit{border-color:#66b0ff}.datepicker-input.in-edit:active,.datepicker-input.in-edit:focus{box-shadow:0 0 .25em .25em rgba(102,176,255,.2)}
+
+        :global(.datepicker-input) {
+            padding: .375rem .75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #212529;
+            background-color: #fff;
+            border: 1px solid #ced4da;
+            border-radius: .25rem;
+            box-shadow: none;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        :global(.datepicker-input:focus) {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 .25rem rgba(13,110,253,.25);
+        }
+
+        /* popup styling */
+        :global(.datepicker-dropdown .datepicker-picker) {
+            border: 1px solid rgba(0,0,0,0.125);
+            border-radius: .25rem;
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+            background: #fff;
+            padding: .25rem;
+        }
+
+        :global(.datepicker-title),
+        :global(.datepicker-header),
+        :global(.datepicker-footer) {
+            background: #f8f9fa;
+        }
+
+        :global(.datepicker-cell.selected) {
+            background-color: #0d6efd;
+            color: white;
+        }
+    </style>
 </svelte:head>
 
-
-<input type="text" name="foo" on:changeDate={onChangeDate} bind:value={selectedDate}>
+<input class="form-control datepicker-input" bind:this={inputEl} type="text" name="foo" on:changeDate={onChangeDate} bind:value={selectedDate} />

@@ -183,7 +183,8 @@
 					<td>
 						<div class="form-group">
 							<label for="originalPrice">Purchase Date</label>
-							<input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/>
+							<DatePicker bind:selectedDate={selected}/>
+							<!-- <input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/> -->
 						</div>
 					</td>
 					<td>
