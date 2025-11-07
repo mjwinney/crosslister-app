@@ -141,9 +141,6 @@
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<DatePicker bind:selectedDate={selected}/>
-	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
 			{#each editableItems.Item as item}
@@ -183,8 +180,7 @@
 					<td>
 						<div class="form-group">
 							<label for="originalPrice">Purchase Date</label>
-							<DatePicker bind:selectedDate={selected}/>
-							<!-- <input type="text" class="form-control" placeholder="Select date" value={getDisplayDate(item.Metadata.purchaseDate)} onblur={(e) => handleDateInput(e, item.ItemID, item.Metadata)}/> -->
+							<DatePicker bind:selectedDate={item.Metadata.purchaseDate}/>
 						</div>
 					</td>
 					<td>
@@ -218,29 +214,10 @@
         scrollbar-width: thin;
         scrollbar-color: #888 #f1f1f1;
     }
-	.item-card {
-		border: 1px solid #dee2e6;
-		border-radius: 8px;
-		overflow: hidden;
-		transition: transform 0.2s ease-in-out;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-	}
-	.item-card:hover {
-		transform: translateY(-1px);
-		box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-	}
 	.item-image {
 		width: 75px;
 		height: 75px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
-	}
-	.card-body-custom {
-		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
-	}
-	.form-check-label {
-		cursor: pointer;
 	}
 </style>

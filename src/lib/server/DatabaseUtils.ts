@@ -179,7 +179,7 @@ export async function insertSoldEbayItems(itemId: string, startDate: Date) : Pro
 
 export type MetaDataModel = {
     purchasePrice?: number,
-    purchaseDate?: Date,
+    purchaseDate?: string,
     purchaseLocation?: string,
     storageLocation?: string,
 }
