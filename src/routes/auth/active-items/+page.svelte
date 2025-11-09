@@ -6,11 +6,11 @@
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	// import { Datepicker, DateRangePicker } from 'vanillajs-datepicker';
-	import { format } from 'date-fns';
 	import DatePicker from '$lib/components/DatePicker.svelte';
+	import { navigating } from '$app/state';
 
-	let selected: any;
+	// show overlay while a client-side navigation / load is in progress
+	let isLoading = $state(false);
 
 	onMount(async () => {
 		const session = await authClient.getSession();
@@ -19,39 +19,6 @@
 			goto('/');
 		}
 	});
-
-	// function onChangeDate(ev: { detail: { date: string | number | Date; datepicker: { element: { name: string }; }; }; }) {
-	// 		const date = format(ev.detail.date, 'yyyy-MM-dd');
-	// 		console.log(ev.detail.datepicker.element.name, date);
-	// 		// ctx[ev.detail.datepicker.element.name] = date;		
-	// }
-
-	// function actionDateRangePicker(node: HTMLElement, dates: { from: any; to: any; }) {
-	// 	const daterangepicker = new DateRangePicker(node, {
-	// 		buttonClass: 'btn',
-	// 		allowOneSidedRange: true,
-	// 		format: 'yyyy-mm-dd',
-	// 	});
-	// 	daterangepicker.setDates(dates.from, dates.to);
-	// 	return {
-	// 		update(newDates: { from: string | number | object | Date; to: string | number | object | Date; }) {
-	// 			daterangepicker.setDates(newDates.from, newDates.to);
-	// 		},
-	// 		destroy() {
-	// 			daterangepicker.destroy();
-	// 		}
-	// 	}
-	// }
-
-	function isoToShortDate(isoString: string): string {
-		const date = new Date(isoString);
-
-		const month = (date.getUTCMonth() + 1).toString().padStart(2, '0'); // Months are 0-indexed
-		const day = date.getUTCDate().toString().padStart(2, '0');
-		const year = date.getUTCFullYear().toString().slice(-2); // Get last two digits
-
-		return `${month}/${day}/${year}`;
-	}
 
 	async function postMetaData(itemID: string, metaData: MetaDataModel) {
 		console.log('postMetaData called:', itemID, metaData);
@@ -70,32 +37,6 @@
 		});
 	}
 
-	function handleDateInput(event: Event, itemID: string, metaData: MetaDataModel) {
-		console.log('handleDateInput event received:', itemID, metaData);
-		const input = (event.target as HTMLInputElement).value;
-
-		// Convert MM/DD/YY to ISO
-		const [month, day, year] = input.split('/').map(Number);
-		const fullYear = year < 100 ? 2000 + year : year;
-		// const iso = new Date(Date.UTC(fullYear, month - 1, day)).toISOString();
-		const iso = new Date(Date.UTC(fullYear, month - 1, day));
-
-		metaData.purchaseDate = iso;
-		// Write the data to the database
-		postMetaData(itemID, metaData);	
-	}
-
-	function getDisplayDate(iso: string): string {
-		if (!iso) {
-			return '';
-		}
-		try {
-			return isoToShortDate(iso);
-		} catch {
-			return '';
-		}
-	}
-
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
 		// Write the data to the database
@@ -104,7 +45,10 @@
 
     // Example: navigate to the same route with ?page=N
     async function handlePageChange(newPage: number) {
-        currentPage = newPage;
+
+		isLoading = true;  // Loading spinner shown
+
+		currentPage = newPage;
 		const path = location.pathname;
         await goto(`?page=${newPage}`, { replaceState: true });
 		await invalidateAll(); // Force re-execution of load functions
@@ -116,6 +60,8 @@
         } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+		isLoading = false;  // Loading spinner removed
     }
 
 	// Figure out pagination
@@ -133,6 +79,18 @@
 	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages);
 
 </script>
+
+<!-- full-screen busy overlay shown during client-side navigation to active-items -->
+{#if isLoading}
+    <div class="busy-overlay" aria-hidden={!isLoading}>
+        <div class="text-center">
+            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="mt-2 text-light">Loading…</div>
+        </div>
+    </div>
+{/if}
 
  <div class="items-container">
 	<div class="d-flex justify-content-between align-items-center mb-3">
@@ -157,7 +115,7 @@
 					<td>
 						<p class="card-title fs-6 mb-0">{item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-						<p class="mb-0 fs-6">${item.SellingStatus.CurrentPrice}</p>
+						<p class="mb-0 fs-6 text-success">${item.SellingStatus.CurrentPrice}</p>
 					</td>
 					<td>
 						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
@@ -206,6 +164,18 @@
 </div>
 
 <style>
+    .busy-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999; /* ensure overlay is on top */
+        pointer-events: all;
+    }
+    .busy-overlay .text-light { color: #fff !important; }
+
     .items-container {
         max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
         overflow-y: auto;
