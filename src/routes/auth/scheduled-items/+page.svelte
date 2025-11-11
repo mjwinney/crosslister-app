@@ -37,16 +37,6 @@
 		});
 	}
 
-	function convertFromISO(iso: string | null | undefined): string {
-		if (!iso) return '';
-		const d = new Date(iso);
-		if (isNaN(d.getTime())) return '';
-		const year = d.getUTCFullYear();
-		const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-		const day = String(d.getUTCDate()).padStart(2, '0');
-		return `${month}/${day}/${year}`;
-	}
-
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
 		// Write the data to the database
@@ -77,16 +67,16 @@
 	// Figure out pagination
 	let { data } = $props();
 
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.SoldList.OrderTransactionArray);  // Reactive read-only; A must for pagination redraw
-	// let editableItems = $state(dataItems); // Local writable copy for editing
+	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);  // Reactive read-only; A must for pagination redraw
+	let editableItems = $state(dataItems); // Local writable copy for editing
 
-	// $effect(() => {
-  	// 	editableItems = dataItems; // keep in sync when derived changes
-	// });
+	$effect(() => {
+  		editableItems = dataItems; // keep in sync when derived changes
+	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetMyeBaySellingResponse.SoldList.PaginationResult.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.SoldList.PaginationResult.TotalNumberOfPages);
+	let totalItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries);
+	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages);
 
 </script>
 
@@ -104,17 +94,16 @@
 
  <div class="items-container">
 	<div class="d-flex justify-content-between align-items-center mb-3">
-		<h2>Sold Items ({totalItems})</h2>
+		<h2>Active Items ({totalItems})</h2>
 		<div class="text-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
-			{#each dataItems.OrderTransaction as transaction}
+			{#each editableItems.Item as item}
 				<tr>
-					<!-- <td>{JSON.stringify(transaction.Item, null, 2)}</td> -->
-					<!-- <td>
+					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 							<img
 								src={item.PictureDetails.GalleryURL}
@@ -122,19 +111,13 @@
 								alt={item.Title}
 							/>
 						</div>
-					</td> -->
-					<td>
-						<p class="card-title fs-6 mb-0">{transaction.Transaction.Item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {transaction.Transaction.Item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${transaction.Transaction.Item.SellingStatus.CurrentPrice}</p>
 					</td>
 					<td>
-						<div class="form-group">
-							<label for="SoldDate">Sold Date: {convertFromISO(transaction.Transaction.Item.ListingDetails.EndTime)}</label>
-							<!-- <DatePicker bind:selectedDate={item.Metadata.purchaseDate}/> -->
-						</div>
+						<p class="card-title fs-6 mb-0">{item.Title}</p>
+						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
+						<p class="mb-0 fs-6 text-success">${item.SellingStatus.CurrentPrice}</p>
 					</td>
-					<!-- <td>
+					<td>
 						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
 							<label for="originalPrice">Purchase Price</label>
 							<CurrencyInput
@@ -169,7 +152,7 @@
 							<label for="storageLocation">Storage Location</label>
 							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
-					</td> -->
+					</td>
 				</tr>
 			{/each}
 		</tbody>

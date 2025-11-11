@@ -416,7 +416,113 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
     }
 }
 
-export async function getMyEbaySellingSold(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function getMyEbaySellingScheduled(locals: App.Locals, page: number = 1): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`getMyEbaySellingScheduled called, using access token: ${locals.ebayAccessToken}, for page: ${page}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+    };
+
+    console.log('getMyEbaySellingScheduled headers:', JSON.stringify(headers));
+
+    // Now build the XML body for the request
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <ScheduledList>
+            <Sort>StartTimeDescending</Sort>
+            <Pagination>
+                <EntriesPerPage>20</EntriesPerPage>
+                <PageNumber>${page}</PageNumber>
+            </Pagination>
+        </ScheduledList>
+    </GetMyeBaySellingRequest>`;
+
+    console.log('getMyEbaySellingScheduled xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`getMyEbaySellingScheduled data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbaySellingScheduled response.status: ${JSON.stringify(response.status)}`);
+
+            // See if any active items were returned
+            if (!jsonData.GetMyeBaySellingResponse?.ScheduledList) {
+                console.log('No scheduled items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            const userId = locals?.session?.userId || '';
+
+            // // Update: Store active items in the database
+            // for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
+            //     const itemId = item.ItemID;
+            //     const startDate = new Date(item.ListingDetails.StartTime);
+
+            //     const status = await updateActiveEbayItem(userId, itemId, startDate, true);
+            //     if (status !== StatusCodes.OK) {
+            //         console.error(`Failed to insert active eBay item for itemId:${itemId}`);
+            //         return {
+            //             status: 500,
+            //             data: {}
+            //         };
+            //     }
+
+            //     // Gather the metadata for the item and combine it into the returned JSON
+            //     const metadata = await getEbayMetadata(userId, itemId);
+
+            //     if (metadata === StatusCodes) {
+            //         // Do nothing here, just a type guard
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata;
+            //     }
+            // }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbaySellingScheduled data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbaySellingScheduled response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbaySellingScheduled:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}
+
+export async function getMyEbaySellingSold(locals: App.Locals, page: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`getMyEbaySellingSold called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
@@ -437,10 +543,11 @@ export async function getMyEbaySellingSold(locals: App.Locals): Promise<{ status
             <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
         </RequesterCredentials>
         <SoldList>
+            <DurationInDays>60</DurationInDays>
             <Sort>EndTimeDescending</Sort>
             <Pagination>
                 <EntriesPerPage>20</EntriesPerPage>
-                <PageNumber>1</PageNumber>
+                <PageNumber>${page}</PageNumber>
             </Pagination>
         </SoldList>
     </GetMyeBaySellingRequest>`;
@@ -469,34 +576,34 @@ export async function getMyEbaySellingSold(locals: App.Locals): Promise<{ status
                 console.log('No sold items found in the response.');
                 return {
                     status: response.status,
-                    data: jsonData
+                    data: {}
                 };
             }
 
-            for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
-                const itemId = item.ItemID;
-                const startDate = new Date(item.ListingDetails.StartTime);
+            // for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
+            //     const itemId = item.ItemID;
+            //     const startDate = new Date(item.ListingDetails.StartTime);
 
-                const status = await insertSoldEbayItems(itemId, startDate);
-                if (status !== StatusCodes.OK) {
-                    console.error(`Failed to insert sold eBay item for itemId:${itemId}`);
-                    return {
-                        status: 500,
-                        data: {}
-                    };
-                }
+            //     const status = await insertSoldEbayItems(itemId, startDate);
+            //     if (status !== StatusCodes.OK) {
+            //         console.error(`Failed to insert sold eBay item for itemId:${itemId}`);
+            //         return {
+            //             status: 500,
+            //             data: {}
+            //         };
+            //     }
 
-                // Gather the metadata for the item and combine it into the returned JSON
-                const metadata = await getEbayMetadata(itemId);
+            //     // Gather the metadata for the item and combine it into the returned JSON
+            //     const metadata = await getEbayMetadata(itemId);
 
-                if (metadata === StatusCodes) {
-                    // Do nothing here, just a type guard
-                }
-                else {
-                    // Must have gotten metadata back so combine the data into the item
-                    item.Metadata = metadata;
-                }
-            }
+            //     if (metadata === StatusCodes) {
+            //         // Do nothing here, just a type guard
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata;
+            //     }
+            // }
 
             return {
                 status: response.status,

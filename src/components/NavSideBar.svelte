@@ -18,9 +18,9 @@
     goto('/ebay-api/auth');
 	};
 
-  async function handleEbayItems() {
-    goto(`/auth/active-items`);
-	};
+  // async function handleEbayItems() {
+  //   goto(`/auth/active-items`);
+	// };
 
 	let { children } = $props();
 </script>
@@ -46,14 +46,21 @@
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems()}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/active-items`)}"
                       >Active</a
                     >
                   </li>
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => handleEbayItems()}"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/scheduled-items`)}"
+                      >Scheduled</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="#"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/sold-items`)}"
                       >Sold</a
                     >
                   </li>
