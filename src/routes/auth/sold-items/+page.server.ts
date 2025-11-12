@@ -1,5 +1,5 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
-import { getMyEbaySellingActive, getMyEbaySellingSold } from '$lib/server/ebayUtils';
+import { getMyEbayOrders, getMyEbaySellingActive, getMyEbaySellingSold } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     const pageParam = url.searchParams.get('page');
     const pageNumber = pageParam ? parseInt(pageParam, 10) : 1;
     console.log('load: pageNumber:', pageNumber);
-    const response = await getMyEbaySellingSold(locals, pageNumber);
+    const response = await getMyEbayOrders(locals, pageNumber);
 
     if (response.status !== 200 || !('data' in response)) {
         return new Response('Failed to retrieve eBay inventory items', {

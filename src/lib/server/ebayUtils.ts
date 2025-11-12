@@ -626,3 +626,110 @@ export async function getMyEbaySellingSold(locals: App.Locals, page: number): Pr
         };
     }
 }
+
+export async function getMyEbayOrders(locals: App.Locals, page: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`getMyEbayOrders called, using access token: ${locals.ebayAccessToken}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetOrders',
+    };
+
+    console.log('getMyEbayOrders headers:', JSON.stringify(headers));
+
+    const nowDate = new Date();
+    const pastDate = new Date(nowDate.getTime() - (90 * 24 * 60 * 60 * 1000)); // 90 days ago
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetOrdersRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <CreateTimeFrom>${pastDate.toISOString()}</CreateTimeFrom>
+        <CreateTimeTo>${nowDate.toISOString()}</CreateTimeTo>
+        <OrderRole>Seller</OrderRole>
+        <OrderStatus>Completed</OrderStatus>
+        <Pagination>
+            <EntriesPerPage>20</EntriesPerPage>
+            <PageNumber>${page}</PageNumber>
+        </Pagination>
+    </GetOrdersRequest>`;
+
+    console.log('getMyEbayOrders xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
+
+            // Update: Store sold items in the database
+            // See if any sold items were returned
+            if (!jsonData.GetOrdersResponse?.OrderArray) {
+                console.log('No orders found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            // for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
+            //     const itemId = item.ItemID;
+            //     const startDate = new Date(item.ListingDetails.StartTime);
+
+            //     const status = await insertSoldEbayItems(itemId, startDate);
+            //     if (status !== StatusCodes.OK) {
+            //         console.error(`Failed to insert sold eBay item for itemId:${itemId}`);
+            //         return {
+            //             status: 500,
+            //             data: {}
+            //         };
+            //     }
+
+            //     // Gather the metadata for the item and combine it into the returned JSON
+            //     const metadata = await getEbayMetadata(itemId);
+
+            //     if (metadata === StatusCodes) {
+            //         // Do nothing here, just a type guard
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata;
+            //     }
+            // }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbayOrders:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}

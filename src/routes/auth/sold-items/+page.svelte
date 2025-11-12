@@ -77,7 +77,7 @@
 	// Figure out pagination
 	let { data } = $props();
 
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.SoldList.OrderTransactionArray);  // Reactive read-only; A must for pagination redraw
+	let dataItems = $derived(data.post.GetOrdersResponse.OrderArray);  // Reactive read-only; A must for pagination redraw
 	// let editableItems = $state(dataItems); // Local writable copy for editing
 
 	// $effect(() => {
@@ -85,8 +85,8 @@
 	// });
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetMyeBaySellingResponse.SoldList.PaginationResult.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.SoldList.PaginationResult.TotalNumberOfPages);
+	let totalItems = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfEntries);
+	let totalNumberOfPages = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfPages);
 
 </script>
 
@@ -111,9 +111,9 @@
 	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
-			{#each dataItems.OrderTransaction as transaction}
+			{#each dataItems.Order as order}
 				<tr>
-					<!-- <td>{JSON.stringify(transaction.Item, null, 2)}</td> -->
+					<!-- <td>{JSON.stringify(order, null, 2)}</td> -->
 					<!-- <td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 							<img
@@ -124,16 +124,15 @@
 						</div>
 					</td> -->
 					<td>
-						<p class="card-title fs-6 mb-0">{transaction.Transaction.Item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {transaction.Transaction.Item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${transaction.Transaction.Item.SellingStatus.CurrentPrice}</p>
+						<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
+						<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
+						<p class="mb-0 fs-6 text-success">${order.TransactionArray.Transaction.TransactionPrice}</p>
 					</td>
-					<td>
+					<!-- <td>
 						<div class="form-group">
 							<label for="SoldDate">Sold Date: {convertFromISO(transaction.Transaction.Item.ListingDetails.EndTime)}</label>
-							<!-- <DatePicker bind:selectedDate={item.Metadata.purchaseDate}/> -->
 						</div>
-					</td>
+					</td> -->
 					<!-- <td>
 						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
 							<label for="originalPrice">Purchase Price</label>
