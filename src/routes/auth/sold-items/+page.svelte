@@ -37,14 +37,21 @@
 		});
 	}
 
-	function convertFromISO(iso: string | null | undefined): string {
-		if (!iso) return '';
-		const d = new Date(iso);
-		if (isNaN(d.getTime())) return '';
-		const year = d.getUTCFullYear();
-		const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-		const day = String(d.getUTCDate()).padStart(2, '0');
-		return `${month}/${day}/${year}`;
+	/**
+	 * Format an ISO date (or Date) as "Mon DD YYYY", e.g. "Nov 13 2025".
+	 * Returns empty string for falsy/invalid input.
+	 *
+	 * @param {string|Date|null|undefined} iso
+	 * @returns {string}
+	 */
+	export function formatIsoToMonDDYYYY(iso: string | Date | null | undefined): string {
+	  if (!iso) return '';
+	  const date = iso instanceof Date ? iso : new Date(String(iso));
+	  if (isNaN(date.getTime())) return '';
+	  const month = date.toLocaleString('en-US', { month: 'short' }); // "Nov"
+	  const day = date.getDate(); // 1..31 (no leading zero)
+	  const year = date.getFullYear();
+	  return `${month} ${day} ${year}`;
 	}
 
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
@@ -113,20 +120,22 @@
 		<tbody>
 			{#each dataItems.Order as order}
 				<tr>
-					<!-- <td>{JSON.stringify(order, null, 2)}</td> -->
-					<!-- <td>
+					<!-- <td>{JSON.stringify(order.PictureURL, null, 2)}</td> -->
+					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 							<img
-								src={item.PictureDetails.GalleryURL}
+								src={order.PictureURL}
 								class="border item-image"
-								alt={item.Title}
+								alt={order.TransactionArray.Transaction.Item.Title}
 							/>
 						</div>
-					</td> -->
+					</td>
 					<td>
 						<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${order.TransactionArray.Transaction.TransactionPrice}</p>
+						<p class="mb-0 fs-5 text-success">${order.TransactionArray.Transaction.TransactionPrice}</p>
+						<p class="card-text text-muted fs-6 mb-0">Shipping: ${order.TransactionArray.Transaction.ActualShippingCost}</p>
+						<p class="card-text text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 					</td>
 					<!-- <td>
 						<div class="form-group">

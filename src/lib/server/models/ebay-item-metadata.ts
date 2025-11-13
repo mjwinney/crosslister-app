@@ -8,6 +8,7 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     purchaseDate: { type: String, required: false }, // stored as MM/DD/YYYY string
     purchaseLocation: { type: String, required: false },
     storageLocation: { type: String, required: false },
+    pictureURL: { type: String, required: false },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });

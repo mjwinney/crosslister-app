@@ -15,7 +15,7 @@
 
 <NavSideBar children={children} />
 
-{#if navigating && navigating.to?.url.pathname === '/auth/active-items'}
+{#if navigating && (navigating.to?.url.pathname === '/auth/sold-items' || navigating.to?.url.pathname === '/auth/active-items')}
     <!-- full-screen busy overlay shown during client-side navigation to active-items -->
     <div class="busy-overlay" aria-hidden={!navigating}>
         <div class="text-center">

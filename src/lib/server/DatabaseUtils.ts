@@ -182,6 +182,7 @@ export type MetaDataModel = {
     purchaseDate?: string,
     purchaseLocation?: string,
     storageLocation?: string,
+    pictureURL?: string
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -218,28 +219,32 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
     }
 }
 
-export async function getEbayMetadata(userId: string, itemId: string) : Promise<MetaDataModel | StatusCodes>
+type MetaDataResult =
+  | { ok: true; data: MetaDataModel }
+  | { ok: false; code: StatusCodes };
+
+export async function getEbayMetadata(userId: string, itemId: string) : Promise<MetaDataResult>
 {
     // Ensure the database connection is established
     await connectToDatabase();
 
     if (!cachedDb) {
         console.log("No database connection available");
-        return StatusCodes.NoDatabaseConnection;
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
     try {
         const metaData = await EbayItemMetadata.findOne({ itemId, userId }).exec();
 
-        return metaData ? {
-            purchasePrice: metaData.purchasePrice || undefined,
-            purchaseDate: metaData.purchaseDate || undefined,
-            purchaseLocation: metaData.purchaseLocation || undefined,
-            storageLocation: metaData.storageLocation || undefined,
-        } : { }; StatusCodes.OK;
-
+        return { ok: true, data: {
+            purchasePrice: metaData?.purchasePrice || undefined,
+            purchaseDate: metaData?.purchaseDate || undefined,
+            purchaseLocation: metaData?.purchaseLocation || undefined,
+            storageLocation: metaData?.storageLocation || undefined,
+            pictureURL: metaData?.pictureURL || undefined
+        }};
     } catch (error) {
-        console.error(`Error inserting eBay metadata for itemId:${itemId}`, error);
-        return StatusCodes.InsertFailed;
+        console.error(`Error retrieving eBay metadata for itemId:${itemId}`, error);
+        return { ok: false, code: StatusCodes.InsertFailed };
     }
 }

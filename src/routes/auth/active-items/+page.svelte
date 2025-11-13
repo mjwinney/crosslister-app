@@ -103,6 +103,7 @@
 		<tbody>
 			{#each editableItems.Item as item}
 				<tr>
+					<!-- <td>{JSON.stringify(item.Metadata)}</td> -->
 					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 							<img
