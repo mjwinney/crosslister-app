@@ -876,3 +876,108 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise
         };
     }
 }
+
+export async function getMyEbaySellerList(locals: App.Locals, page: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    // console.log(`getMyEbayItem called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetSellerList',
+    };
+
+    // console.log('getMyEbayItem headers:', JSON.stringify(headers));
+
+    const nowDate = new Date();
+    const pastDate = new Date(nowDate.getTime() - (120 * 24 * 60 * 60 * 1000)); // 120 days ago
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetSellerListRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <GranularityLevel>Fine</GranularityLevel>
+        <EndTimeFrom>${pastDate.toISOString()}</EndTimeFrom>
+        <EndTimeTo>${nowDate.toISOString()}</EndTimeTo>
+        <Sort>1</Sort>
+        <Pagination>
+            <EntriesPerPage>20</EntriesPerPage>
+            <PageNumber>${page}</PageNumber>
+        </Pagination>
+    </GetSellerListRequest>`;
+
+    console.log('getMyEbayItem xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+                console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
+                console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            if (!jsonData.GetSellerListResponse?.ItemArray?.Item) {
+                console.log('No items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            // for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
+            //     const itemId = item.ItemID;
+            //     const startDate = new Date(item.ListingDetails.StartTime);
+
+            //     const status = await insertSoldEbayItems(itemId, startDate);
+            //     if (status !== StatusCodes.OK) {
+            //         console.error(`Failed to insert sold eBay item for itemId:${itemId}`);
+            //         return {
+            //             status: 500,
+            //             data: {}
+            //         };
+            //     }
+
+            //     // Gather the metadata for the item and combine it into the returned JSON
+            //     const metadata = await getEbayMetadata(itemId);
+
+            //     if (metadata === StatusCodes) {
+            //         // Do nothing here, just a type guard
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata;
+            //     }
+            // }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbayItem:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}

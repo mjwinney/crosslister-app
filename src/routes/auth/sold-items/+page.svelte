@@ -16,7 +16,7 @@
 		const session = await authClient.getSession();
 		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
 		if (!session || !session?.data) {
-			goto('/');
+			goto('/homepage	');
 		}
 	});
 
