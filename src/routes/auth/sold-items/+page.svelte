@@ -120,7 +120,6 @@
 		<tbody>
 			{#each dataItems.Order as order}
 				<tr>
-					<!-- <td>{JSON.stringify(order.PictureURL, null, 2)}</td> -->
 					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 							<img
@@ -210,8 +209,8 @@
         scrollbar-color: #888 #f1f1f1;
     }
 	.item-image {
-		width: 75px;
-		height: 75px;
+		width: 100px;
+		height: 100px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
 	}

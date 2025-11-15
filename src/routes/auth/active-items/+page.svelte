@@ -186,8 +186,8 @@
         scrollbar-color: #888 #f1f1f1;
     }
 	.item-image {
-		width: 75px;
-		height: 75px;
+		width: 100px;
+		height: 100px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
 	}

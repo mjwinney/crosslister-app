@@ -688,50 +688,29 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 };
             }
 
-            for (const item of jsonData.GetOrdersResponse.OrderArray.Order) {
+            const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+
+            // Parallelize the calls to getMyEbayItem for each order item as they are slow!
+            // Step 1: Create an array of Promises
+            const itemPromises = orders.map((item: any) => {
                 const itemId = item.TransactionArray.Transaction.Item.ItemID;
-                // See if we have some metadata for the item already and perhaps use it
-                // to store the picture URL it took so long to retrieve.
-                // If it already has a PictureURL then skip the GetItem call.
-                const userId = locals?.session?.userId || '';
-                const metadata = await getEbayMetadata(userId, itemId);
+                return getMyEbayItem(locals, itemId);
+            });
 
-                if (!metadata.ok) {
-                    // Do nothing here, just a type guard
-                    // and we had a database problem
+            // Step 2: Await all promises in parallel
+            const itemResults = await Promise.all(itemPromises);
+
+            // Step 3: Map results back to orders
+            orders.forEach((item: any, index: number) => {
+                const itemData = itemResults[index];
+
+                if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
+                    const ebayItem = itemData.data.GetItemResponse.Item;
+                    item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
                 }
-                else {
-                    // We might have got empty metadata back because it wasn't stored yet 
-                    // Must have gotten metadata back so check if we have a PictureURL
-                    if (metadata.data.pictureURL != undefined) {
-                        item.PictureURL = metadata.data.pictureURL;
-                    }
-                    else {
-                        // Need to get the item data to retrieve the PictureURL
-                        const itemData = await getMyEbayItem(locals, itemId);
+            });
 
-                        // If we get back item data, extract the PictureURL and store it
-                        if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
-                            const ebayItem = itemData.data.GetItemResponse.Item;
-                            item.PictureURL = ebayItem.PictureDetails?.PictureURL[0];
-                        }
-                    }
-                }
-            }
-
-            // for (const item of jsonData.GetOrdersResponse.OrderArray.Order) {
-            //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
-            //     const itemData = await getMyEbayItem(locals, itemId);
-            //     // console.log(`getMyEbayOrders itemData: ${JSON.stringify(itemData)}`);
-
-            //     // Right now I just want the image/gallery URL
-            //     if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
-            //         const ebayItem = itemData.data.GetItemResponse.Item;
-            //         item.PictureURL = ebayItem.PictureDetails?.PictureURL;
-            //     }
-            // }
-
-            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
 
             // for (const item of jsonData.GetMyeBaySellingResponse.SoldList.ItemArray.Item) {
             //     const itemId = item.ItemID;
@@ -800,6 +779,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise
             <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
         </RequesterCredentials>
         <ItemID>${ItemID}</ItemID>
+        <OutputSelector>PictureDetails</OutputSelector>
     </GetItemRequest>`;
 
     // console.log('getMyEbayItem xmlBody:', xmlBody);
@@ -878,7 +858,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise
 }
 
 export async function getMyEbaySellerList(locals: App.Locals, page: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    // console.log(`getMyEbayItem called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
+    // console.log(`getMyEbaySellerList called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -889,7 +869,7 @@ export async function getMyEbaySellerList(locals: App.Locals, page: number): Pro
         'X-EBAY-API-CALL-NAME': 'GetSellerList',
     };
 
-    // console.log('getMyEbayItem headers:', JSON.stringify(headers));
+    // console.log('getMyEbaySellerList headers:', JSON.stringify(headers));
 
     const nowDate = new Date();
     const pastDate = new Date(nowDate.getTime() - (120 * 24 * 60 * 60 * 1000)); // 120 days ago
