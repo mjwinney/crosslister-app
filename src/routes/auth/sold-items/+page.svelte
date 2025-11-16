@@ -54,6 +54,14 @@
 	  return `${month} ${day} ${year}`;
 	}
 
+	function formatCurrency(amountStr: string): string {
+		const amount = parseFloat(amountStr);
+		if (isNaN(amount)) {
+			throw new Error("Invalid number input");
+		}
+		return amount.toFixed(2);
+	}
+
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
 		// Write the data to the database
@@ -132,9 +140,13 @@
 					<td>
 						<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
-						<p class="mb-0 fs-5 text-success">${order.TransactionArray.Transaction.TransactionPrice}</p>
-						<p class="card-text text-muted fs-6 mb-0">Shipping: ${order.TransactionArray.Transaction.ActualShippingCost}</p>
-						<p class="card-text text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
+						<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
+						<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p>
+						<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
+					</td>
+					<td>
+						<p class="fs-6 mb-0">Purchase Price: ${order.Metadata.purchasePrice}</p>
+						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
 					</td>
 					<!-- <td>
 						<div class="form-group">
