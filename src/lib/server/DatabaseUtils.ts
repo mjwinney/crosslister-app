@@ -37,7 +37,8 @@ export enum StatusCodes {
     NoDatabaseConnection,
     RegisteredUserAlreadyExists,
     ErrorCreatingUser,
-    InsertFailed
+    InsertFailed,
+    NotFound
 }
 
 export async function updateEbayToken(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<StatusCodes> {
@@ -233,18 +234,17 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    try {
-        const metaData = await EbayItemMetadata.findOne({ itemId, userId }).exec();
+    const metaData = await EbayItemMetadata.findOne({ itemId, userId }).exec();
 
-        return { ok: true, data: {
-            purchasePrice: metaData?.purchasePrice || undefined,
-            purchaseDate: metaData?.purchaseDate || undefined,
-            purchaseLocation: metaData?.purchaseLocation || undefined,
-            storageLocation: metaData?.storageLocation || undefined,
-            pictureURL: metaData?.pictureURL || undefined
-        }};
-    } catch (error) {
-        console.error(`Error retrieving eBay metadata for itemId:${itemId}`, error);
-        return { ok: false, code: StatusCodes.InsertFailed };
+    if (!metaData) {
+        return { ok: false, code: StatusCodes.NotFound };
     }
+
+    return { ok: true, data: {
+        purchasePrice: metaData?.purchasePrice || undefined,
+        purchaseDate: metaData?.purchaseDate || undefined,
+        purchaseLocation: metaData?.purchaseLocation || undefined,
+        storageLocation: metaData?.storageLocation || undefined,
+        pictureURL: metaData?.pictureURL || undefined
+    }};
 }

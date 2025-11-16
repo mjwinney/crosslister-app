@@ -719,7 +719,10 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 const metadata = await getEbayMetadata(userId, itemId);
 
                 if (!metadata.ok) {
-                    // Do nothing here, just a type guard
+                    // Create empty metadata object
+                    item.Metadata = {
+                        purchasePrice: "0.00"
+                    };
                 }
                 else {
                     // Must have gotten metadata back so combine the data into the item
