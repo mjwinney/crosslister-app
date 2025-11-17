@@ -386,7 +386,8 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
                 const metadata = await getEbayMetadata(userId, itemId);
 
                 if (!metadata.ok) {
-                    // Do nothing here, just a type guard
+                    // Create empty metadata object
+                    item.Metadata = {};
                 }
                 else {
                     // Must have gotten metadata back so combine the data into the item

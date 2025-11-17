@@ -62,6 +62,25 @@
 		return amount.toFixed(2);
 	}
 
+	function calculateProfit(order: any): string {
+		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice);
+		const purchase = parseFloat(order.Metadata.purchasePrice);
+		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
+		return formatCurrency((sold - purchase - fee).toFixed(2));
+	}
+
+	function calculateROI(order: any): string {
+		const profit = calculateProfit(order);
+		const purchase = parseFloat(order.Metadata.purchasePrice);
+		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
+		const totalCost = purchase + fee;
+		if (purchase === 0) {
+			return 'N/A';
+		}
+		const roi = (Number(profit) / totalCost) * 100;
+		return roi.toFixed(2) + '%';
+	}
+
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
 		// Write the data to the database
@@ -147,6 +166,9 @@
 					<td>
 						<p class="fs-6 mb-0">Purchase Price: ${order.Metadata.purchasePrice}</p>
 						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
+						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${formatCurrency(calculateProfit(order))}</span></p>
+						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">${calculateROI(order)}</span></p>
+						<p class="fs-6 mb-0">Time To Sell: <span class="text-success fs-6 mb-0">?</span></p>
 					</td>
 					<!-- <td>
 						<div class="form-group">

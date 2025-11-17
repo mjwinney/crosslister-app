@@ -88,11 +88,11 @@
                   <li>
                     <a
                       href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto('/auth/dashboard')}"
                       >Overview</a
                     >
                   </li>
-                  <li>
+                  <!-- <li>
                     <a
                       href="#"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded"
@@ -112,7 +112,7 @@
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded"
                       >Annually</a
                     >
-                  </li>
+                  </li> -->
                 </ul>
               </div>
             </li>
