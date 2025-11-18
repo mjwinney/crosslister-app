@@ -5,6 +5,7 @@ import { EbayToken } from './models/ebay-token';
 import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
+import { EbaySold } from './models/ebay-sold';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -218,6 +219,69 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
         console.error(`Error updating eBay metadata for itemId:${itemId} userId:${userId}`, error);
         return StatusCodes.InsertFailed;
     }
+}
+
+export type SoldDataModel = {
+    lastRetrievedDate?: Date,
+}
+
+export async function updateSold(userId: string, lastRetrieved: Date, upsert = false) : Promise<StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    if (!lastRetrieved) {
+        return StatusCodes.BadRequest;
+    }
+
+    try {
+        const result = await EbaySold.findOneAndUpdate(
+            { userId },                         // match by userId
+            { lastRetrievedDate: lastRetrieved },   // apply provided metadata fields
+            { new: true, upsert }               // return updated doc; optionally create if missing
+        ).exec();
+
+        if (!result) {
+            // if upsert was false and no doc matched, treat as not found / bad request
+            return upsert ? StatusCodes.InsertFailed : StatusCodes.BadRequest;
+        }
+
+        return StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`updateSold: Error updating EbaySold for userId:${userId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
+type SoldResult =
+  | { ok: true; data: SoldDataModel }
+  | { ok: false; code: StatusCodes };
+
+export async function getSold(userId: string) : Promise<SoldResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const soldData = await EbaySold.findOne({ userId }).exec();
+
+    if (!soldData) {
+        return { ok: false, code: StatusCodes.NotFound };
+    }
+
+    return { ok: true, data: {
+        lastRetrievedDate: soldData?.lastRetrievedDate || undefined
+    }};
 }
 
 type MetaDataResult =

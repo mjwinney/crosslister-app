@@ -753,6 +753,124 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
     }
 }
 
+export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fromDate: Date): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    // console.log(`getMyEbayOrdersAll called, using access token: ${locals.ebayAccessToken}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetOrders',
+    };
+
+    // console.log('getMyEbayOrders headers:', JSON.stringify(headers));
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetOrdersRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <CreateTimeFrom>${fromDate.toISOString()}</CreateTimeFrom>
+        <CreateTimeTo>${toDate.toISOString()}</CreateTimeTo>
+        <OrderRole>Seller</OrderRole>
+        <OrderStatus>Completed</OrderStatus>
+        <SortingOrder>Descending</SortingOrder>
+        <IncludeFinalValueFee>true</IncludeFinalValueFee>
+    </GetOrdersRequest>`;
+
+    // console.log('getMyEbayOrders xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`getMyEbayOrdersDates data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
+
+            // Update: Store sold items in the database
+            // See if any sold items were returned
+            if (!jsonData.GetOrdersResponse?.OrderArray) {
+                console.log('No orders found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            // const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+
+            // // Parallelize the calls to getMyEbayItem for each order item as they are slow!
+            // // Step 1: Create an array of Promises
+            // const itemPromises = orders.map((item: any) => {
+            //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
+            //     return getMyEbayItem(locals, itemId);
+            // });
+
+            // // Step 2: Await all promises in parallel
+            // const itemResults = await Promise.all(itemPromises);
+
+            // // Step 3: Map results back to orders
+            // orders.forEach((item: any, index: number) => {
+            //     const itemData = itemResults[index];
+
+            //     if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
+            //         const ebayItem = itemData.data.GetItemResponse.Item;
+            //         item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
+            //     }
+            // });
+
+            // const userId = locals?.session?.userId || '';
+
+            // // Gather the metadata for the item and combine it into the returned JSON
+            // for (const item of orders) {
+            //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
+            //     const metadata = await getEbayMetadata(userId, itemId);
+
+            //     if (!metadata.ok) {
+            //         // Create empty metadata object
+            //         item.Metadata = {
+            //             purchasePrice: "0.00"
+            //         };
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata.data;
+            //     }
+            // };
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbayOrdersDates data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbayOrdersDates:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}
+
 export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     // console.log(`getMyEbayItem called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
 

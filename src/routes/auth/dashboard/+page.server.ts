@@ -1,0 +1,91 @@
+import { getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
+import { getMyEbayOrdersDates } from '$lib/server/ebayUtils';
+import type { PageServerLoad } from './$types';
+import type { Actions } from './$types';
+
+export const load: PageServerLoad = async ({ request, locals }) => {
+
+    const userId = locals?.session?.userId;
+    if (!userId) {
+        return new Response('Failed to retrieve user ID', {
+            status: 500,
+            headers: { 'Content-Type': 'text/html' }
+        });
+    }
+
+    // See if we need to gather some more sold
+    // items based on the last time they were gathered
+    const soldResult = await getSold(userId);
+
+    const toDate = new Date();
+    let fromDate = toDate;
+
+    if (!soldResult.ok) {
+        // Possible first time retrieveing sold items
+        // So set back 90 days from now
+        fromDate = new Date(toDate.getTime() - (90 * 24 * 60 * 60 * 1000));
+    }
+
+    const ordersResponse = await getMyEbayOrdersDates(locals, toDate, fromDate);
+
+    if (ordersResponse.status !== 200 || !('data' in ordersResponse)) {
+        return new Response('Failed to retrieve eBay inventory items', {
+            status: 500,
+            headers: { 'Content-Type': 'text/html' }
+        });
+    }
+
+    // Update the sold database table with the current date as this was last time
+    // the sold items were retrieved
+    // const updateSoldResponse = await updateSold(userId, toDate, true);
+
+    // if (updateSoldResponse !== StatusCodes.OK) {
+    //     return new Response('Failed to update eBay sold items', {
+    //         status: 500,
+    //         headers: { 'Content-Type': 'text/html' }
+    //     });
+    // }
+
+    // Insert sold items into the database
+    for (const item of ordersResponse.data.GetOrdersResponse.OrderArray.Order) {
+        const itemId = item.TransactionArray.Transaction.Item.ItemID;
+        const listedDate = new Date(item.StartTime);
+        const soldDate = new Date(item.TransactionArray.Transaction.CreatedDate);
+        const insertSoldResponse = await insertSoldEbayItems(itemId, listedDate);
+    }
+
+
+    console.log('eBay API request successful, response.data:', JSON.stringify(ordersResponse.data));
+
+    console.log('eBay API request successful, returning data...');
+    return {
+        post: ordersResponse.data,
+    };
+};
+
+// export const actions: Actions = {
+//     updateItem: async ({ request }) => {
+//         console.log('updateItem: ENTER');
+//         console.log('updateItem: request:', request);
+//         const formData = await request.formData();
+//         console.log('updateItem: request JSON:', JSON.stringify(formData));
+//         const itemId = formData.get('itemId') as string;
+//         const metaData: MetaDataModel = JSON.parse(formData.get('metaData') as string);
+//         const userId = formData.get('userId') as string;
+
+//         console.log('updateItem: userId:', userId);
+
+//         // const metaData = formData.get('metaData') as MetaDataModel;
+//         const response = await updateEbayMetadata(userId, itemId, metaData, true);
+
+//         if (response !== StatusCodes.OK) {
+//             return new Response('Failed to update eBay item metadata', {
+//                 status: 500,
+//                 headers: { 'Content-Type': 'text/html' }
+//             });
+//         }
+
+//         console.log('eBay API request successful, success');
+//         return { success: true, message: 'Operation complete!' };
+//     },
+// };
