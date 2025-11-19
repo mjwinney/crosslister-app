@@ -696,7 +696,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Step 1: Create an array of Promises
             const itemPromises = orders.map((item: any) => {
                 const itemId = item.TransactionArray.Transaction.Item.ItemID;
-                return getMyEbayItem(locals, itemId);
+                return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails"]);
             });
 
             // Step 2: Await all promises in parallel
@@ -709,6 +709,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
                     const ebayItem = itemData.data.GetItemResponse.Item;
                     item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
+                    item.StartTime = ebayItem.ListingDetails?.StartTime;
+                    item.EndTime = ebayItem.ListingDetails?.EndTime;
                 }
             });
 
@@ -730,6 +732,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                     item.Metadata = metadata.data;
                 }
             };
+
+            console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
 
             return {
                 status: response.status,
@@ -871,7 +875,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
     }
 }
 
-export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSelector: string[]): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     // console.log(`getMyEbayItem called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
 
     const headers = {
@@ -885,13 +889,19 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise
 
     // console.log('getMyEbayItem headers:', JSON.stringify(headers));
 
+    // Construct the OutputSelector string
+    let outputSelectorString = '';
+    for (let i = 0; i < OutputSelector.length; i++) {
+        outputSelectorString += `<OutputSelector>${OutputSelector[i]}</OutputSelector>`;
+    }
+
     const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
     <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
         <RequesterCredentials>
             <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
         </RequesterCredentials>
         <ItemID>${ItemID}</ItemID>
-        <OutputSelector>PictureDetails</OutputSelector>
+        ${outputSelectorString}
     </GetItemRequest>`;
 
     // console.log('getMyEbayItem xmlBody:', xmlBody);
@@ -909,7 +919,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string): Promise
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            // console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database

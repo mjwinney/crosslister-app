@@ -81,6 +81,31 @@
 		return roi.toFixed(2) + '%';
 	}
 
+	function parseISODate(isoString: string): Date {
+		if (typeof isoString !== 'string') {
+			throw new Error('Input must be a string in ISO format');
+		}
+
+		const date = new Date(isoString);
+
+		if (isNaN(date.getTime())) {
+			throw new Error('Invalid ISO date format');
+		}
+
+		return date;
+	}
+
+	function getDayDifference(startTime: string, endTime: string): string {
+
+		// Calculate the difference in milliseconds
+		const diffMs = parseISODate(endTime).getTime() - parseISODate(startTime).getTime();
+
+		// Convert milliseconds to days
+		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+		return diffDays === 1 ? `${diffDays} day` : `${diffDays} days`;
+	}
+
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
 		// Write the data to the database
@@ -168,7 +193,7 @@
 						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
 						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${formatCurrency(calculateProfit(order))}</span></p>
 						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">${calculateROI(order)}</span></p>
-						<p class="fs-6 mb-0">Time To Sell: <span class="text-success fs-6 mb-0">?</span></p>
+						<p class="fs-6 mb-0">Time To Sell: <span class="text-success fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
 					</td>
 					<!-- <td>
 						<div class="form-group">

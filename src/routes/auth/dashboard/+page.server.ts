@@ -1,5 +1,5 @@
 import { getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
-import { getMyEbayOrdersDates } from '$lib/server/ebayUtils';
+import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
@@ -46,14 +46,36 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     //     });
     // }
 
-    // Insert sold items into the database
-    for (const item of ordersResponse.data.GetOrdersResponse.OrderArray.Order) {
-        const itemId = item.TransactionArray.Transaction.Item.ItemID;
-        const listedDate = new Date(item.StartTime);
-        const soldDate = new Date(item.TransactionArray.Transaction.CreatedDate);
-        const insertSoldResponse = await insertSoldEbayItems(itemId, listedDate);
-    }
+    const orders = ordersResponse.data.GetOrdersResponse.OrderArray.Order;
 
+    // Parallelize the calls to getMyEbayItem for each order item as they are slow!
+    // Step 1: Create an array of Promises
+    const itemPromises = orders.map((item: any) => {
+        const itemId = item.TransactionArray.Transaction.Item.ItemID;
+        return getMyEbayItem(locals, itemId, ["ListingDetails"]);
+    });
+
+    // Step 2: Await all promises in parallel
+    const itemResults = await Promise.all(itemPromises);
+
+    // // Step 3: Map results back to orders
+    // orders.forEach((item: any, index: number) => {
+    //     const itemData = itemResults[index];
+
+    //     if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
+    //         const ebayItem = itemData.data.GetItemResponse.Item;
+    //         item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
+    //     }
+    // });
+
+
+    // // Insert sold items into the database
+    // for (const item of ordersResponse.data.GetOrdersResponse.OrderArray.Order) {
+    //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
+    //     const listedDate = new Date(item.StartTime);
+    //     const soldDate = new Date(item.TransactionArray.Transaction.CreatedDate);
+    //     const insertSoldResponse = await insertSoldEbayItems(itemId, listedDate);
+    // }
 
     console.log('eBay API request successful, response.data:', JSON.stringify(ordersResponse.data));
 
