@@ -6,7 +6,7 @@ import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
-import { getEndOfMonth, getEndOfWeek, getStartOfMonth, getStartOfWeek } from './dateUtils';
+import { getEndOfMonthUTC, getEndOfWeekUTC, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -363,7 +363,7 @@ export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSumm
     
     // Go through the metadata for the current week
     const now = new Date();
-    const startOfWeek = getStartOfWeek(); // Monday at 12:00:01 AM
+    const startOfWeek = getStartOfWeekUTC(); // Monday at 12:00:01 AM
 
     console.log(`getCurrentWeekStats: startOfWeek:${startOfWeek} now:${now}`);
 
@@ -381,8 +381,8 @@ export async function getPreviousWeekStats(userId: string) : Promise<MetaDataSum
     }
 
     // Go back to the previous week
-    const startOfWeek = getStartOfWeek(1); // Monday at 12:00:01 AM
-    const endOfWeek = getEndOfWeek(1);     // Sunday at 11:59:59 PM
+    const startOfWeek = getStartOfWeekUTC(1); // Monday at 12:00:01 AM
+    const endOfWeek = getEndOfWeekUTC(1);     // Sunday at 11:59:59 PM
 
     console.log(`getPreviousWeekStats: startOfWeek:${startOfWeek} endOfWeek:${endOfWeek}`);
 
@@ -400,8 +400,8 @@ export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSu
     }
 
     // Go back to the previous week
-    const startOfMonth = getStartOfMonth(1); // 1st day of the previous month
-    const endOfMonth = getEndOfMonth(1);     // Last day of the previous month
+    const startOfMonth = getStartOfMonthUTC(1); // 1st day of the previous month
+    const endOfMonth = getEndOfMonthUTC(1);     // Last day of the previous month
 
     console.log(`getPreviousMonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
     

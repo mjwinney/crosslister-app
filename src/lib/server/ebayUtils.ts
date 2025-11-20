@@ -731,15 +731,15 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 }
             };
 
-            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
 
             return {
                 status: response.status,
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
+            // console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,

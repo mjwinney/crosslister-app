@@ -12,48 +12,48 @@ export function convertToISO(dateStr: string): string {
   return date.toISOString(); // "2025-10-29T23:33:35.034Z"
 }
 
-export function getStartOfWeek(weekOffset: number = 0): Date {
+export function getStartOfWeekUTC(offset: number = 0): Date {
   const now = new Date();
-  const day = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+  const day = now.getUTCDay(); // Sunday = 0, Monday = 1
   const diffToMonday = (day + 6) % 7;
 
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - diffToMonday - (weekOffset * 7));
-  monday.setHours(0, 0, 1, 0); // 12:00:01 AM
+  const monday = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() - diffToMonday - (offset * 7),
+    0, 0, 1, 0 // 12:00:01 AM UTC
+  ));
 
   return monday;
 }
 
-export function getEndOfWeek(weekOffset: number = 0): Date {
+export function getEndOfWeekUTC(offset: number = 0): Date {
   const now = new Date();
-  const day = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
+  const day = now.getUTCDay();
   const diffToSunday = (7 - day) % 7;
 
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + diffToSunday - (weekOffset * 7));
-  sunday.setHours(24, 0, 0, 0); // Midnight at end of Sunday (start of Monday)
+  const sunday = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + diffToSunday - (offset * 7),
+    0, 0, 0, 0 // Midnight UTC (start of Monday)
+  ));
 
   return sunday;
 }
 
-export function getStartOfMonth(offset: number = 0): Date {
+export function getStartOfMonthUTC(offset: number = 0): Date {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() - offset;
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() - offset;
 
-  const start = new Date(year, month, 1);
-  start.setHours(0, 0, 0, 0); // Midnight
-
-  return start;
+  return new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)); // Midnight UTC
 }
 
-export function getEndOfMonth(offset: number = 0): Date {
+export function getEndOfMonthUTC(offset: number = 0): Date {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() - offset + 1;
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() - offset + 1;
 
-  const end = new Date(year, month, 0); // Day 0 of next month = last day of current month
-  end.setHours(23, 59, 59, 999); // End of day
-
-  return end;
+  return new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)); // Last day of month
 }
