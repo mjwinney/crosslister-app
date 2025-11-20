@@ -6,6 +6,7 @@ import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
+import { getEndOfMonth, getEndOfWeek, getStartOfMonth, getStartOfWeek } from './dateUtils';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -184,7 +185,9 @@ export type MetaDataModel = {
     purchaseDate?: string,
     purchaseLocation?: string,
     storageLocation?: string,
-    pictureURL?: string
+    pictureURL?: string,
+    startTime?: Date,
+    endTime?: Date
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -309,6 +312,92 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         purchaseDate: metaData?.purchaseDate || undefined,
         purchaseLocation: metaData?.purchaseLocation || undefined,
         storageLocation: metaData?.storageLocation || undefined,
-        pictureURL: metaData?.pictureURL || undefined
+        pictureURL: metaData?.pictureURL || undefined,
+        startTime: metaData?.startTime || undefined,
+        endTime: metaData?.endTime || undefined
     }};
+}
+
+export type MetaDataSummary = {
+    itemCount?: number,
+}
+
+type MetaDataSummaryResult =
+  | { ok: true; data: MetaDataSummary }
+  | { ok: false; code: StatusCodes };
+
+export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDate: Date) : Promise<MetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const metaData = await EbayItemMetadata.find({
+        userId,
+        endTime: {
+            $gte: fromDate,
+            $lte: toDate,
+        }
+    }).lean().exec();
+
+    if (!metaData) {
+        return { ok: false, code: StatusCodes.NotFound };
+    }
+
+    return { ok: true, data: { itemCount: metaData.length } };
+}
+
+export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+    
+    // Go through the metadata for the current week
+    const now = new Date();
+    const startOfWeek = getStartOfWeek(); // Monday at 12:00:01 AM
+
+    return await getEbayMetadataByDate(userId, startOfWeek, now);
+}
+
+export async function getPreviousWeekStats(userId: string) : Promise<MetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    // Go back to the previous week
+    const startOfWeek = getStartOfWeek(1); // Monday at 12:00:01 AM
+    const endOfWeek = getEndOfWeek(1);     // Sunday at 11:59:59 PM
+
+    return await getEbayMetadataByDate(userId, startOfWeek, endOfWeek);
+}
+
+export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    // Go back to the previous week
+    const startOfMonth = getStartOfMonth(1); // 1st day of the previous month
+    const endOfMonth = getEndOfMonth(1);     // Last day of the previous month
+
+    return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
 }

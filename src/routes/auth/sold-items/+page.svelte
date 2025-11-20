@@ -2,12 +2,12 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { onMount, tick } from 'svelte';
-    import CurrencyInput from '@canutin/svelte-currency-input';
-	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
+    // import CurrencyInput from '@canutin/svelte-currency-input';
+	// import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	import DatePicker from '$lib/components/DatePicker.svelte';
-	import { navigating } from '$app/state';
+	// import DatePicker from '$lib/components/DatePicker.svelte';
+	// import { navigating } from '$app/state';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -20,22 +20,22 @@
 		}
 	});
 
-	async function postMetaData(itemID: string, metaData: MetaDataModel) {
-		console.log('postMetaData called:', itemID, metaData);
+	// async function postMetaData(itemID: string, metaData: MetaDataModel) {
+	// 	console.log('postMetaData called:', itemID, metaData);
 
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
+	// 	const session = await authClient.getSession();
+	// 	const userId = session.data?.session.userId || '';
 
-		const formData = new FormData();
-		formData.append('itemId', itemID);
-		formData.append('metaData', JSON.stringify(metaData));
-		formData.append('userId', userId);
+	// 	const formData = new FormData();
+	// 	formData.append('itemId', itemID);
+	// 	formData.append('metaData', JSON.stringify(metaData));
+	// 	formData.append('userId', userId);
 
-		const response = await fetch('/auth/active-items?/updateItem', {
-			method: 'POST',
-			body: formData
-		});
-	}
+	// 	const response = await fetch('/auth/active-items?/updateItem', {
+	// 		method: 'POST',
+	// 		body: formData
+	// 	});
+	// }
 
 	/**
 	 * Format an ISO date (or Date) as "Mon DD YYYY", e.g. "Nov 13 2025".
@@ -64,19 +64,26 @@
 
 	function calculateProfit(order: any): string {
 		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice);
-		const purchase = parseFloat(order.Metadata.purchasePrice);
 		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
-		return formatCurrency((sold - purchase - fee).toFixed(2));
+		const purchaseRaw = order.Metadata?.purchasePrice;
+
+		if (purchaseRaw === undefined || isNaN(parseFloat(purchaseRaw))) {
+			const profit = sold - fee;
+			return `${formatCurrency(profit.toString())}`;
+		}
+
+		const purchase = parseFloat(purchaseRaw);
+		const profit = sold - purchase - fee;
+		return `${formatCurrency(profit.toString())}`;
 	}
+
 
 	function calculateROI(order: any): string {
 		const profit = calculateProfit(order);
-		const purchase = parseFloat(order.Metadata.purchasePrice);
+		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
 		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
 		const totalCost = purchase + fee;
-		if (purchase === 0) {
-			return 'N/A';
-		}
+
 		const roi = (Number(profit) / totalCost) * 100;
 		return roi.toFixed(2) + '%';
 	}
@@ -106,12 +113,6 @@
 		return diffDays === 1 ? `${diffDays} day` : `${diffDays} days`;
 	}
 
-	function handleOnblur(itemID: string, metaData: MetaDataModel) {
-		console.log('Blur event received:', itemID, metaData);
-		// Write the data to the database
-		postMetaData(itemID, metaData);
-	}
-
     // Example: navigate to the same route with ?page=N
     async function handlePageChange(newPage: number) {
 
@@ -133,7 +134,6 @@
 		isLoading = false;  // Loading spinner removed
     }
 
-	// Figure out pagination
 	let { data } = $props();
 
 	let dataItems = $derived(data.post.GetOrdersResponse.OrderArray);  // Reactive read-only; A must for pagination redraw
@@ -189,53 +189,13 @@
 						<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 					</td>
 					<td>
-						<p class="fs-6 mb-0">Purchase Price: ${order.Metadata.purchasePrice}</p>
+						<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
 						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
-						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${formatCurrency(calculateProfit(order))}</span></p>
+						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
 						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">${calculateROI(order)}</span></p>
-						<p class="fs-6 mb-0">Time To Sell: <span class="text-success fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
+						<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
+						<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
 					</td>
-					<!-- <td>
-						<div class="form-group">
-							<label for="SoldDate">Sold Date: {convertFromISO(transaction.Transaction.Item.ListingDetails.EndTime)}</label>
-						</div>
-					</td> -->
-					<!-- <td>
-						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
-							<label for="originalPrice">Purchase Price</label>
-							<CurrencyInput
-								bind:value={item.Metadata.purchasePrice}
-								currency="USD"
-								locale="en-US"
-								inputClasses={
-									{
-										unformatted: "form-control",
-										formatted: "form-control",
-										formattedPositive: "form-control",
-										formattedNegative: "form-control",
-									}
-								}
-						/>
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="originalPrice">Purchase Date</label>
-							<DatePicker bind:selectedDate={item.Metadata.purchaseDate}/>
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="purchaseLocation">Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="storageLocation">Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-						</div>
-					</td> -->
 				</tr>
 			{/each}
 		</tbody>

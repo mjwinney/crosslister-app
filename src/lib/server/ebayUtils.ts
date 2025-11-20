@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayToken } from "./DatabaseUtils";
+import { getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
@@ -677,8 +677,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
-            console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database
             // See if any sold items were returned
@@ -723,9 +723,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
 
                 if (!metadata.ok) {
                     // Create empty metadata object
-                    item.Metadata = {
-                        purchasePrice: "0.00"
-                    };
+                    item.Metadata = {};
                 }
                 else {
                     // Must have gotten metadata back so combine the data into the item
@@ -733,7 +731,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 }
             };
 
-            console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
 
             return {
                 status: response.status,
@@ -769,7 +767,8 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
         'X-EBAY-API-CALL-NAME': 'GetOrders',
     };
 
-    // console.log('getMyEbayOrders headers:', JSON.stringify(headers));
+    // #TODO Need to limit the number of orders returned by only retrieving enough
+    // sales that have not already been retrieved 
 
     const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
     <GetOrdersRequest xmlns="urn:ebay:apis:eBLBaseComponents">
@@ -811,6 +810,37 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     data: {}
                 };
             }
+
+            const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+
+            // Parallelize the calls to getMyEbayItem for each order item as they are slow!
+            // Step 1: Create an array of Promises
+            const itemPromises = orders.map((item: any) => {
+                const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails"]);
+            });
+
+            // Step 2: Await all promises in parallel
+            const itemResults = await Promise.all(itemPromises);
+
+            const userId = locals?.session?.userId || '';
+
+            // Step 3: Map results back to orders
+            orders.forEach(async (item: any, index: number) => {
+                const itemData = itemResults[index];
+
+                if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
+                    const ebayItem = itemData.data.GetItemResponse.Item;
+                    const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                    item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
+                    item.StartTime = ebayItem.ListingDetails?.StartTime;
+                    item.EndTime = ebayItem.ListingDetails?.EndTime;
+
+                    // Upsert into the metadata table
+                    const result = await updateEbayMetadata(userId, itemId, { startTime: item.StartTime, endTime: item.EndTime }, true);
+                }
+            });
+
 
             // const orders = jsonData.GetOrdersResponse.OrderArray.Order;
 

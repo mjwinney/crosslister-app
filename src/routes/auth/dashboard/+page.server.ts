@@ -1,7 +1,6 @@
-import { getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
+import { getCurrentWeekStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
 import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
-import type { Actions } from './$types';
 
 export const load: PageServerLoad = async ({ request, locals }) => {
 
@@ -35,6 +34,10 @@ export const load: PageServerLoad = async ({ request, locals }) => {
         });
     }
 
+    const weekStats = await getCurrentWeekStats(userId);
+    const previousWeekStats = await getPreviousWeekStats(userId);
+    const previousMonthStats = await getPreviousMonthStats(userId);
+
     // Update the sold database table with the current date as this was last time
     // the sold items were retrieved
     // const updateSoldResponse = await updateSold(userId, toDate, true);
@@ -46,17 +49,17 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     //     });
     // }
 
-    const orders = ordersResponse.data.GetOrdersResponse.OrderArray.Order;
+    // const orders = ordersResponse.data.GetOrdersResponse.OrderArray.Order;
 
-    // Parallelize the calls to getMyEbayItem for each order item as they are slow!
-    // Step 1: Create an array of Promises
-    const itemPromises = orders.map((item: any) => {
-        const itemId = item.TransactionArray.Transaction.Item.ItemID;
-        return getMyEbayItem(locals, itemId, ["ListingDetails"]);
-    });
+    // // Parallelize the calls to getMyEbayItem for each order item as they are slow!
+    // // Step 1: Create an array of Promises
+    // const itemPromises = orders.map((item: any) => {
+    //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
+    //     return getMyEbayItem(locals, itemId, ["ListingDetails"]);
+    // });
 
-    // Step 2: Await all promises in parallel
-    const itemResults = await Promise.all(itemPromises);
+    // // Step 2: Await all promises in parallel
+    // const itemResults = await Promise.all(itemPromises);
 
     // // Step 3: Map results back to orders
     // orders.forEach((item: any, index: number) => {
@@ -77,11 +80,18 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     //     const insertSoldResponse = await insertSoldEbayItems(itemId, listedDate);
     // }
 
-    console.log('eBay API request successful, response.data:', JSON.stringify(ordersResponse.data));
+    // console.log('eBay API request successful, response.data:', JSON.stringify(ordersResponse.data));
 
-    console.log('eBay API request successful, returning data...');
+    // console.log('eBay API request successful, returning data...');
+    // return {
+    //     post: ordersResponse.data,
+    // };
     return {
-        post: ordersResponse.data,
+        post: {
+            weekStats: weekStats,
+            previousWeekStats: previousWeekStats,
+            previousMonthStats: previousMonthStats,
+        },
     };
 };
 
