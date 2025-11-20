@@ -798,8 +798,8 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            console.log(`getMyEbayOrdersDates data: ${JSON.stringify(jsonData)}`);
-            console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayOrdersDates data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database
             // See if any sold items were returned
@@ -888,8 +888,8 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbayOrdersDates data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayOrdersDates data: ${JSON.stringify(data)}`);
+            // console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,
@@ -949,7 +949,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database
@@ -992,8 +992,8 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
+            // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,
@@ -1056,8 +1056,8 @@ export async function getMyEbaySellerList(locals: App.Locals, page: number): Pro
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-                console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
-                console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+                // console.log(`getMyEbayItem data: ${JSON.stringify(jsonData)}`);
+                // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             if (!jsonData.GetSellerListResponse?.ItemArray?.Item) {
                 console.log('No items found in the response.');
@@ -1097,8 +1097,8 @@ export async function getMyEbaySellerList(locals: App.Locals, page: number): Pro
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
+            // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,
@@ -1194,8 +1194,8 @@ export async function getMyEbayOrderTransactions(locals: App.Locals, ItemID: str
                 data: jsonData
             };
         } else {
-            console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
-            console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+            // console.log(`getMyEbayItem data: ${JSON.stringify(data)}`);
+            // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,

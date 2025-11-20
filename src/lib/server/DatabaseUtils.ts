@@ -365,6 +365,8 @@ export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSumm
     const now = new Date();
     const startOfWeek = getStartOfWeek(); // Monday at 12:00:01 AM
 
+    console.log(`getCurrentWeekStats: startOfWeek:${startOfWeek} now:${now}`);
+
     return await getEbayMetadataByDate(userId, startOfWeek, now);
 }
 
@@ -381,6 +383,8 @@ export async function getPreviousWeekStats(userId: string) : Promise<MetaDataSum
     // Go back to the previous week
     const startOfWeek = getStartOfWeek(1); // Monday at 12:00:01 AM
     const endOfWeek = getEndOfWeek(1);     // Sunday at 11:59:59 PM
+
+    console.log(`getPreviousWeekStats: startOfWeek:${startOfWeek} endOfWeek:${endOfWeek}`);
 
     return await getEbayMetadataByDate(userId, startOfWeek, endOfWeek);
 }
@@ -399,5 +403,7 @@ export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSu
     const startOfMonth = getStartOfMonth(1); // 1st day of the previous month
     const endOfMonth = getEndOfMonth(1);     // Last day of the previous month
 
+    console.log(`getPreviousMonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
+    
     return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
 }
