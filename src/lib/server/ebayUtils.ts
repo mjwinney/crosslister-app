@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { MetaDataModel, getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 
 interface Success<T> {
@@ -832,12 +832,20 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
                     const ebayItem = itemData.data.GetItemResponse.Item;
                     const itemId = item.TransactionArray.Transaction.Item.ItemID;
-                    item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
-                    item.StartTime = ebayItem.ListingDetails?.StartTime;
-                    item.EndTime = ebayItem.ListingDetails?.EndTime;
+                    // item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
+                    // item.StartTime = ebayItem.ListingDetails?.StartTime;
+                    // item.EndTime = ebayItem.ListingDetails?.EndTime;
+
+                    const metaData: MetaDataModel = {
+                        pictureURL: item.PictureURL,
+                        startTime: item.TransactionArray.Transaction.CreatedDate,
+                        endTime: item.EndTime,
+                        soldPrice: item.TransactionArray.Transaction.TransactionPrice,
+                        feePrice: item.TransactionArray.Transaction.FinalValueFee
+                    };
 
                     // Upsert into the metadata table
-                    const result = await updateEbayMetadata(userId, itemId, { startTime: item.StartTime, endTime: item.EndTime }, true);
+                    const result = await updateEbayMetadata(userId, itemId, metaData, true);
                 }
             });
 

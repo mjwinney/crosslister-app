@@ -182,12 +182,14 @@ export async function insertSoldEbayItems(itemId: string, startDate: Date) : Pro
 
 export type MetaDataModel = {
     purchasePrice?: number,
+    soldPrice?: number,
     purchaseDate?: string,
     purchaseLocation?: string,
     storageLocation?: string,
     pictureURL?: string,
     startTime?: Date,
-    endTime?: Date
+    endTime?: Date,
+    feePrice?: number
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -320,6 +322,9 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
 
 export type MetaDataSummary = {
     itemCount?: number,
+    grossSales?: number,
+    totalFees?: number,
+    totalPurchasePrice?: number,
 }
 
 type MetaDataSummaryResult =
@@ -348,7 +353,14 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
         return { ok: false, code: StatusCodes.NotFound };
     }
 
-    return { ok: true, data: { itemCount: metaData.length } };
+    return {
+        ok: true,
+        data: {
+            itemCount: metaData.length, grossSales: metaData.reduce((acc, item) => acc + (item.soldPrice || 0), 0),
+            totalFees: metaData.reduce((acc, item) => acc + (item.feePrice || 0), 0),
+            totalPurchasePrice: metaData.reduce((acc, item) => acc + (item.purchasePrice || 0), 0)
+        }
+    };
 }
 
 export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSummaryResult>
@@ -404,6 +416,25 @@ export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSu
     const endOfMonth = getEndOfMonthUTC(1);     // Last day of the previous month
 
     console.log(`getPreviousMonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
+    
+    return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
+}
+
+export async function getLast6MonthStats(userId: string) : Promise<MetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    // Go back to the previous week
+    const startOfMonth = getStartOfMonthUTC(6); // 1st day of the previous month
+    const endOfMonth = getEndOfMonthUTC(1);     // Last day of the previous month
+
+    console.log(`getLast6MonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
     
     return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
 }

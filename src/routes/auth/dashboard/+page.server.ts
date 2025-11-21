@@ -1,4 +1,4 @@
-import { getCurrentWeekStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
+import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
 import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
@@ -37,6 +37,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     const weekStats = await getCurrentWeekStats(userId);
     const previousWeekStats = await getPreviousWeekStats(userId);
     const previousMonthStats = await getPreviousMonthStats(userId);
+    const last6MonthStats = await getLast6MonthStats(userId);
 
     // Update the sold database table with the current date as this was last time
     // the sold items were retrieved
@@ -91,6 +92,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
             weekStats: weekStats,
             previousWeekStats: previousWeekStats,
             previousMonthStats: previousMonthStats,
+            last6MonthStats: last6MonthStats,
         },
     };
 };
