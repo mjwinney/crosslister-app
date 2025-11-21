@@ -417,6 +417,114 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
     }
 }
 
+export async function getMyEbaySellingUnsold(locals: App.Locals, page: number = 1): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    // console.log(`getMyEbaySellingUnsold called, using access token: ${locals.ebayAccessToken}, for page: ${page}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+    };
+
+    // console.log('getMyEbaySellingUnsold headers:', JSON.stringify(headers));
+
+    // Now build the XML body for the request
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <UnsoldList>
+            <Include>true</Include>
+            <Sort>StartTimeDescending</Sort>
+            <Pagination>
+                <EntriesPerPage>20</EntriesPerPage>
+                <PageNumber>${page}</PageNumber>
+            </Pagination>
+        </UnsoldList>
+    </GetMyeBaySellingRequest>`;
+
+    // console.log('getMyEbaySellingUnsold xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            // console.log(`getMyEbaySellingUnsold data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbaySellingUnsold response.status: ${JSON.stringify(response.status)}`);
+
+            // See if any unsold items were returned
+            if (!jsonData.GetMyeBaySellingResponse?.UnsoldList) {
+                console.log('No sold items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            const userId = locals?.session?.userId || '';
+
+            // Update: Store unsold items in the database
+            // for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
+            //     const itemId = item.ItemID;
+            //     const startDate = new Date(item.ListingDetails.StartTime);
+
+            //     const status = await updateActiveEbayItem(userId, itemId, startDate, true);
+            //     if (status !== StatusCodes.OK) {
+            //         console.error(`Failed to insert active eBay item for itemId:${itemId}`);
+            //         return {
+            //             status: 500,
+            //             data: {}
+            //         };
+            //     }
+
+            //     // Gather the metadata for the item and combine it into the returned JSON
+            //     const metadata = await getEbayMetadata(userId, itemId);
+
+            //     if (!metadata.ok) {
+            //         // Create empty metadata object
+            //         item.Metadata = {};
+            //     }
+            //     else {
+            //         // Must have gotten metadata back so combine the data into the item
+            //         item.Metadata = metadata.data;
+            //     }
+            // }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`getMyEbaySellingUnsold data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbaySellingUnsold response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error getMyEbaySellingUnsold:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}
+
 export async function getMyEbaySellingScheduled(locals: App.Locals, page: number = 1): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`getMyEbaySellingScheduled called, using access token: ${locals.ebayAccessToken}, for page: ${page}`);
 

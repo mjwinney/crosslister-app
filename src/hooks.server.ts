@@ -47,6 +47,7 @@ export async function handle({ event, resolve }) {
     "/auth/dashboard",
     "/auth/active-items",
     "/auth/sold-items",
+    "/auth/unsold-items",
     "/ebay-api/auth",
     "/auth/ebay-auth-success-callback"
   ];

@@ -67,6 +67,13 @@
                   <li>
                     <a
                       href="#"
+                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/unsold-items`)}"
+                      >Unsold</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="#"
                       class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto('/auth/market-places')}"
                       >Market Places</a
                     >
