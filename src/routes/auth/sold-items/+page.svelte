@@ -6,6 +6,7 @@
 	// import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
+	import CurrencyInput from '@canutin/svelte-currency-input';
 	// import DatePicker from '$lib/components/DatePicker.svelte';
 	// import { navigating } from '$app/state';
 
@@ -18,7 +19,26 @@
 		if (!session || !session?.data) {
 			goto('/homepage	');
 		}
+		console.log(currencyInputEl); // now defined
 	});
+
+	async function updatePurchasePrice(order: any, newValue: number) {
+		const session = await authClient.getSession();
+		const userId = session.data?.session.userId || '';
+
+		const formData = new FormData();
+		formData.append('itemId', order.TransactionArray.Transaction.Item.ItemID);
+		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
+		formData.append('userId', userId);
+
+		await fetch('/auth/active-items?/updateItem', {
+			method: 'POST',
+			body: formData
+		});
+
+		// Update local data so UI reflects immediately
+		order.Metadata.purchasePrice = newValue;
+	}
 
 	// async function postMetaData(itemID: string, metaData: MetaDataModel) {
 	// 	console.log('postMetaData called:', itemID, metaData);
@@ -134,6 +154,30 @@
 		isLoading = false;  // Loading spinner removed
     }
 
+	function startEditing(order: any) {
+		editingItemId = order.TransactionArray.Transaction.Item.ItemID;
+		tempPurchasePrice = order.Metadata.purchasePrice || '0';
+		// Wait for DOM update before focusing
+		// tick().then(() => {
+		// 	console.log(inputRefs.length)
+		// 	inputRefs[0]?.inputEl?.focus();
+		// 	currencyInputEl?.inputEl?.focus();
+		// 	currencyInputEl?.inputEl?.select(); // optional: auto-select value
+		// });
+	}
+
+	async function stopEditing(order: any) {
+		editingItemId = "";
+		order.Metadata.purchasePrice = tempPurchasePrice;
+		await updatePurchasePrice(order, tempPurchasePrice);
+	}
+
+	function handleKeydown(event: CustomEvent, order?: any) {
+		// if (event.key === "Enter") {
+			stopEditing(order);
+		// }
+	}
+
 	let { data } = $props();
 
 	let dataItems = $derived(data.post.GetOrdersResponse.OrderArray);  // Reactive read-only; A must for pagination redraw
@@ -146,7 +190,16 @@
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfEntries);
 	let totalNumberOfPages = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfPages);
+	
+	// Track which item is being edited
+	let editingItemId = $state("");
+	let tempPurchasePrice = $state(0);
+	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
+	// Type definition for the component instance with the required formattedInput property
+	type CurrencyInputInstance = typeof CurrencyInput & { formattedInput: HTMLInputElement };
 
+	// 2. Array to hold references to the components
+	let inputRefs = [];
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -170,7 +223,7 @@
 	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
-			{#each dataItems.Order as order}
+			{#each dataItems.Order as order, index}
 				<tr>
 					<td>
 						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
@@ -189,7 +242,55 @@
 						<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 					</td>
 					<td>
-						<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
+						{#if editingItemId === order.TransactionArray.Transaction.Item.ItemID}
+							<!-- Editable input -->
+							<p class="d-inline-flex align-items-center fs-6 mb-0">
+							<span class="me-2">Purchase Price:</span>
+							<span style="width: 100px;"
+								onfocusout={() => stopEditing(order)}
+								onkeydown={(event) => {
+									// Check if the key pressed is 'Enter'
+									if (event.key === 'Enter') {
+										// Prevent the default form submission behavior (if the input is inside a form)
+										event.preventDefault();
+										stopEditing(order); // Call your stop editing function
+									}
+								}}>
+								<CurrencyInput
+									bind:value={tempPurchasePrice}
+									currency="USD"
+									locale="en-US"
+									inputClasses={{
+										unformatted: "form-control form-control-sm",
+										formatted: "form-control form-control-sm",
+										formattedPositive: "form-control form-control-sm",
+										formattedNegative: "form-control form-control-sm",
+									}}
+								    on:change={(e) => handleKeydown(e, order)}
+								/>
+							</span>
+							</p>
+							<!-- <p class="d-inline-flex fs-6 mb-0">Purchase Price:
+								<div style="width: 120px;" onfocusout={() => stopEditing(order)}>
+									<CurrencyInput
+										bind:value={tempPurchasePrice}
+										currency="USD"
+										locale="en-US"
+										inputClasses={
+											{
+												unformatted: "form-control",
+												formatted: "form-control",
+												formattedPositive: "form-control",
+												formattedNegative: "form-control",
+											}
+										}
+									/>
+								</div> -->
+						{:else}
+							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+								<button class="btn p-0 ms-2" onclick={() => startEditing(order)} title="Edit purchase price">✏️</button>
+							</p>
+						{/if}
 						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
 						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
 						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
@@ -232,5 +333,9 @@
 		height: 100px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
+	}
+
+	.currency-input {
+	  width: 100px; /* or 100%, or min/max-width */
 	}
 </style>

@@ -945,9 +945,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     // item.EndTime = ebayItem.ListingDetails?.EndTime;
 
                     const metaData: MetaDataModel = {
-                        pictureURL: item.PictureURL,
-                        startTime: item.TransactionArray.Transaction.CreatedDate,
-                        endTime: item.EndTime,
+                        // pictureURL: item.PictureURL,
+                        soldTime: ebayItem.ListingDetails?.EndTime,
+                        listedTime: ebayItem.ListingDetails?.StartTime,
                         soldPrice: item.TransactionArray.Transaction.TransactionPrice,
                         feePrice: item.TransactionArray.Transaction.FinalValueFee
                     };

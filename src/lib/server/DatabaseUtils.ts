@@ -187,8 +187,8 @@ export type MetaDataModel = {
     purchaseLocation?: string,
     storageLocation?: string,
     pictureURL?: string,
-    startTime?: Date,
-    endTime?: Date,
+    listedTime?: Date,
+    soldTime?: Date,
     feePrice?: number
 }
 
@@ -315,8 +315,8 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         purchaseLocation: metaData?.purchaseLocation || undefined,
         storageLocation: metaData?.storageLocation || undefined,
         pictureURL: metaData?.pictureURL || undefined,
-        startTime: metaData?.startTime || undefined,
-        endTime: metaData?.endTime || undefined
+        listedTime: metaData?.listedTime || undefined,
+        soldTime: metaData?.soldTime || undefined
     }};
 }
 
@@ -341,11 +341,15 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
+    // Convert to UTC ISO strings
+    const utcFrom = fromDate.toISOString();
+    const utcTo   = toDate.toISOString();
+
     const metaData = await EbayItemMetadata.find({
         userId,
-        endTime: {
-            $gte: fromDate,
-            $lte: toDate,
+        soldTime: {
+            $gte: new Date(utcFrom),
+            $lte: new Date(utcTo),
         }
     }).lean().exec();
 

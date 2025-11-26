@@ -133,7 +133,7 @@
 										formattedNegative: "form-control",
 									}
 								}
-						/>
+							/>
 						</div>
 					</td>
 					<td>

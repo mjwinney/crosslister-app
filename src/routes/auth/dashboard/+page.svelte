@@ -22,6 +22,10 @@
   function calculateROI(totalProfit: number, totalPurchasePrice: string, totalFees: string): string {
 		const totalCost = Number(totalPurchasePrice) + Number(totalFees);
 
+    if (totalCost === 0) {
+      return '0.00%';
+    }
+
 		const roi = (totalProfit / totalCost) * 100;
 		return roi.toFixed(2) + '%';
 	}
