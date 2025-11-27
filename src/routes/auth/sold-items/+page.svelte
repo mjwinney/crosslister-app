@@ -2,13 +2,10 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
 	import { onMount, tick } from 'svelte';
-    // import CurrencyInput from '@canutin/svelte-currency-input';
-	// import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
 	import CurrencyInput from '@canutin/svelte-currency-input';
-	// import DatePicker from '$lib/components/DatePicker.svelte';
-	// import { navigating } from '$app/state';
+	import { fly } from 'svelte/transition';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -39,23 +36,6 @@
 		// Update local data so UI reflects immediately
 		order.Metadata.purchasePrice = newValue;
 	}
-
-	// async function postMetaData(itemID: string, metaData: MetaDataModel) {
-	// 	console.log('postMetaData called:', itemID, metaData);
-
-	// 	const session = await authClient.getSession();
-	// 	const userId = session.data?.session.userId || '';
-
-	// 	const formData = new FormData();
-	// 	formData.append('itemId', itemID);
-	// 	formData.append('metaData', JSON.stringify(metaData));
-	// 	formData.append('userId', userId);
-
-	// 	const response = await fetch('/auth/active-items?/updateItem', {
-	// 		method: 'POST',
-	// 		body: formData
-	// 	});
-	// }
 
 	/**
 	 * Format an ISO date (or Date) as "Mon DD YYYY", e.g. "Nov 13 2025".
@@ -154,20 +134,18 @@
 		isLoading = false;  // Loading spinner removed
     }
 
-	function startEditing(order: any) {
-		editingItemId = order.TransactionArray.Transaction.Item.ItemID;
+	function startEditing(order: any, index: number) {
+		editingItem = order;
+
+		const rect = itemsElements[index].getBoundingClientRect();
+	    dialogPos = { top: rect.top + window.scrollY, left: rect.left };
+
 		tempPurchasePrice = order.Metadata.purchasePrice || '0';
-		// Wait for DOM update before focusing
-		// tick().then(() => {
-		// 	console.log(inputRefs.length)
-		// 	inputRefs[0]?.inputEl?.focus();
-		// 	currencyInputEl?.inputEl?.focus();
-		// 	currencyInputEl?.inputEl?.select(); // optional: auto-select value
-		// });
 	}
 
 	async function stopEditing(order: any) {
-		editingItemId = "";
+		editingItem = null;
+		// editingItemId = "";
 		order.Metadata.purchasePrice = tempPurchasePrice;
 		await updatePurchasePrice(order, tempPurchasePrice);
 	}
@@ -178,28 +156,25 @@
 		// }
 	}
 
+	function cancelEditing() {
+    	editingItem = null;
+	}
+
 	let { data } = $props();
 
-	let dataItems = $derived(data.post.GetOrdersResponse.OrderArray);  // Reactive read-only; A must for pagination redraw
-	// let editableItems = $state(dataItems); // Local writable copy for editing
-
-	// $effect(() => {
-  	// 	editableItems = dataItems; // keep in sync when derived changes
-	// });
+	let dataItems = $state(data.post.GetOrdersResponse.OrderArray);
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfEntries);
 	let totalNumberOfPages = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfPages);
 	
 	// Track which item is being edited
-	let editingItemId = $state("");
 	let tempPurchasePrice = $state(0);
 	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
-	// Type definition for the component instance with the required formattedInput property
-	type CurrencyInputInstance = typeof CurrencyInput & { formattedInput: HTMLInputElement };
 
-	// 2. Array to hold references to the components
-	let inputRefs = [];
+	let editingItem = $state(null);
+	let itemsElements: HTMLElement[] = [];
+	let dialogPos = { top: 0, left: 0 };
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -214,7 +189,7 @@
     </div>
 {/if}
 
- <div class="items-container">
+<div class="items-container">
 	<div class="d-flex justify-content-between align-items-center mb-3">
 		<h2>Sold Items ({totalItems})</h2>
 		<div class="text-muted">
@@ -241,56 +216,10 @@
 						<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p>
 						<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 					</td>
-					<td>
-						{#if editingItemId === order.TransactionArray.Transaction.Item.ItemID}
-							<!-- Editable input -->
-							<p class="d-inline-flex align-items-center fs-6 mb-0">
-							<span class="me-2">Purchase Price:</span>
-							<span style="width: 100px;"
-								onfocusout={() => stopEditing(order)}
-								onkeydown={(event) => {
-									// Check if the key pressed is 'Enter'
-									if (event.key === 'Enter') {
-										// Prevent the default form submission behavior (if the input is inside a form)
-										event.preventDefault();
-										stopEditing(order); // Call your stop editing function
-									}
-								}}>
-								<CurrencyInput
-									bind:value={tempPurchasePrice}
-									currency="USD"
-									locale="en-US"
-									inputClasses={{
-										unformatted: "form-control form-control-sm",
-										formatted: "form-control form-control-sm",
-										formattedPositive: "form-control form-control-sm",
-										formattedNegative: "form-control form-control-sm",
-									}}
-								    on:change={(e) => handleKeydown(e, order)}
-								/>
-							</span>
-							</p>
-							<!-- <p class="d-inline-flex fs-6 mb-0">Purchase Price:
-								<div style="width: 120px;" onfocusout={() => stopEditing(order)}>
-									<CurrencyInput
-										bind:value={tempPurchasePrice}
-										currency="USD"
-										locale="en-US"
-										inputClasses={
-											{
-												unformatted: "form-control",
-												formatted: "form-control",
-												formattedPositive: "form-control",
-												formattedNegative: "form-control",
-											}
-										}
-									/>
-								</div> -->
-						{:else}
-							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
-								<button class="btn p-0 ms-2" onclick={() => startEditing(order)} title="Edit purchase price">✏️</button>
-							</p>
-						{/if}
+					<td bind:this={itemsElements[index]}>
+						<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+							<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+						</p>
 						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
 						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
 						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
@@ -301,6 +230,34 @@
 			{/each}
 		</tbody>
 	</table>
+
+	<!-- Slide-in dialog -->
+	{#if editingItem}
+		<div class="side-dialog bg-light shadow p-3"
+			 style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
+			 transition:fly={{ x: 200, duration: 300 }}>
+			<h6>Edit Purchase Price</h6>
+			<CurrencyInput
+			bind:value={tempPurchasePrice}
+			currency="USD"
+			locale="en-US"
+			inputClasses={{
+				unformatted: "form-control",
+				formatted: "form-control",
+				formattedPositive: "form-control",
+				formattedNegative: "form-control",
+			}}
+			/>
+			<div class="mt-3 d-flex justify-content-end gap-2">
+			<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
+				Cancel
+			</button>
+			<button class="btn btn-primary btn-sm" onclick={() => stopEditing(editingItem)}>
+				Save
+			</button>
+			</div>
+		</div>
+	{/if}
 
 	<div class="my-3 d-flex justify-content-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
@@ -333,9 +290,5 @@
 		height: 100px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
-	}
-
-	.currency-input {
-	  width: 100px; /* or 100%, or min/max-width */
 	}
 </style>

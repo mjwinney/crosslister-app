@@ -79,12 +79,12 @@
               <td class="text-danger">${formatCurrency(data.post.previousWeekStats.data.totalFees)}</td>
             </tr>
             <tr>
-              <td>Total Cost</td>
+              <td>COG</td>
               <td class="text-danger">${formatCurrency(data.post.weekStats.data.totalPurchasePrice)}</td>
               <td class="text-danger">${formatCurrency(data.post.previousWeekStats.data.totalPurchasePrice)}</td>
             </tr>
             <tr>
-              <td>Net Profit</td>
+              <td>Net Sales</td>
               <td class="text-success">${formatCurrency(totalWeekProfit.toString())}</td>
               <td class="text-success">${formatCurrency(totalPrevWeekProfit.toString())}</td>
             </tr>
@@ -128,12 +128,12 @@
               <td class="text-danger">${formatCurrency(data.post.last6MonthStats.data.totalFees)}</td>
             </tr>
             <tr>
-              <td>Total Cost</td>
+              <td>COG</td>
               <td class="text-danger">${formatCurrency(data.post.previousMonthStats.data.totalPurchasePrice)}</td>
               <td class="text-danger">${formatCurrency(data.post.last6MonthStats.data.totalPurchasePrice)}</td>
             </tr>
             <tr>
-              <td>Net Profit</td>
+              <td>Net Sales</td>
               <td class="text-success">${formatCurrency(totalPreviousMonthROI.toString())}</td>
               <td class="text-success">${formatCurrency(totalLast6MonthProfit.toString())}</td>
             </tr>
