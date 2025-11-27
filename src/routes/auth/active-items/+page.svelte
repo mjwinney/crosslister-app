@@ -7,7 +7,6 @@
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
-	import { navigating } from '$app/state';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -19,6 +18,14 @@
 			goto('/homepage');
 		}
 	});
+
+	function formatCurrency(amountStr: string): string {
+		const amount = parseFloat(amountStr);
+		if (isNaN(amount)) {
+			throw new Error("Invalid number input");
+		}
+		return amount.toFixed(2);
+	}
 
 	async function postMetaData(itemID: string, metaData: MetaDataModel) {
 		console.log('postMetaData called:', itemID, metaData);
@@ -116,7 +123,7 @@
 					<td>
 						<p class="card-title fs-6 mb-0">{item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${item.SellingStatus.CurrentPrice}</p>
+						<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
 					</td>
 					<td>
 						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>

@@ -162,11 +162,11 @@
 
 	let { data } = $props();
 
-	let dataItems = $state(data.post.GetOrdersResponse.OrderArray);
+	let dataItems = $state(data.post.GetOrdersResponse?.OrderArray);
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetOrdersResponse.PaginationResult.TotalNumberOfPages);
+	let totalItems = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfEntries);
+	let totalNumberOfPages = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfPages);
 	
 	// Track which item is being edited
 	let tempPurchasePrice = $state(0);
@@ -189,80 +189,84 @@
     </div>
 {/if}
 
-<div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<h2>Sold Items ({totalItems})</h2>
-		<div class="text-muted">
-			Showing {currentPage} of {totalNumberOfPages} pages
-		</div>
-	</div>
-	<table class="table table-light table-striped mb-4">
-		<tbody>
-			{#each dataItems.Order as order, index}
-				<tr>
-					<td>
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-							<img
-								src={order.PictureURL}
-								class="border item-image"
-								alt={order.TransactionArray.Transaction.Item.Title}
-							/>
-						</div>
-					</td>
-					<td>
-						<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
-						<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
-						<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p>
-						<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
-					</td>
-					<td bind:this={itemsElements[index]}>
-						<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
-							<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
-						</p>
-						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
-						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
-						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
-						<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
-						<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
-					</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-
-	<!-- Slide-in dialog -->
-	{#if editingItem}
-		<div class="side-dialog bg-light shadow p-3"
-			 style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
-			 transition:fly={{ x: 200, duration: 300 }}>
-			<h6>Edit Purchase Price</h6>
-			<CurrencyInput
-			bind:value={tempPurchasePrice}
-			currency="USD"
-			locale="en-US"
-			inputClasses={{
-				unformatted: "form-control",
-				formatted: "form-control",
-				formattedPositive: "form-control",
-				formattedNegative: "form-control",
-			}}
-			/>
-			<div class="mt-3 d-flex justify-content-end gap-2">
-			<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
-				Cancel
-			</button>
-			<button class="btn btn-primary btn-sm" onclick={() => stopEditing(editingItem)}>
-				Save
-			</button>
+{#if dataItems == null || dataItems.length === 0}
+	<p class="text-center mt-5">No sold items found.</p>
+{:else}
+	<div class="items-container">
+		<div class="d-flex justify-content-between align-items-center mb-3">
+			<h2>Sold Items ({totalItems})</h2>
+			<div class="text-muted">
+				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
 		</div>
-	{/if}
+		<table class="table table-light table-striped mb-4">
+			<tbody>
+				{#each dataItems?.Order as order, index}
+					<tr>
+						<td>
+							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+								<img
+									src={order.PictureURL}
+									class="border item-image"
+									alt={order.TransactionArray.Transaction.Item.Title}
+								/>
+							</div>
+						</td>
+						<td>
+							<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
+							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
+							<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
+							<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p>
+							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
+						</td>
+						<td bind:this={itemsElements[index]}>
+							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+								<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+							</p>
+							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
+							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
+							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
+							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
+							<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
 
-	<div class="my-3 d-flex justify-content-center">
-		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+		<!-- Slide-in dialog -->
+		{#if editingItem}
+			<div class="side-dialog bg-light shadow p-3"
+				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
+				transition:fly={{ x: 200, duration: 300 }}>
+				<h6>Edit Purchase Price</h6>
+				<CurrencyInput
+				bind:value={tempPurchasePrice}
+				currency="USD"
+				locale="en-US"
+				inputClasses={{
+					unformatted: "form-control",
+					formatted: "form-control",
+					formattedPositive: "form-control",
+					formattedNegative: "form-control",
+				}}
+				/>
+				<div class="mt-3 d-flex justify-content-end gap-2">
+				<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
+					Cancel
+				</button>
+				<button class="btn btn-primary btn-sm" onclick={() => stopEditing(editingItem)}>
+					Save
+				</button>
+				</div>
+			</div>
+		{/if}
+
+		<div class="my-3 d-flex justify-content-center">
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
     .busy-overlay {

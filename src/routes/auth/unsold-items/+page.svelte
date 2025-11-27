@@ -136,16 +136,16 @@
 
 	let { data } = $props();
 
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.UnsoldList.ItemArray);  // Reactive read-only; A must for pagination redraw
-	let editableItems = $state(dataItems); // Local writable copy for editing
+	let dataItems = $state(data.post.GetMyeBaySellingResponse.UnsoldList?.ItemArray);
+	// let editableItems = $state(dataItems); // Local writable copy for editing
 
-	$effect(() => {
-  		editableItems = dataItems; // keep in sync when derived changes
-	});
+	// $effect(() => {
+  	// 	editableItems = dataItems; // keep in sync when derived changes
+	// });
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetMyeBaySellingResponse.UnsoldList.PaginationResult.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.UnsoldList.PaginationResult.TotalNumberOfPages);
+	let totalItems = $derived(data.post.GetMyeBaySellingResponse.UnsoldList?.PaginationResult?.TotalNumberOfEntries);
+	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.UnsoldList?.PaginationResult?.TotalNumberOfPages);
 
 </script>
 
@@ -161,52 +161,59 @@
     </div>
 {/if}
 
- <div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<h2>Unsold Items ({totalItems})</h2>
-		<div class="text-muted">
-			Showing {currentPage} of {totalNumberOfPages} pages
+{#if dataItems == null || dataItems.length === 0}
+	<p class="text-center mt-5">No Unsold items found.</p>
+{:else}
+	<div class="items-container">
+		<div class="d-flex justify-content-between align-items-center mb-3">
+			<h2>Unsold Items ({totalItems})</h2>
+			<div class="text-muted">
+				Showing {currentPage} of {totalNumberOfPages} pages
+			</div>
+		</div>
+		<table class="table table-light table-striped mb-4">
+			<tbody>
+					<!-- <tr>
+						<td>{JSON.stringify(dataItems)}</td>
+					</tr> -->
+				{#each dataItems.Item as item}
+					<tr>
+						<!-- <td>{JSON.stringify(item)}</td> -->
+						<td>
+							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+								<img
+									src={item.PictureDetails.GalleryURL}
+									class="border item-image"
+									alt={item.Title}
+								/>
+							</div>
+						</td>
+						<td>
+							<p class="card-title fs-6 mb-0">{item.Title}</p>
+							<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
+							<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
+							<!-- <p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p> -->
+							<!-- <p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p> -->
+							<!-- <p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p> -->
+						</td>
+						<!-- <td>
+							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
+							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
+							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
+							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
+							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
+							<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
+						</td> -->
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+
+		<div class="my-3 d-flex justify-content-center">
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
 	</div>
-	<table class="table table-light table-striped mb-4">
-		<tbody>
-			{#each editableItems.Item as item}
-				<tr>
-					<!-- <td>{JSON.stringify(item)}</td> -->
-					<td>
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-							<img
-								src={item.PictureDetails.GalleryURL}
-								class="border item-image"
-								alt={item.Title}
-							/>
-						</div>
-					</td>
-					<td>
-						<p class="card-title fs-6 mb-0">{item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${item.SellingStatus.CurrentPrice}</p>
-						<!-- <p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p> -->
-						<!-- <p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p> -->
-						<!-- <p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p> -->
-					</td>
-					<!-- <td>
-						<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
-						<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
-						<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
-						<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
-						<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
-						<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
-					</td> -->
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-
-	<div class="my-3 d-flex justify-content-center">
-		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-	</div>
-</div>
+{/if}
 
 <style>
     .busy-overlay {

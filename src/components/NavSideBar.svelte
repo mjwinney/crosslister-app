@@ -1,8 +1,6 @@
 <script lang="ts">
-    import { authClient } from "$lib/auth-client";
+  import { authClient } from "$lib/auth-client";
 	import { goto } from "$app/navigation";
-
-//   const session = authClient.useSession();
 
   function handleLogout() {
     authClient.signOut({
@@ -18,10 +16,6 @@
     goto('/ebay-api/auth');
 	};
 
-  // async function handleEbayItems() {
-  //   goto(`/auth/active-items`);
-	// };
-
 	let { children } = $props();
 </script>
 
@@ -29,188 +23,101 @@
   <div class="container-fluid pb-3">
     <div class="d-grid gap-3" style="grid-template-columns: 0fr 1fr">
       <!-- left nav menu -->
-      <div class="bg-body-tertiary border rounded-3">
-        <div class="flex-shrink-0 p-3" style="width: 200px">
-          <ul class="list-unstyled ps-0">
-            <li class="mb-1">
-              <button
-                class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-                data-bs-toggle="collapse"
-                data-bs-target="#home-collapse"
-                aria-expanded="true"
-              >
-                Inventory
-              </button>
-              <div class="collapse show" id="home-collapse">
-                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/active-items`)}"
-                      >Active</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/scheduled-items`)}"
-                      >Scheduled</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/sold-items`)}"
-                      >Sold</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto(`/auth/unsold-items`)}"
-                      >Unsold</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto('/auth/market-places')}"
-                      >Market Places</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </li>
-            <li class="mb-1">
-              <button
-                class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-                data-bs-toggle="collapse"
-                data-bs-target="#dashboard-collapse"
-                aria-expanded="false"
-              >
-                Dashboard
-              </button>
-              <div class="collapse" id="dashboard-collapse">
-                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded" onclick="{() => goto('/auth/dashboard')}"
-                      >Overview</a
-                    >
-                  </li>
-                  <!-- <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Weekly</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Monthly</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Annually</a
-                    >
-                  </li> -->
-                </ul>
-              </div>
-            </li>
-            <li class="mb-1">
-              <button
-                class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-                data-bs-toggle="collapse"
-                data-bs-target="#orders-collapse"
-                aria-expanded="false"
-              >
-                Orders
-              </button>
-              <div class="collapse" id="orders-collapse">
-                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >New</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Processed</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Shipped</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Returned</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </li>
-            <li class="border-top my-3"></li>
-            <li class="mb-1">
-              <button
-                class="btn btn-toggle d-inline-flex align-items-center rounded border-0 collapsed"
-                data-bs-toggle="collapse"
-                data-bs-target="#account-collapse"
-                aria-expanded="false"
-              >
-                Account
-              </button>
-              <div class="collapse" id="account-collapse">
-                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >New...</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Profile</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Settings</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      class="link-body-emphasis d-inline-flex text-decoration-none rounded"
-                      >Sign out</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </li>
-          </ul>
-        </div>
+      <div class="accordion" id="sidebarAccordion">
+  <!-- Dashboard Section -->
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingInventory">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapseDashboard"
+        aria-expanded="false"
+        aria-controls="collapseDashboard">
+        Dashboard
+      </button>
+    </h2>
+    <div id="collapseDashboard" class="accordion-collapse collapse"
+      aria-labelledby="headingDashboard"
+      data-bs-parent="#sidebarAccordion">
+      <div class="accordion-body">
+        <ul class="list-unstyled fw-normal pb-1 small">
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/dashboard')}>Dashboard</a></li>
+        </ul>
       </div>
+    </div>
+  </div>
+
+  <!-- Inventory Section -->
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="headingInventory">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapseInventory"
+        aria-expanded="false"
+        aria-controls="collapseInventory">
+        Inventory
+      </button>
+    </h2>
+    <div id="collapseInventory" class="accordion-collapse collapse"
+      aria-labelledby="headingInventory"
+      data-bs-parent="#sidebarAccordion">
+      <div class="accordion-body">
+        <ul class="list-unstyled fw-normal pb-1 small">
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/active-items')}>Active</a></li>
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/scheduled-items')}>Scheduled</a></li>
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/sold-items')}>Sold</a></li>
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/unsold-items')}>Unsold</a></li>
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/market-places')}>Market Places</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reports Section -->
+  <!-- <div class="accordion-item">
+    <h2 class="accordion-header" id="headingReports">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapseReports"
+        aria-expanded="false"
+        aria-controls="collapseReports">
+        Reports
+      </button>
+    </h2>
+    <div id="collapseReports" class="accordion-collapse collapse"
+      aria-labelledby="headingReports"
+      data-bs-parent="#sidebarAccordion">
+      <div class="accordion-body">
+        <ul class="list-unstyled fw-normal pb-1 small">
+          <li><a href="#">Monthly</a></li>
+          <li><a href="#">Annual</a></li>
+        </ul>
+      </div>
+    </div>
+  </div> -->
+
+  <!-- Settings Section -->
+  <!-- <div class="accordion-item">
+    <h2 class="accordion-header" id="headingSettings">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapseSettings"
+        aria-expanded="false"
+        aria-controls="collapseSettings">
+        Settings
+      </button>
+    </h2>
+    <div id="collapseSettings" class="accordion-collapse collapse"
+      aria-labelledby="headingSettings"
+      data-bs-parent="#sidebarAccordion">
+      <div class="accordion-body">
+        <ul class="list-unstyled fw-normal pb-1 small">
+          <li><a href="#">Profile</a></li>
+          <li><a href="#">Preferences</a></li>
+        </ul>
+      </div>
+    </div>
+  </div> -->
+</div>
       <!-- left nav menu end -->
       <!-- main content -->
       <div class="bg-body-tertiary border rounded-3">
@@ -222,6 +129,11 @@
 </main>
 
 <style>
+
+.accordion-body a {
+  font-size: 14px !important;
+}
+
 body {
   min-height: 100vh;
   min-height: -webkit-fill-available;

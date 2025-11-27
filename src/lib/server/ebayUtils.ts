@@ -1,7 +1,8 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { MetaDataModel, getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { type MetaDataModel, getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
+import { da } from "date-fns/locale";
 
 interface Success<T> {
     status: 'success';
@@ -447,6 +448,17 @@ export async function getMyEbaySellingUnsold(locals: App.Locals, page: number = 
         </UnsoldList>
     </GetMyeBaySellingRequest>`;
 
+    const options = {
+        // ... other options
+        isArray: (name: string, jpath: any, isLeafNode: any, isAttribute: any) => {
+            // Force 'item' tag to always be an array
+            if (name === "Item") {
+            return true;
+            }
+            return false; 
+        }
+    };
+
     // console.log('getMyEbaySellingUnsold xmlBody:', xmlBody);
 
     try {
@@ -460,7 +472,8 @@ export async function getMyEbaySellingUnsold(locals: App.Locals, page: number = 
 
         if (response.ok) {
             // Initialize the parser
-            const parser = new XMLParser();
+            const parser = new XMLParser(options);
+            // console.log(`getMyEbaySellingUnsold XMLdata: ${data}`);
             const jsonData = parser.parse(data);
             // console.log(`getMyEbaySellingUnsold data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbaySellingUnsold response.status: ${JSON.stringify(response.status)}`);
