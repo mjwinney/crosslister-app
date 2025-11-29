@@ -6,7 +6,7 @@ import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
-import { getEndOfMonthUTC, getEndOfWeekUTC, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
+import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -378,7 +378,7 @@ export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSumm
     }
     
     // Go through the metadata for the current week
-    const now = new Date();
+    const now = getNowUTCDate();
     const startOfWeek = getStartOfWeekUTC(); // Monday at 12:00:01 AM
 
     console.log(`getCurrentWeekStats: startOfWeek:${startOfWeek} now:${now}`);
@@ -442,3 +442,4 @@ export async function getLast6MonthStats(userId: string) : Promise<MetaDataSumma
     
     return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
 }
+

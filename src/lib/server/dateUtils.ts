@@ -12,6 +12,26 @@ export function convertToISO(dateStr: string): string {
   return date.toISOString(); // "2025-10-29T23:33:35.034Z"
 }
 
+export function getNowUTCDate(): Date {
+  // Get current local date/time
+  const now = new Date();
+
+  // Create a new Date object using UTC components
+  const utcDate = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes(),
+      now.getUTCSeconds(),
+      now.getUTCMilliseconds()
+    )
+  );
+
+  return utcDate;
+}
+
 export function getStartOfWeekUTC(offset: number = 0): Date {
   const now = new Date();
   const day = now.getUTCDay(); // Sunday = 0, Monday = 1
