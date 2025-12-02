@@ -189,8 +189,8 @@ export async function refreshEbayToken(locals: App.Locals) {
     }
 }
 
-export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`retrieveAllInventoryItems called, using access token: ${locals.ebayAccessToken}`);
+export async function getTransactions(locals: App.Locals, orderId: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    // console.log(`getTransactions called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
         'Accept-Language': 'en-US',
@@ -198,16 +198,15 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
     };
 
     const qsParams = new URLSearchParams({
-        limit: '100',
-        offset: '0', // This is for pagination, adjust as needed
+        filter: `orderId:{${orderId}}`
     });
 
-    const endpoint = `${env.EBAY_API_ENDPOINT}sell/inventory/v1/inventory_item?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_APIZ_ENDPOINT}sell/finances/v1/transaction?${qsParams.toString()}`;
 
-    console.log('retrieveAllInventoryItems endpoint:', JSON.stringify(endpoint));
-    console.log('retrieveAllInventoryItems headers:', JSON.stringify(headers));
+    // console.log('getTransactions endpoint:', JSON.stringify(endpoint));
+    // console.log('getTransactions headers:', JSON.stringify(headers));
 
-    // console.log(`retrieveAllInventoryItems called with ebayAccessToken=${locals.ebayAccessToken}`);
+    // console.log(`getTransactions called with ebayAccessToken=${locals.ebayAccessToken}`);
 
     try {
         const refreshResponse = await fetch(endpoint, {
@@ -215,11 +214,12 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
             headers: headers
         });
 
-        const data = await refreshResponse.json();
+        console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
 
         if (!refreshResponse.ok) {
-            console.log(`data: ${JSON.stringify(data)}`);
             console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
+            const data = await refreshResponse.json();
+            console.log(`data: ${JSON.stringify(data)}`);
 
             return {
                 status: refreshResponse.status,
@@ -227,7 +227,9 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
             };
         }
 
-        console.log(`retrieveAllInventoryItems Callback data: ${JSON.stringify(data)}`);
+        const data = await refreshResponse.json();
+
+        console.log(`getTransactions Callback data: ${JSON.stringify(data)}`);
 
         return {
             status: 200,
@@ -242,74 +244,74 @@ export async function retrieveAllInventoryItems(locals: App.Locals): Promise<{ s
     }
 }
 
-export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`retrieveAllOffers called, using access token: ${locals.ebayAccessToken}`);
+// export async function retrieveAllOffers(locals: App.Locals): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+//     console.log(`retrieveAllOffers called, using access token: ${locals.ebayAccessToken}`);
 
-    // Call the retrieveAllInventoryItems to retrieve the SKUs
-    const inventoryResponse = await retrieveAllInventoryItems(locals);
-    if (inventoryResponse.status != 200) {
-        console.log('Failed to retrieve inventory items, cannot proceed to get offers.');
-        return inventoryResponse;
-    }
+//     // Call the retrieveAllInventoryItems to retrieve the SKUs
+//     const inventoryResponse = await retrieveAllInventoryItems(locals);
+//     if (inventoryResponse.status != 200) {
+//         console.log('Failed to retrieve inventory items, cannot proceed to get offers.');
+//         return inventoryResponse;
+//     }
 
-    // We have the inventory items, now retrieve the offers
-    // For simplicity, let's assume we want to get offers for each SKU
-    let skus: string[] = [];
-    if ('data' in inventoryResponse && inventoryResponse.status === 200 && 'inventoryItems' in inventoryResponse.data) {
-        skus = inventoryResponse.data.inventoryItems.map((item: any) => item.sku);
-        console.log(`Retrieved SKUs: ${JSON.stringify(skus)}`);
-    } else {
-        console.log('No inventory items found or error occurred.');
-        return inventoryResponse;
-    }
+//     // We have the inventory items, now retrieve the offers
+//     // For simplicity, let's assume we want to get offers for each SKU
+//     let skus: string[] = [];
+//     if ('data' in inventoryResponse && inventoryResponse.status === 200 && 'inventoryItems' in inventoryResponse.data) {
+//         skus = inventoryResponse.data.inventoryItems.map((item: any) => item.sku);
+//         console.log(`Retrieved SKUs: ${JSON.stringify(skus)}`);
+//     } else {
+//         console.log('No inventory items found or error occurred.');
+//         return inventoryResponse;
+//     }
 
-    const headers = {
-        'Accept-Language': 'en-US',
-        'Authorization': `Bearer ${locals.ebayAccessToken}`,
-    };
+//     const headers = {
+//         'Accept-Language': 'en-US',
+//         'Authorization': `Bearer ${locals.ebayAccessToken}`,
+//     };
 
-    let offers: any[] = [];
+//     let offers: any[] = [];
 
-    for (const sku of skus) {
-        console.log(`Processing SKU: ${sku}`);
+//     for (const sku of skus) {
+//         console.log(`Processing SKU: ${sku}`);
 
-        const qsParams = new URLSearchParams({ sku: sku });
+//         const qsParams = new URLSearchParams({ sku: sku });
 
-        const endpoint = `${env.EBAY_API_ENDPOINT + 'sell/inventory/v1/offer'}?${qsParams.toString()}`;
+//         const endpoint = `${env.EBAY_API_ENDPOINT + 'sell/inventory/v1/offer'}?${qsParams.toString()}`;
 
-        try {
-            const offerResponse = await fetch(endpoint, {
-                method: 'GET',
-                headers: headers
-            });
+//         try {
+//             const offerResponse = await fetch(endpoint, {
+//                 method: 'GET',
+//                 headers: headers
+//             });
 
-            const data = await offerResponse.json();
+//             const data = await offerResponse.json();
 
-            if (offerResponse.ok) {
-                console.log(`data: ${JSON.stringify(data)}`);
-                console.log(`refreshResponse.status: ${JSON.stringify(offerResponse.status)}`);
+//             if (offerResponse.ok) {
+//                 console.log(`data: ${JSON.stringify(data)}`);
+//                 console.log(`refreshResponse.status: ${JSON.stringify(offerResponse.status)}`);
 
-                // add the offer data to an array to return later
-                offers.push({
-                    sku: sku,
-                    data: data.offers[0]
-                });
-            }
-            console.log(`retrieveAllOffers for SKU ${sku} Callback data: ${JSON.stringify(data)}`);
-        } catch (error) {
-            console.error('Error retrieveAllOffers for SKU:', sku, error);
-            return {
-                status: 500,
-                data: offers
-            };
-        }
-    }
+//                 // add the offer data to an array to return later
+//                 offers.push({
+//                     sku: sku,
+//                     data: data.offers[0]
+//                 });
+//             }
+//             console.log(`retrieveAllOffers for SKU ${sku} Callback data: ${JSON.stringify(data)}`);
+//         } catch (error) {
+//             console.error('Error retrieveAllOffers for SKU:', sku, error);
+//             return {
+//                 status: 500,
+//                 data: offers
+//             };
+//         }
+//     }
 
-    return {
-        status: 200,
-        data: offers
-    };
-}
+//     return {
+//         status: 200,
+//         data: offers
+//     };
+// }
 
 export async function getMyEbaySellingActive(locals: App.Locals, page: number = 1): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`getMyEbaySellingActive called, using access token: ${locals.ebayAccessToken}, for page: ${page}`);
@@ -798,7 +800,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            // console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database
@@ -811,7 +813,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 };
             }
 
-            const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+            const orders = jsonData.GetOrdersResponse.OrderArray?.Order;
 
             // Parallelize the calls to getMyEbayItem for each order item as they are slow!
             // Step 1: Create an array of Promises
@@ -832,6 +834,45 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                     item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
                     item.StartTime = ebayItem.ListingDetails?.StartTime;
                     item.EndTime = ebayItem.ListingDetails?.EndTime;
+                }
+            });
+
+            // Parallelize the calls to getTransactions for each order item as they are slow!
+            // This contains details about the transaction including fees
+            // Step 1: Create an array of Promises
+            const transactionPromises = orders.map((item: any) => {
+                const orderId = item.OrderID;
+                return getTransactions(locals, orderId);
+            });
+
+            // Step 2: Await all promises in parallel
+            const transactionResults = await Promise.all(transactionPromises);
+
+            // Step 3: Map results back to orders
+            orders.forEach(async (item: any, index: number) => {
+                const itemData = transactionResults[index];
+
+                if ('data' in itemData && itemData.status === 200 && itemData.data?.transactions) {
+
+                    // Find out how much to buy the shipping label for this order
+                    const shippingLabel = itemData.data?.transactions.filter((transaction: { transactionType: string; }) => {
+                        return transaction.transactionType === "SHIPPING_LABEL";
+                    });
+
+                    item.shippingLabelCost = 0;
+                    if (shippingLabel.length > 0) {
+                        item.shippingLabelCost = shippingLabel[0].amount.value;
+                    }
+
+                    // Find put the add free price
+                    const nonSaleCharge = itemData.data?.transactions.filter((transaction: any) => {
+                        return transaction.transactionType === "NON_SALE_CHARGE" && transaction.feeType === "AD_FEE";
+                    });
+
+                    item.addFeeGeneral = 0;
+                    if (nonSaleCharge.length > 0) {
+                        item.addFeeGeneral = nonSaleCharge[0].amount.value;
+                    }
                 }
             });
 
@@ -953,9 +994,6 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
                     const ebayItem = itemData.data.GetItemResponse.Item;
                     const itemId = item.TransactionArray.Transaction.Item.ItemID;
-                    // item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
-                    // item.StartTime = ebayItem.ListingDetails?.StartTime;
-                    // item.EndTime = ebayItem.ListingDetails?.EndTime;
 
                     const metaData: MetaDataModel = {
                         // pictureURL: item.PictureURL,
@@ -970,47 +1008,54 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 }
             });
 
+            // Parallelize the calls to getTransactions for each order item as they are slow!
+            // This contains details about the transaction including fees
+            // Step 1: Create an array of Promises
+            const transactionPromises = orders.map((item: any) => {
+                const orderId = item.OrderID;
+                return getTransactions(locals, orderId);
+            });
 
-            // const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+            // Step 2: Await all promises in parallel
+            const transactionResults = await Promise.all(transactionPromises);
 
-            // // Parallelize the calls to getMyEbayItem for each order item as they are slow!
-            // // Step 1: Create an array of Promises
-            // const itemPromises = orders.map((item: any) => {
-            //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
-            //     return getMyEbayItem(locals, itemId);
-            // });
+            // Step 3: Map results back to orders
+            orders.forEach(async (item: any, index: number) => {
+                const itemData = transactionResults[index];
 
-            // // Step 2: Await all promises in parallel
-            // const itemResults = await Promise.all(itemPromises);
+                if ('data' in itemData && itemData.status === 200 && itemData.data?.transactions) {
 
-            // // Step 3: Map results back to orders
-            // orders.forEach((item: any, index: number) => {
-            //     const itemData = itemResults[index];
+                    // Find out how much to buy the shipping label for this order
+                    const shippingLabel = itemData.data?.transactions.filter((transaction: { transactionType: string; }) => {
+                        return transaction.transactionType === "SHIPPING_LABEL";
+                    });
 
-            //     if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
-            //         const ebayItem = itemData.data.GetItemResponse.Item;
-            //         item.PictureURL = ebayItem.PictureDetails?.PictureURL?.[0];
-            //     }
-            // });
+                    let shippingLabelCost: number = 0;
+                    if (shippingLabel.length > 0) {
+                        shippingLabelCost = shippingLabel[0].amount.value;
+                    }
 
-            // const userId = locals?.session?.userId || '';
+                    // Find put the add free price
+                    const nonSaleCharge = itemData.data?.transactions.filter((transaction: any) => {
+                        return transaction.transactionType === "NON_SALE_CHARGE" && transaction.feeType === "AD_FEE";
+                    });
 
-            // // Gather the metadata for the item and combine it into the returned JSON
-            // for (const item of orders) {
-            //     const itemId = item.TransactionArray.Transaction.Item.ItemID;
-            //     const metadata = await getEbayMetadata(userId, itemId);
+                    let addFeeGeneral: number = 0;
+                    if (nonSaleCharge.length > 0) {
+                        addFeeGeneral = nonSaleCharge[0].amount.value;
+                    }
 
-            //     if (!metadata.ok) {
-            //         // Create empty metadata object
-            //         item.Metadata = {
-            //             purchasePrice: "0.00"
-            //         };
-            //     }
-            //     else {
-            //         // Must have gotten metadata back so combine the data into the item
-            //         item.Metadata = metadata.data;
-            //     }
-            // };
+                    const itemId = item.TransactionArray.Transaction.Item.ItemID;
+
+                    const metaData: MetaDataModel = {
+                        shippingLabelCost: shippingLabelCost,
+                        addFeeGeneral: addFeeGeneral
+                    };
+
+                    // Upsert into the metadata table
+                    const result = await updateEbayMetadata(userId, itemId, metaData, true);
+                }
+            });
 
             return {
                 status: response.status,

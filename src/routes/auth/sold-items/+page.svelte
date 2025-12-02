@@ -63,17 +63,19 @@
 	}
 
 	function calculateProfit(order: any): string {
-		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice);
-		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
+		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice || '0');
+		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee || '0');
+		const shippingLabelCost = parseFloat(order.shippingLabelCost || '0');
+		const addFeeGeneral = parseFloat(order.addFeeGeneral || '0');
 		const purchaseRaw = order.Metadata?.purchasePrice;
 
 		if (purchaseRaw === undefined || isNaN(parseFloat(purchaseRaw))) {
-			const profit = sold - fee;
+			const profit = sold - fee - shippingLabelCost - addFeeGeneral;
 			return `${formatCurrency(profit.toString())}`;
 		}
 
 		const purchase = parseFloat(purchaseRaw);
-		const profit = sold - purchase - fee;
+		const profit = sold - purchase - fee - shippingLabelCost - addFeeGeneral;
 		return `${formatCurrency(profit.toString())}`;
 	}
 
@@ -224,6 +226,8 @@
 								<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 							</p>
 							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.TransactionArray.Transaction.FinalValueFee)}</span></p>
+							<p class="fs-6 mb-0">Shipping: <span class="text-danger fs-6 mb-0">${formatCurrency(order.shippingLabelCost)}</span></p>
+							<p class="fs-6 mb-0">Promo Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.addFeeGeneral)}</span></p>
 							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
 							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
 							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>

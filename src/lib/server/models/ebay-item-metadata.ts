@@ -13,6 +13,8 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     listedTime: { type: Date, required: false }, // stored as iso string
     soldTime: { type: Date, required: false }, // stored as iso string
     feePrice: { type: Number, required: false },
+    shippingLabelCost: { type: Number, required: false },
+    addFeeGeneral: { type: Number, required: false },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });

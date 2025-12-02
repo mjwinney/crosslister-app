@@ -189,7 +189,9 @@ export type MetaDataModel = {
     pictureURL?: string,
     listedTime?: Date,
     soldTime?: Date,
-    feePrice?: number
+    feePrice?: number,
+    shippingLabelCost?: number,
+    addFeeGeneral?: number,
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
