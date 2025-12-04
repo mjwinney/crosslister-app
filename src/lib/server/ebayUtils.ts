@@ -778,7 +778,6 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
         <OrderRole>Seller</OrderRole>
         <OrderStatus>Completed</OrderStatus>
         <SortingOrder>Descending</SortingOrder>
-        <IncludeFinalValueFee>true</IncludeFinalValueFee>
         <Pagination>
             <EntriesPerPage>20</EntriesPerPage>
             <PageNumber>${page}</PageNumber>
@@ -800,7 +799,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Initialize the parser
             const parser = new XMLParser();
             const jsonData = parser.parse(data);
-            console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayOrders data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
 
             // Update: Store sold items in the database
@@ -872,6 +871,16 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                     item.addFeeGeneral = 0;
                     if (nonSaleCharge.length > 0) {
                         item.addFeeGeneral = nonSaleCharge[0].amount.value;
+                    }
+
+                    // Find the final value fee
+                    const finalValueFee = itemData.data?.transactions.filter((transaction: any) => {
+                        return transaction.transactionType === "SALE";
+                    });
+
+                    item.finalValueFee = 0;
+                    if (finalValueFee.length > 0) {
+                        item.finalValueFee = finalValueFee[0].totalFeeAmount.value;
                     }
                 }
             });

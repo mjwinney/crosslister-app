@@ -62,28 +62,58 @@
 		return amount.toFixed(2);
 	}
 
+	function formatCurrencyFromNumber(amount: number): string {
+		return amount.toFixed(2);
+	}
+
+	function getShippingCost(order: any): number {
+		if (order.IsMultiLegShipping) {
+			return parseFloat(order.MultiLegShippingDetails.SellerShipmentToLogisticsProvider.ShippingServiceDetails.TotalShippingCost || '0');
+		}
+		const shippingCost = parseFloat(order.TransactionArray.Transaction.ActualShippingCost || '0');
+		return shippingCost;
+	}
+
 	function calculateProfit(order: any): string {
 		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice || '0');
-		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee || '0');
-		const shippingLabelCost = parseFloat(order.shippingLabelCost || '0');
+		const fee = parseFloat(order.finalValueFee || '0');
+		const shippingCost = calculateShipping(order);
 		const addFeeGeneral = parseFloat(order.addFeeGeneral || '0');
 		const purchaseRaw = order.Metadata?.purchasePrice;
 
 		if (purchaseRaw === undefined || isNaN(parseFloat(purchaseRaw))) {
-			const profit = sold - fee - shippingLabelCost - addFeeGeneral;
+			const profit = sold - fee + shippingCost - addFeeGeneral;
 			return `${formatCurrency(profit.toString())}`;
 		}
 
 		const purchase = parseFloat(purchaseRaw);
-		const profit = sold - purchase - fee - shippingLabelCost - addFeeGeneral;
+		const profit = sold - purchase - fee + shippingCost - addFeeGeneral;
 		return `${formatCurrency(profit.toString())}`;
 	}
 
+	function calculateShipping(order: any): number {
+		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
+		const buyerShippingCost = getShippingCost(order);
+		const profitShipping = buyerShippingCost - sellerShippingLabelCost;
+
+		return profitShipping;
+	}
+
+	function formatShippingCalc(order: any): string {
+		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
+		const buyerShippingCost = getShippingCost(order);
+
+		if (buyerShippingCost === 0) {
+			return `(Paid by seller)`;
+		}
+
+		return `($${formatCurrency(buyerShippingCost.toString())} - $${formatCurrency(sellerShippingLabelCost.toString())})`;
+	}
 
 	function calculateROI(order: any): string {
 		const profit = calculateProfit(order);
 		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
-		const fee = parseFloat(order.TransactionArray.Transaction.FinalValueFee);
+		const fee = parseFloat(order.finalValueFee || '0');
 		const totalCost = purchase + fee;
 
 		const roi = (Number(profit) / totalCost) * 100;
@@ -218,16 +248,28 @@
 							<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
 							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
 							<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
-							<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p>
+							{#if order.TransactionArray.Transaction.ActualShippingCost > 0}
+								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order))}</p>
+							{:else}
+								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
+							{/if}
 							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 						</td>
 						<td bind:this={itemsElements[index]}>
 							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
 								<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 							</p>
-							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.TransactionArray.Transaction.FinalValueFee)}</span></p>
-							<p class="fs-6 mb-0">Shipping: <span class="text-danger fs-6 mb-0">${formatCurrency(order.shippingLabelCost)}</span></p>
-							<p class="fs-6 mb-0">Promo Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.addFeeGeneral)}</span></p>
+							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.finalValueFee)}</span></p>
+							{#if calculateShipping(order) >= 0}
+								<p class="fs-6 mb-0">Shipping: <span class="text-success fs-6 mb-0">${formatCurrencyFromNumber(calculateShipping(order))}</span> <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></p>
+							{:else}
+								<p class="fs-6 mb-0">Shipping: <span class="text-danger fs-6 mb-0">${formatCurrencyFromNumber(calculateShipping(order))}</span> <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></p>
+							{/if}
+							{#if order.addFeeGeneral > 0}
+								<p class="fs-6 mb-0">Promo Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.addFeeGeneral)}</span></p>
+							{:else}
+								<p class="fs-6 mb-0">Promo Fee: <span class="text-muted fs-6 mb-0">---</span></p>
+							{/if}
 							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
 							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
 							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
