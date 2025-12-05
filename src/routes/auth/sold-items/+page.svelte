@@ -182,12 +182,6 @@
 		await updatePurchasePrice(order, tempPurchasePrice);
 	}
 
-	function handleKeydown(event: CustomEvent, order?: any) {
-		// if (event.key === "Enter") {
-			stopEditing(order);
-		// }
-	}
-
 	function cancelEditing() {
     	editingItem = null;
 	}
@@ -256,24 +250,53 @@
 							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
 						</td>
 						<td bind:this={itemsElements[index]}>
-							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
-								<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
-							</p>
-							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.finalValueFee)}</span></p>
-							{#if calculateShipping(order) >= 0}
-								<p class="fs-6 mb-0">Shipping: <span class="text-success fs-6 mb-0">${formatCurrencyFromNumber(calculateShipping(order))}</span> <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></p>
-							{:else}
-								<p class="fs-6 mb-0">Shipping: <span class="text-danger fs-6 mb-0">${formatCurrencyFromNumber(calculateShipping(order))}</span> <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></p>
-							{/if}
-							{#if order.addFeeGeneral > 0}
-								<p class="fs-6 mb-0">Promo Fee: <span class="text-danger fs-6 mb-0">${formatCurrency(order.addFeeGeneral)}</span></p>
-							{:else}
-								<p class="fs-6 mb-0">Promo Fee: <span class="text-muted fs-6 mb-0">---</span></p>
-							{/if}
-							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
-							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
-							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
-							<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
+							<table class="table-sm">
+								<tbody>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
+										<td class="fs-6 mb-0 py-0">${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+										</td>
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Fee:</td>
+										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.finalValueFee)}</td>
+									</tr>
+									<tr>
+										{#if calculateShipping(order) >= 0}
+											<td class="fs-6 mb-0 py-0">Shipping:</td>
+											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
+										{:else}
+											<td class="fs-6 mb-0 py-0">Shipping:</td>
+											<td class="text-danger fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
+										{/if}
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Promo Fee:</td>
+										{#if order.addFeeGeneral > 0}
+											<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.addFeeGeneral)}</td>
+										{:else}
+											<td class="text-muted fs-6 mb-0 py-0">---</td>
+										{/if}
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Profit:</td>
+										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order)}</td>
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">ROI:</td>
+										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
+										<td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td>
+									</tr>
+									<tr>
+										<td class="fs-6 mb-0 py-0">Location:</td>
+										<td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td>
+									</tr>
+								</tbody>
+							</table>
 						</td>
 					</tr>
 				{/each}
