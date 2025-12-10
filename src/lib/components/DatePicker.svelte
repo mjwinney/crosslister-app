@@ -25,7 +25,8 @@
         dp = new Datepicker(inputEl, {
             buttonClass: 'btn btn-sm btn-outline-secondary', // use Bootstrap button style for controls
             allowOneSidedRange: true,
-            format: 'mm/dd/yyyy'
+            format: 'mm/dd/yyyy',
+            autohide: true
         });
         // the library emits a custom 'changeDate' event on the input
         inputEl.addEventListener('changeDate', onChangeDate as EventListener);
