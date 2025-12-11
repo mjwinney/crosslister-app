@@ -3,13 +3,16 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 import client from "./server/db"; // Import the client promise from db.ts
-import { dev } from "$app/environment";
 
 const db = client.db();
 
 export const auth = betterAuth({
     database: mongodbAdapter(db),
     //...other options
+    session: {
+        expiresIn: 15 * 60,   // 15 minutes
+        updateAge: 5 * 60     // refresh every 5 minutes if active
+    },
     emailAndPassword: {
         enabled: true,
         autoSignIn: false //defaults to true

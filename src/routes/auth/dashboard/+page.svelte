@@ -3,13 +3,29 @@
   import { authClient } from "$lib/auth-client";
 	import { onMount } from "svelte";
 
-    onMount( async () => {
-        const session = await authClient.getSession();
-        // console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
-        if (!session || !session?.data) {
-            goto('/homepage');
-        }
-	});
+  onMount( async () => {
+      const session = await authClient.getSession();
+      // console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
+      if (!session || !session?.data) {
+          goto('/homepage');
+      }
+  });
+
+  function handlePoshmarkImport() {
+    console.log("Poshmark import initiated");
+
+    // Tell extension to start scraping
+    window.postMessage({ type: "START_POSHMARK_IMPORT" }, "*");
+  }
+
+// // Listen for scraped data
+// window.addEventListener("message", (event) => {
+//   if (event.data.type === "POSHMARK_DATA") {
+//     document.getElementById("output").textContent =
+//       JSON.stringify(event.data.data, null, 2);
+//   }
+// });
+
 
   function formatCurrency(amountStr: string): string {
 		const amount = parseFloat(amountStr);
@@ -47,6 +63,10 @@
 <h1>Dashboard</h1>
 
 <div class="container">
+
+  <button class="btn btn-primary" id="importBtn" onclick={() => handlePoshmarkImport()}>Import from Poshmark</button>
+  <pre id="output"></pre>
+
   <div class="d-flex flex-wrap justify-content-left gap-4">
     <div class="card mb-4 rounded-3 shadow-sm" style="max-width: 24rem;">
         <div class="card-header py-3">

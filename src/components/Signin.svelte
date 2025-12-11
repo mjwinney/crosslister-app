@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { authClient } from '../lib/auth-client'; //import the auth client
 	import { onMount } from 'svelte';
 
@@ -66,12 +67,14 @@
 				//show loading
 		        console.log('onRequest call to authClient.signIn.email:');
 			},
-			onSuccess: (ctx) => {
+			onSuccess: async (ctx) => {
 				//show success
 				console.log('onSuccess call to authClient.signIn.email:');
 				// Display a success message and then show button to signin
 				handleModalReset();
 				handleDialogClose();
+
+				await invalidateAll(); // Forces all load functions to re-run
 			},
 			onError: (ctx) => {
 				//show error
