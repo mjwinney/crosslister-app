@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
 	import { authClient } from '../lib/auth-client'; //import the auth client
 	import { onMount } from 'svelte';
 
@@ -73,8 +72,6 @@
 				// Display a success message and then show button to signin
 				handleModalReset();
 				handleDialogClose();
-
-				await invalidateAll(); // Forces all load functions to re-run
 			},
 			onError: (ctx) => {
 				//show error

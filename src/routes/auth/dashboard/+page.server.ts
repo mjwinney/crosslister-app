@@ -2,7 +2,9 @@ import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPrev
 import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ request, locals }) => {
+export const load: PageServerLoad = async ({ depends, request, locals }) => {
+
+    depends('app:dashboard');
 
     const userId = locals?.session?.userId;
     if (!userId) {

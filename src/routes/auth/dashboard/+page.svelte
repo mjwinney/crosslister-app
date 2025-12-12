@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, invalidate } from "$app/navigation";
   import { authClient } from "$lib/auth-client";
 	import { onMount } from "svelte";
 
@@ -9,6 +9,9 @@
       if (!session || !session?.data) {
           goto('/homepage');
       }
+
+      // force reload whenever you enter the page
+      invalidate('app:dashboard');
   });
 
   function handlePoshmarkImport() {
