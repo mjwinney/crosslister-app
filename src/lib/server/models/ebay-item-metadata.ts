@@ -15,6 +15,7 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     feePrice: { type: Number, required: false },
     shippingLabelCost: { type: Number, required: false },
     addFeeGeneral: { type: Number, required: false },
+    finalShippingCost: { type: Number, required: false },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });

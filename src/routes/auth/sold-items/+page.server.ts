@@ -1,5 +1,5 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
-import { getMyEbayOrders, getMyEbayOrderTransactions, getMyEbaySellingActive, getMyEbaySellingSold, getTransactions } from '$lib/server/ebayUtils';
+import { getMyEbayOrders } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 

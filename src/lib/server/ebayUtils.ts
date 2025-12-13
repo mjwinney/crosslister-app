@@ -1039,9 +1039,17 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                         return transaction.transactionType === "SHIPPING_LABEL";
                     });
 
-                    let shippingLabelCost: number = 0;
+                    let sellerShippingLabelCost: number = 0;
                     if (shippingLabel.length > 0) {
-                        shippingLabelCost = shippingLabel[0].amount.value;
+                        sellerShippingLabelCost = shippingLabel[0].amount.value;
+                    }
+
+                    // Calculate the final shipping cost
+                    let buyerShippingCost = 0;
+                    if (item.IsMultiLegShipping) {
+                        buyerShippingCost = parseFloat(item.MultiLegShippingDetails.SellerShipmentToLogisticsProvider.ShippingServiceDetails.TotalShippingCost || '0');
+                    } else {
+                        buyerShippingCost = parseFloat(item.TransactionArray.Transaction.ActualShippingCost || '0');
                     }
 
                     // Find put the add free price
@@ -1057,8 +1065,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     const itemId = item.TransactionArray.Transaction.Item.ItemID;
 
                     const metaData: MetaDataModel = {
-                        shippingLabelCost: shippingLabelCost,
-                        addFeeGeneral: addFeeGeneral
+                        shippingLabelCost: sellerShippingLabelCost,
+                        addFeeGeneral: addFeeGeneral,
+                        finalShippingCost: parseFloat((buyerShippingCost - sellerShippingLabelCost).toFixed(2))
                     };
 
                     // Upsert into the metadata table

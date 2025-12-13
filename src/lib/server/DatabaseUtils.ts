@@ -192,6 +192,7 @@ export type MetaDataModel = {
     feePrice?: number,
     shippingLabelCost?: number,
     addFeeGeneral?: number,
+    finalShippingCost?: number,
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -318,7 +319,9 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         storageLocation: metaData?.storageLocation || undefined,
         pictureURL: metaData?.pictureURL || undefined,
         listedTime: metaData?.listedTime || undefined,
-        soldTime: metaData?.soldTime || undefined
+        soldTime: metaData?.soldTime || undefined,
+        soldPrice: metaData?.soldPrice || undefined,
+        finalShippingCost: metaData?.finalShippingCost || undefined 
     }};
 }
 
@@ -327,6 +330,7 @@ export type MetaDataSummary = {
     grossSales?: number,
     totalFees?: number,
     totalPurchasePrice?: number,
+    finalShippingCost?: number
 }
 
 type MetaDataSummaryResult =
@@ -364,7 +368,8 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
         data: {
             itemCount: metaData.length, grossSales: metaData.reduce((acc, item) => acc + (item.soldPrice || 0), 0),
             totalFees: metaData.reduce((acc, item) => acc + (item.feePrice || 0), 0),
-            totalPurchasePrice: metaData.reduce((acc, item) => acc + (item.purchasePrice || 0), 0)
+            totalPurchasePrice: metaData.reduce((acc, item) => acc + (item.purchasePrice || 0), 0),
+            finalShippingCost: metaData.reduce((acc, item) => acc + (item.finalShippingCost || 0), 0)
         }
     };
 }
