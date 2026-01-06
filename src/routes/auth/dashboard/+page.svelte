@@ -31,23 +31,6 @@
     });
   }
 
-  function handlePoshmarkTab() {
-    console.log("Checking Poshmark tab");
-
-    // Tell extension to check if it's open and open if not
-    window.postMessage({ type: "CHECK_POSHMARK_TAB" }, "*");
-
-    // Listen for scraped data
-    window.addEventListener("message", (event) => {
-      if (event.data.type === "CHECK_POSHMARK_TAB_RESPONSE") {
-        console.log("Received CHECK_POSHMARK_TAB_RESPONSE from Poshmark data:", event.data.data);
-        // Display the data in the pre element
-        // document.getElementById("output").textContent =
-        //   JSON.stringify(event.data.data, null, 2);
-      }
-    });
-  }
-
   function formatCurrency(amountStr: string): string {
 		const amount = parseFloat(amountStr);
 		if (isNaN(amount)) {
@@ -86,7 +69,6 @@
 <div class="container">
 
   <button class="btn btn-primary" id="importBtn" onclick={() => handlePoshmarkImport()}>Import from Poshmark</button>
-  <button class="btn btn-primary" id="checkBtn" onclick={() => handlePoshmarkTab()}>Open Poshmark Tab</button>
   <pre id="output"></pre>
 
   <div class="d-flex flex-wrap justify-content-left gap-4">
