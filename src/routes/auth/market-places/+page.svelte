@@ -4,13 +4,14 @@
     import { onMount, onDestroy } from 'svelte';
 
 	onMount(async () => {
-    if (typeof window === 'undefined') return;
-    if (initialized) return;
-    initialized = true;
+        if (typeof window === 'undefined') return;
+        if (initialized) return;
+        initialized = true;
 
-    console.log("market-place: onMount called");
-    const session = await authClient.getSession();
-		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
+        console.log("market-place: onMount called");
+        const session = await authClient.getSession();
+
+        // console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
 		if (!session || !session?.data) {
 			goto('/homepage');
 		}
@@ -36,7 +37,7 @@
     });
 
     function checkPoshmarkTabStatus() {
-        console.log("Checking Poshmark tab");
+        // console.log("Checking Poshmark tab");
 
         // Tell extension to check if it's open. When a response arrives
         // we will request the logged-in status once from the response handler.
@@ -48,6 +49,12 @@
 
         // Tell extension to check logged-in user
         window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
+    }
+
+    function sendPoshmarkSoldItemsRequest() {
+        console.log("sendPoshmarkSoldItemsRequest called");
+
+        window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS" }, "*");
     }
 
     // Named handlers so we can remove them on destroy and avoid duplicates
@@ -98,9 +105,9 @@
 				<h4 class="my-0 fw-normal">POSHMARK</h4>
 			</div>
 			<div class="card-body">
-                <!-- <p>{poshMarkTabLoggedInUid == ""}</p>
+                <p>{poshMarkTabLoggedInUid == ""}</p>
                 <p>{poshMarkTabLoggedInUid == undefined}</p>
-                <p>${poshMarkTabLoggedInUid}</p> -->
+                <p>${poshMarkTabLoggedInUid}</p>
                 <div class="d-flex flex-column mb-3">
                     <div class="d-flex align-items-center mb-2">
                         {#if poshMarkTabExists}
@@ -121,6 +128,11 @@
                 <!-- <button type="button" class="btn btn-primary" onclick={handleEbayAuth}>
                     Open POSHMARK tab
                 </button> -->
+                <div class="d-flex justify-content-left">
+                    <button type="button" class="btn btn-primary" disabled={!poshMarkTabLoggedIn} onclick={sendPoshmarkSoldItemsRequest}>
+                        import sold items
+                    </button>
+                </div>
 			</div>
 		</div>
 	</div>
