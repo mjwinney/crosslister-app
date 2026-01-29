@@ -29,6 +29,7 @@
         // Register message listeners (handlers are declared at module scope)
         window.addEventListener("message", handlePoshmarkTabResponse);
         window.addEventListener("message", handlePoshmarkLoggedInResponse);
+        window.addEventListener("message", handlePoshmarkSoldItemsResponse);
     });
 
     // Stop timed callbacks when navigating away
@@ -45,7 +46,7 @@
     }
 
     function checkPoshmarkTabLoginStatus() {
-        console.log("Checking Poshmark login tab status");
+        // console.log("Checking Poshmark login tab status");
 
         // Tell extension to check logged-in user
         window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
@@ -60,7 +61,7 @@
     // Named handlers so we can remove them on destroy and avoid duplicates
     function handlePoshmarkTabResponse(event: MessageEvent) {
         if (event.data?.type === "CHECK_POSHMARK_TAB_RESPONSE") {
-            console.log("Received CHECK_POSHMARK_TAB_RESPONSE from Poshmark data:", event.data.data);
+            // console.log("Received CHECK_POSHMARK_TAB_RESPONSE from Poshmark data:", event.data.data);
             poshMarkTabExists = event.data.data;
 
             // If the tab exists, request the logged-in UID once
@@ -73,14 +74,23 @@
 
     function handlePoshmarkLoggedInResponse(event: MessageEvent) {
         if (event.data?.type === "CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE") {
-            console.log("Received CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE from Poshmark data:", event.data);
+            // console.log("Received CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE from Poshmark data:", event.data);
             poshMarkTabLoggedInUid = event.data.uid;
+        }
+    }
+
+    function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
+        if (event.data?.type === "POSHMARK_SOLD_DATA") {
+            console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
+            // Handle response as needed
+            poshMarkSoldItemsData = JSON.stringify(event.data.data);
         }
     }
 
     let poshMarkTabExists = $state(false);
     let poshMarkTabLoggedInUid = $state("");
     let poshMarkTabLoggedIn = $derived(poshMarkTabExists && poshMarkTabLoggedInUid !== "");
+    let poshMarkSoldItemsData = $state("");
     let interval: NodeJS.Timeout;
     let initialized = false;
 
@@ -108,6 +118,7 @@
                 <p>{poshMarkTabLoggedInUid == ""}</p>
                 <p>{poshMarkTabLoggedInUid == undefined}</p>
                 <p>${poshMarkTabLoggedInUid}</p>
+                <p>${poshMarkSoldItemsData}</p>
                 <div class="d-flex flex-column mb-3">
                     <div class="d-flex align-items-center mb-2">
                         {#if poshMarkTabExists}
