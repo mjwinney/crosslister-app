@@ -53,6 +53,8 @@
     }
 
     function sendPoshmarkSoldItemsRequest() {
+        // Send to server or extension to fetch sold items
+
         console.log("sendPoshmarkSoldItemsRequest called");
 
         window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS" }, "*");
@@ -84,6 +86,23 @@
             console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
             // Handle response as needed
             poshMarkSoldItemsData = JSON.stringify(event.data.data);
+
+            // Send payload to server using the API post endpoint
+            // await fetch('/api/update-item', { method: 'POST', body: JSON.stringify(data) });
+
+            fetch('/api/poshmark-sold-items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(event.data.data)
+            })
+            .then(async res => {
+                if (!res.ok) throw new Error(await res.text());
+                const json = await res.json();
+                console.log('Imported sold items, server response:', json);
+            })
+            .catch(err => {
+                console.error('Failed to send sold items to server', err);
+            });
         }
     }
 
