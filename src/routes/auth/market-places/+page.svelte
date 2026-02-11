@@ -88,8 +88,6 @@
             poshMarkSoldItemsData = JSON.stringify(event.data.data);
 
             // Send payload to server using the API post endpoint
-            // await fetch('/api/update-item', { method: 'POST', body: JSON.stringify(data) });
-
             fetch('/api/poshmark-sold-items', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

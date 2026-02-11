@@ -7,6 +7,7 @@ import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
 import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
+import { PoshmarkItemMetadata } from './models/poshmark-item-metadata';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -193,6 +194,7 @@ export type MetaDataModel = {
     shippingLabelCost?: number,
     addFeeGeneral?: number,
     finalShippingCost?: number,
+    title?: string
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -225,6 +227,40 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
 
     } catch (error) {
         console.error(`Error updating eBay metadata for itemId:${itemId} userId:${userId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
+export async function updatePoshmarkMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    if (!metaDataModel) {
+        return StatusCodes.BadRequest;
+    }
+
+    try {
+        const result = await PoshmarkItemMetadata.findOneAndUpdate(
+            { itemId, userId },         // match by _id and userId
+            { $set: metaDataModel },    // apply provided metadata fields
+            { new: true, upsert }       // return updated doc; optionally create if missing
+        ).exec();
+
+        if (!result) {
+            // if upsert was false and no doc matched, treat as not found / bad request
+            return upsert ? StatusCodes.InsertFailed : StatusCodes.BadRequest;
+        }
+
+        return StatusCodes.OK;
+
+    } catch (error) {
+        console.error(`Error updating Poshmark metadata for itemId:${itemId} userId:${userId}`, error);
         return StatusCodes.InsertFailed;
     }
 }
