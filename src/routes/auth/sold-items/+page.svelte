@@ -113,10 +113,7 @@
 	function calculateROI(order: any): string {
 		const profit = calculateProfit(order);
 		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
-		const fee = parseFloat(order.finalValueFee || '0');
-		const totalCost = purchase + fee;
-
-		const roi = (Number(profit) / totalCost) * 100;
+		const roi = (Number(profit) / purchase) * 100;
 		return roi.toFixed(2) + '%';
 	}
 
@@ -188,7 +185,7 @@
 
 	let { data } = $props();
 
-	let dataItems = $state(data.post.GetOrdersResponse?.OrderArray);
+	let dataItems = $derived(data.post.GetOrdersResponse?.OrderArray);
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfEntries);

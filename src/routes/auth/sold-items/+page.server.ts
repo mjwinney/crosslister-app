@@ -19,9 +19,9 @@ export const load: PageServerLoad = async ({ request, locals }) => {
         });
     }
 
-    // console.log('eBay API request successful, response.data:', JSON.stringify(response.data));
+    // console.log('page.server.ts: load: eBay API request successful, response.data:', JSON.stringify(response.data));
 
-    console.log('eBay API request successful, returning data...');
+    // console.log('eBay API request successful, returning data...');
     return {
         post: response.data,
     };

@@ -46,19 +46,19 @@
     </div>
   </div>
 
-  <!-- Inventory Section -->
+  <!-- Ebay Inventory Section -->
   <div class="accordion-item">
-    <h2 class="accordion-header" id="headingInventory">
+    <h2 class="accordion-header" id="ebayheadingInventory">
       <button class="accordion-button collapsed" type="button"
         data-bs-toggle="collapse"
-        data-bs-target="#collapseInventory"
+        data-bs-target="#collapseEbayInventory"
         aria-expanded="false"
-        aria-controls="collapseInventory">
-        Inventory
+        aria-controls="collapseEbayInventory">
+        Ebay
       </button>
     </h2>
-    <div id="collapseInventory" class="accordion-collapse collapse"
-      aria-labelledby="headingInventory"
+    <div id="collapseEbayInventory" class="accordion-collapse collapse"
+      aria-labelledby="ebayheadingInventory"
       data-bs-parent="#sidebarAccordion">
       <div class="accordion-body">
         <ul class="list-unstyled fw-normal pb-1 small">
@@ -67,6 +67,32 @@
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/sold-items')}>Sold</a></li>
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/unsold-items')}>Unsold</a></li>
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/market-places')}>Market Places</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Poshmark Section -->
+  <div class="accordion-item">
+    <h2 class="accordion-header" id="poshmarkheadingInventory">
+      <button class="accordion-button collapsed" type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#collapsePoshmarkInventory"
+        aria-expanded="false"
+        aria-controls="collapsePoshmarkInventory">
+        Poshmark
+      </button>
+    </h2>
+    <div id="collapsePoshmarkInventory" class="accordion-collapse collapse"
+      aria-labelledby="poshmarkheadingInventory"
+      data-bs-parent="#sidebarAccordion">
+      <div class="accordion-body">
+        <ul class="list-unstyled fw-normal pb-1 small">
+          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/active-items')}>Active</a></li> -->
+          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/scheduled-items')}>Scheduled</a></li> -->
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/sold-items')}>Sold</a></li>
+          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/unsold-items')}>Unsold</a></li> -->
+          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/market-places')}>Market Places</a></li> -->
         </ul>
       </div>
     </div>

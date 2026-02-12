@@ -229,7 +229,7 @@ export async function getTransactions(locals: App.Locals, orderId: string): Prom
 
         const data = await refreshResponse.json();
 
-        console.log(`getTransactions Callback data: ${JSON.stringify(data)}`);
+        // console.log(`getTransactions Callback data: ${JSON.stringify(data)}`);
 
         return {
             status: 200,
@@ -813,6 +813,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             }
 
             const orders = jsonData.GetOrdersResponse.OrderArray?.Order;
+
+            // console.log('Orders found:', orders?.length);
 
             // Parallelize the calls to getMyEbayItem for each order item as they are slow!
             // Step 1: Create an array of Promises
