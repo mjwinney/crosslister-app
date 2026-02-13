@@ -33,5 +33,7 @@ export const POST = async ({ request, locals }) => {
         const response = await updatePoshmarkMetadata(userId, itemId, metaData, true);
     }
 
-    return new Response(JSON.stringify({ ok: true }));
+    return new Response(JSON.stringify({ ok: true, data }), {
+		headers: { 'Content-Type': 'application/json' }
+	});
 };

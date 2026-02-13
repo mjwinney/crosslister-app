@@ -85,7 +85,7 @@
         if (event.data?.type === "POSHMARK_SOLD_DATA") {
             console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
             // Handle response as needed
-            poshMarkSoldItemsData = JSON.stringify(event.data.data);
+            let poshMarkSoldItemsData = JSON.stringify(event.data.data);
 
             // Send payload to server using the API post endpoint
             fetch('/api/poshmark-sold-items', {
