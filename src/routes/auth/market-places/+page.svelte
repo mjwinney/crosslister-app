@@ -29,7 +29,7 @@
         // Register message listeners (handlers are declared at module scope)
         window.addEventListener("message", handlePoshmarkTabResponse);
         window.addEventListener("message", handlePoshmarkLoggedInResponse);
-        window.addEventListener("message", handlePoshmarkSoldItemsResponse);
+        // window.addEventListener("message", handlePoshmarkSoldItemsResponse);
     });
 
     // Stop timed callbacks when navigating away
@@ -81,28 +81,28 @@
         }
     }
 
-    function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
-        if (event.data?.type === "POSHMARK_SOLD_DATA") {
-            console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
-            // Handle response as needed
-            let poshMarkSoldItemsData = JSON.stringify(event.data.data);
+    // function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
+    //     if (event.data?.type === "POSHMARK_SOLD_DATA") {
+    //         console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
+    //         // Handle response as needed
+    //         let poshMarkSoldItemsData = JSON.stringify(event.data.data);
 
-            // Send payload to server using the API post endpoint
-            fetch('/api/poshmark-sold-items', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(event.data.data)
-            })
-            .then(async res => {
-                if (!res.ok) throw new Error(await res.text());
-                const json = await res.json();
-                console.log('Imported sold items, server response:', json);
-            })
-            .catch(err => {
-                console.error('Failed to send sold items to server', err);
-            });
-        }
-    }
+    //         // Send payload to server using the API post endpoint
+    //         fetch('/api/poshmark-sold-items', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify(event.data.data)
+    //         })
+    //         .then(async res => {
+    //             if (!res.ok) throw new Error(await res.text());
+    //             const json = await res.json();
+    //             console.log('Imported sold items, server response:', json);
+    //         })
+    //         .catch(err => {
+    //             console.error('Failed to send sold items to server', err);
+    //         });
+    //     }
+    // }
 
     let poshMarkTabExists = $state(false);
     let poshMarkTabLoggedInUid = $state("");

@@ -410,6 +410,73 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
     };
 }
 
+export type PoshmarkMetaDataSummary = {
+    itemCount?: number,
+    items: MetaDataModel[]
+}
+
+type PoshmarkMetaDataSummaryResult =
+  | { ok: true; data: PoshmarkMetaDataSummary }
+  | { ok: false; code: StatusCodes };
+
+export async function getPoshmarkMetadataByPage(userId: string, page: number) : Promise<PoshmarkMetaDataSummaryResult>
+{
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    // Access the Poshmark metadata for the given page (assuming 20 items per page)
+    const pageSize = 20;
+    const fromDate = new Date();
+    const toDate = new Date();
+
+    // Will only ever go back 90 days since Poshmark only provides data for the last 90 days,
+    // so we can just set the fromDate to 90 days ago and ignore the toDate since it will always be "now"
+    fromDate.setDate(fromDate.getDate() - 90);
+
+    // Convert to UTC ISO strings
+    const utcFrom = fromDate.toISOString();
+    const utcTo   = toDate.toISOString();
+
+    const metaData = await PoshmarkItemMetadata.find({
+        userId,
+        soldTime: {
+            $gte: new Date(utcFrom),
+            $lte: new Date(utcTo),
+        }
+    })
+    .sort({ endTime: -1 }) // optional but recommended for stable pagination
+    .skip(page * pageSize)
+    .limit(pageSize)
+    .lean()
+    .exec();
+
+    if (!metaData) {
+        return { ok: false, code: StatusCodes.NotFound };
+    }
+
+    return { ok: true, data: {
+        itemCount: metaData.length,
+        items: metaData.map(item => ({
+            title: item.title || undefined,
+            // purchasePrice: item.purchasePrice || undefined,
+            // purchaseDate: item.purchaseDate || undefined,
+            // purchaseLocation: item.purchaseLocation || undefined,
+            // storageLocation: item.storageLocation || undefined,
+            // pictureURL: item.pictureURL || undefined,
+            // listedTime: item.listedTime || undefined,
+            // soldTime: item.soldTime || undefined,
+            // soldPrice: item.soldPrice || undefined,
+            // finalShippingCost: item.finalShippingCost || undefined 
+        }))
+    }};
+}
+
+
 export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSummaryResult>
 {
     // Ensure the database connection is established

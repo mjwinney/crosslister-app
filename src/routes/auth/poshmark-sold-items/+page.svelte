@@ -35,7 +35,7 @@
 		// We have to do it this way because the content script is the only 
 		// part of our code that can access the cookies/local storage of the 
 		// Poshmark web app to get the auth token needed to call Poshmark's API.
-        window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS" }, "*");
+        window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS", daysBack: 10 }, "*");
     }
 
 	async function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
@@ -50,7 +50,7 @@
 			const formData = new FormData();
 			formData.append('data', JSON.stringify(event.data.data));
 
-			const res = await fetch('/auth/poshmark-sold-items/savePoshmarkSoldItems', {
+			const res = await fetch('/auth/poshmark-sold-items/save-poshmark-sold-items', {
 				method: 'POST',
 				body: formData
 			});

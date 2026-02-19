@@ -1,20 +1,23 @@
-import { updatePoshmarkMetadata, type MetaDataModel } from "$lib/server/DatabaseUtils";
+import { updatePoshmarkMetadata, getPoshmarkMetadataByPage, type MetaDataModel } from "$lib/server/DatabaseUtils";
 
 export const POST = async ({ request, locals }) => {
     console.log('POST: ENTER');
-    const data = await request.json();
-    // console.log(JSON.stringify(data));
-    // console.log(`POST: locals:${JSON.stringify(locals)}`);
+    const form = await request.formData();
+    const raw = form.get('data');
+    const parsed = JSON.parse(raw as string);
+
+    // console.log(JSON.stringify(parsed));
+    // // console.log(`POST: locals:${JSON.stringify(locals)}`);
+    const userId = locals?.session?.userId || '';
 
     // loop through all the data returned from the Poshmark API and save it to the database
-    for (const item of data) {
+    for (const item of parsed) {
         // console.log(`POST: item:${JSON.stringify(item)}`);
     //     const userId = item.userId;
         const itemId = item.id;
-        const userId = locals?.session?.userId || '';
-
 
         console.log(`POST: itemId:${itemId}, userId:${userId}`);
+
         const diff = (item.total_price_amount?.val ?? 0) - (item.total_earnings_amount?.val ?? 0);
         const feeAmount = Number(diff.toFixed(2));
 
@@ -33,7 +36,11 @@ export const POST = async ({ request, locals }) => {
         const response = await updatePoshmarkMetadata(userId, itemId, metaData, true);
     }
 
-    return new Response(JSON.stringify({ ok: true, data }), {
+    const poshMarkdata = await getPoshmarkMetadataByPage(userId, 0);
+
+    console.log(`POST: getPoshmarkMetadataByPage:${JSON.stringify(poshMarkdata)}`);
+
+    return new Response(JSON.stringify({ ok: true, poshMarkdata }), {
 		headers: { 'Content-Type': 'application/json' }
 	});
 };
