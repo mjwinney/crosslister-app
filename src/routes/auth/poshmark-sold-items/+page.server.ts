@@ -1,9 +1,44 @@
-import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
+import { StatusCodes, updateEbayMetadata, getPoshmarkDaysInPastToScrape, getPoshmarkMetadataByPage } from '$lib/server/DatabaseUtils';
 import { updatePoshmarkMetadata, type MetaDataModel } from "$lib/server/DatabaseUtils";
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
 export const load: PageServerLoad = async ({ request, locals }) => {
+    // Get the page query parameter
+    const url = new URL(request.url);
+    const pageParam = url.searchParams.get('page');
+    const pageNumber = pageParam ? parseInt(pageParam, 10) : 1;
+    const userId = locals?.session?.userId || '';
+    console.log('load: pageNumber:', pageNumber);
+
+    // See how many days back we need to go back in the poshmark sold items
+    // by looking at the poshmark database and finding the most recent sold item
+    // and calculating how many days back we need to go to get new items.
+    // This is then passed to the page to get the new items.
+    const daysToGoBack = await getPoshmarkDaysInPastToScrape(userId);
+    console.log('load: daysToGoBack:', daysToGoBack);
+
+    // const response = await getPoshmarkMetadataByPage(userId, pageNumber);
+
+    // if (!('data' in response)) {
+    //     return new Response('Failed to retrieve Poshmark metadata items', {
+    //         status: 500,
+    //         headers: { 'Content-Type': 'text/html' }
+    //     });
+    // }
+
+    // console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response.data));
+
+    const response = { data: [] };
+    console.log('Poshmark metadata API request successful, returning data...');
+
+    return {
+        post: { daysToGoBack: daysToGoBack.days, items: response.data }
+    };
+};
+
+
+// export const load: PageServerLoad = async ({ request, locals }) => {
 
     // Get the page query parameter
     // const url = new URL(request.url);
@@ -25,7 +60,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     // return {
     //     post: response.data,
     // };
-};
+// };
 
 export const actions: Actions = {
     updateItem: async ({ request }) => {

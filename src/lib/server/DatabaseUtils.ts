@@ -41,7 +41,8 @@ export enum StatusCodes {
     RegisteredUserAlreadyExists,
     ErrorCreatingUser,
     InsertFailed,
-    NotFound
+    NotFound,
+    EmptyTable
 }
 
 export async function updateEbayToken(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<StatusCodes> {
@@ -476,6 +477,48 @@ export async function getPoshmarkMetadataByPage(userId: string, page: number) : 
     }};
 }
 
+export async function getPoshmarkDaysInPastToScrape(userId: string): Promise<{ ok: boolean; code: StatusCodes; days?: number }> {
+    // Ensure the database connection is established
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    // 1. Check if the collection is empty
+    const count = await PoshmarkItemMetadata.countDocuments({ userId });
+    if (count === 0) {
+        return { ok: true, code: StatusCodes.EmptyTable, days: 90 }; // If empty, we want to scrape the full 90 days of data
+    }
+
+    // 2. Get the most recently created item
+    const latestItem = await PoshmarkItemMetadata.findOne({ userId })
+    .sort({ createdAt: -1 })
+    .limit(1)
+    .lean()
+    .exec();
+
+    if (!latestItem) {
+        return { ok: true, code: StatusCodes.EmptyTable, days: 90 };
+    }
+
+    // 3. Parse the createdAt date
+    const createdAt = new Date(latestItem.createdAt);
+    const now = new Date();
+
+    // Normalize both dates to midnight to avoid time-of-day issues
+    createdAt.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+
+    // 4. Calculate difference in days
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const diffMs = now.getTime() - createdAt.getTime();
+    const diffDays = Math.floor(diffMs / msPerDay);
+
+    // 5. Clamp to max 90 days
+    return { ok: true, code: StatusCodes.OK, days: Math.min(Math.max(diffDays, 0), 90) };
+}
 
 export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSummaryResult>
 {

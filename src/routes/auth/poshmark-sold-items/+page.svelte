@@ -35,7 +35,11 @@
 		// We have to do it this way because the content script is the only 
 		// part of our code that can access the cookies/local storage of the 
 		// Poshmark web app to get the auth token needed to call Poshmark's API.
-        window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS", daysBack: 10 }, "*");
+
+		// We need to get see how many days to go back in the poshmark sold items request.
+		// To do this we can call database method getPoshmarkDaysInPastToScrape which will
+		// check our database for the most recent sold item and calculate how many days back we need to go to get new items.
+        window.postMessage({ type: "IMPORT_POSHMARK_SOLD_ITEMS", daysBack: daysToGoBack }, "*");
     }
 
 	async function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
@@ -63,7 +67,7 @@
 			// Save the data so it can be displayed in the UI. 
 			// We have to do it this way because the load function only runs on page load,
 			// and we want to update the UI immediately after importing without requiring a page refresh.
-			dataItems = json;
+			// dataItems = json;
 		}
     }
 
@@ -231,9 +235,15 @@
     	editingItem = null;
 	}
 
-	let dataItems = $state([]);
 
-	// let { data } = $props();
+	// let dataItems = $state([]);
+
+	let { data } = $props();
+	console.log('Data from load function:', JSON.stringify(data));
+	const daysToGoBack = data.post.daysToGoBack;
+	console.log(`daysToGoBack:${daysToGoBack}`);
+
+
 
 	// let dataItems = $derived(data.post.GetOrdersResponse?.OrderArray);
 
