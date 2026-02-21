@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     const daysToGoBack = await getPoshmarkDaysInPastToScrape(userId);
     console.log('load: daysToGoBack:', daysToGoBack);
 
-    // const response = await getPoshmarkMetadataByPage(userId, pageNumber);
+    const response = await getPoshmarkMetadataByPage(userId, pageNumber);
 
     // if (!('data' in response)) {
     //     return new Response('Failed to retrieve Poshmark metadata items', {
@@ -27,13 +27,13 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     //     });
     // }
 
-    // console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response.data));
+    console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response));
 
-    const response = { data: [] };
-    console.log('Poshmark metadata API request successful, returning data...');
+    // const response = { data: [] };
+    // console.log('Poshmark metadata API request successful, returning data...');
 
     return {
-        post: { daysToGoBack: daysToGoBack.days, items: response.data }
+        post: { daysToGoBack: daysToGoBack.days, data: response.data }
     };
 };
 

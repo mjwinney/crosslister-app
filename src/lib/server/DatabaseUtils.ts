@@ -413,6 +413,7 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
 
 export type PoshmarkMetaDataSummary = {
     itemCount?: number,
+    totalItemCount?: number,
     items: MetaDataModel[]
 }
 
@@ -443,15 +444,12 @@ export async function getPoshmarkMetadataByPage(userId: string, page: number) : 
     const utcFrom = fromDate.toISOString();
     const utcTo   = toDate.toISOString();
 
-    const metaData = await PoshmarkItemMetadata.find({
-        userId,
-        soldTime: {
-            $gte: new Date(utcFrom),
-            $lte: new Date(utcTo),
-        }
-    })
-    .sort({ endTime: -1 }) // optional but recommended for stable pagination
-    .skip(page * pageSize)
+    // Total count of all
+    const totalCount = await PoshmarkItemMetadata.countDocuments({ userId });
+
+    const metaData = await PoshmarkItemMetadata.find({ userId })
+    .sort({ soldTime: -1 }) // optional but recommended for stable pagination
+    .skip((page - 1) * pageSize)
     .limit(pageSize)
     .lean()
     .exec();
@@ -462,17 +460,22 @@ export async function getPoshmarkMetadataByPage(userId: string, page: number) : 
 
     return { ok: true, data: {
         itemCount: metaData.length,
+        totalItemCount: totalCount,
         items: metaData.map(item => ({
             title: item.title || undefined,
-            // purchasePrice: item.purchasePrice || undefined,
+            itemId: item.itemId || undefined,
+            soldPrice: item.soldPrice || undefined,
+            soldTime: item.soldTime || undefined,
+            purchasePrice: item.purchasePrice || undefined,
             // purchaseDate: item.purchaseDate || undefined,
             // purchaseLocation: item.purchaseLocation || undefined,
             // storageLocation: item.storageLocation || undefined,
-            // pictureURL: item.pictureURL || undefined,
+            pictureURL: item.pictureURL || undefined,
             // listedTime: item.listedTime || undefined,
             // soldTime: item.soldTime || undefined,
             // soldPrice: item.soldPrice || undefined,
             // finalShippingCost: item.finalShippingCost || undefined 
+            feePrice: item.feePrice || undefined
         }))
     }};
 }

@@ -22,7 +22,7 @@
         window.addEventListener("message", handlePoshmarkSoldItemsResponse);
 
 		// Go get poshmark sold items when page loads
-		sendPoshmarkSoldItemsRequest();
+		// sendPoshmarkSoldItemsRequest();
 	});
 
 	function sendPoshmarkSoldItemsRequest() {
@@ -127,19 +127,10 @@
 	}
 
 	function calculateProfit(order: any): string {
-		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice || '0');
-		const fee = parseFloat(order.finalValueFee || '0');
-		const shippingCost = calculateShipping(order);
-		const addFeeGeneral = parseFloat(order.addFeeGeneral || '0');
-		const purchaseRaw = order.Metadata?.purchasePrice;
-
-		if (purchaseRaw === undefined || isNaN(parseFloat(purchaseRaw))) {
-			const profit = sold - fee + shippingCost - addFeeGeneral;
-			return `${formatCurrency(profit.toString())}`;
-		}
-
-		const purchase = parseFloat(purchaseRaw);
-		const profit = sold - purchase - fee + shippingCost - addFeeGeneral;
+		const sold = parseFloat(order.soldPrice || '0');
+		const fee = parseFloat(order.feePrice || '0');
+		const purchase = parseFloat(order.purchasePrice || '0');
+		const profit = sold - purchase - fee;
 		return `${formatCurrency(profit.toString())}`;
 	}
 
@@ -235,21 +226,16 @@
     	editingItem = null;
 	}
 
-
-	// let dataItems = $state([]);
-
 	let { data } = $props();
 	console.log('Data from load function:', JSON.stringify(data));
 	const daysToGoBack = data.post.daysToGoBack;
 	console.log(`daysToGoBack:${daysToGoBack}`);
 
-
-
-	// let dataItems = $derived(data.post.GetOrdersResponse?.OrderArray);
+	let dataItems = $derived(data.post.data.items);
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	// let totalItems = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfEntries);
-	// let totalNumberOfPages = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfPages);
+	let totalItems = $derived(data.post.data.totalItemCount);
+	let totalNumberOfPages = $derived(data.post.data.totalItemCount > 0 ? Math.ceil(data.post.data.totalItemCount / 20) : 0);
 	
 	// Track which item is being edited
 	let tempPurchasePrice = $state(0);
@@ -272,54 +258,59 @@
     </div>
 {/if}
 
-<!-- {#if dataItems == null || dataItems.length === 0}
+{#if dataItems == null || dataItems.length === 0}
 	<p class="text-center mt-5">No sold items found.</p>
-{:else} -->
+{:else}
 	<div class="items-container">
+		<div class="d-flex justify-content-left">
+			<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
+				import sold items
+			</button>
+		</div>
 		<div class="d-flex justify-content-between align-items-center mb-3">
-			<!-- <h2>Sold Items ({totalItems})</h2> -->
-			<!-- <div class="text-muted">
+			<h2>Sold Items ({totalItems})</h2>
+			<div class="text-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
-			</div> -->
+			</div>
 		</div>
 		<table class="table table-light table-striped mb-4">
 			<tbody>
-				<!-- {#each dataItems?.Order as order, index}
+				{#each dataItems as order, index}
 					<tr>
 						<td>
 							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 								<img
-									src={order.PictureURL}
+									src={order.pictureURL || '/placeholder-image.png'}
 									class="border item-image"
-									alt={order.TransactionArray.Transaction.Item.Title}
+									alt={order.title}
 								/>
 							</div>
 						</td>
 						<td>
-							<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
-							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
-							<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
-							{#if order.TransactionArray.Transaction.ActualShippingCost > 0}
+							<p class="card-title fs-6 mb-0">{order.title}</p>
+							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.itemId}</p>
+							<p class="mb-0 fs-5 text-success">${formatCurrency(order.soldPrice)}</p>
+							<!-- {#if order.TransactionArray.Transaction.ActualShippingCost > 0}
 								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order))}</p>
-							{:else}
+							{:else} -->
 								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
-							{/if}
-							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
+							<!-- {/if} -->
+							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
 						</td>
 						<td bind:this={itemsElements[index]}>
 							<table class="table-sm">
 								<tbody>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
-										<td class="fs-6 mb-0 py-0">${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+										<td class="fs-6 mb-0 py-0">${formatCurrency(order.purchasePrice ? order.purchasePrice : '0')}
 											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 										</td>
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Fee:</td>
-										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.finalValueFee)}</td>
+										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.feePrice)}</td>
 									</tr>
-									<tr>
+									<!-- <tr>
 										{#if calculateShipping(order) >= 0}
 											<td class="fs-6 mb-0 py-0">Shipping:</td>
 											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
@@ -327,36 +318,36 @@
 											<td class="fs-6 mb-0 py-0">Shipping:</td>
 											<td class="text-danger fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
 										{/if}
-									</tr>
-									<tr>
+									</tr> -->
+									<!-- <tr>
 										<td class="fs-6 mb-0 py-0">Promo Fee:</td>
 										{#if order.addFeeGeneral > 0}
 											<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.addFeeGeneral)}</td>
 										{:else}
 											<td class="text-muted fs-6 mb-0 py-0">---</td>
 										{/if}
-									</tr>
+									</tr> -->
 									<tr>
 										<td class="fs-6 mb-0 py-0">Profit:</td>
 										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order)}</td>
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">ROI:</td>
-										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
+										<!-- <td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	 -->
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
-										<td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td>
+										<!-- <td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td> -->
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Location:</td>
-										<td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td>
+										<!-- <td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td> -->
 									</tr>
 								</tbody>
 							</table>
 						</td>
 					</tr>
-				{/each} -->
+				{/each}
 			</tbody>
 		</table>
 
@@ -389,10 +380,10 @@
 		{/if}
 
 		<div class="my-3 d-flex justify-content-center">
-			<!-- <Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} /> -->
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
 	</div>
-<!-- {/if} -->
+{/if}
 
 <style>
     .busy-overlay {
