@@ -34,7 +34,11 @@
 		});
 
 		// Update local data so UI reflects immediately
-		order.Metadata.purchasePrice = newValue;
+		editableItems = editableItems.map((it: any) =>
+			String(it.TransactionArray.Transaction.Item.ItemID) === String(order.TransactionArray.Transaction.Item.ItemID)
+				? { ...it, Metadata: { ...it.Metadata, purchasePrice: newValue } }
+				: it
+		);
 	}
 
 	/**
@@ -164,28 +168,39 @@
     }
 
 	function startEditing(order: any, index: number) {
-		editingItem = order;
-
 		const rect = itemsElements[index].getBoundingClientRect();
-	    dialogPos = { top: rect.top + window.scrollY, left: rect.left };
+		dialogPos = { top: rect.top + window.scrollY, left: rect.left };
 
 		tempPurchasePrice = order.Metadata.purchasePrice || '0';
+		editingIndex = index;
 	}
 
-	async function stopEditing(order: any) {
-		editingItem = null;
-		// editingItemId = "";
-		order.Metadata.purchasePrice = tempPurchasePrice;
-		await updatePurchasePrice(order, tempPurchasePrice);
+	async function stopEditing() {
+		const idx = editingIndex;
+		if (idx < 0) return;
+		const order = editableItems[idx];
+		const newVal = Number(tempPurchasePrice);
+		editableItems = editableItems.map((it: any, i: number) =>
+			i === idx ? { ...it, Metadata: { ...it.Metadata, purchasePrice: newVal } } : it
+		);
+		editingIndex = -1;
+		await updatePurchasePrice(order, newVal);
 	}
 
 	function cancelEditing() {
-    	editingItem = null;
+		editingIndex = -1;
 	}
 
 	let { data } = $props();
 
 	let dataItems = $derived(data.post.GetOrdersResponse?.OrderArray);
+
+	// Local writable copy of items so we can update UI reactively
+	// ensure editableItems has a known any[] type for TS
+	let editableItems = $state([] as any[]);
+	$effect(() => {
+		editableItems = dataItems?.Order ?? [];
+	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfEntries);
@@ -195,9 +210,9 @@
 	let tempPurchasePrice = $state(0);
 	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
 
-	let editingItem = $state(null);
+	let editingIndex = $state(-1);
 	let itemsElements: HTMLElement[] = [];
-	let dialogPos = { top: 0, left: 0 };
+	let dialogPos = $state({ top: 0, left: 0 });
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -224,7 +239,7 @@
 		</div>
 		<table class="table table-light table-striped mb-4">
 			<tbody>
-				{#each dataItems?.Order as order, index}
+				{#each editableItems as order, index}
 					<tr>
 						<td>
 							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
@@ -251,7 +266,7 @@
 								<tbody>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
-										<td class="fs-6 mb-0 py-0">${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}
+										<td class="fs-6 mb-0 py-0">${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.Metadata.purchasePrice || 0))}
 											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 										</td>
 									</tr>
@@ -301,7 +316,7 @@
 		</table>
 
 		<!-- Slide-in dialog -->
-		{#if editingItem}
+		{#if editingIndex !== -1}
 			<div class="side-dialog bg-light shadow p-3"
 				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
 				transition:fly={{ x: 200, duration: 300 }}>
@@ -321,7 +336,7 @@
 				<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
 					Cancel
 				</button>
-				<button class="btn btn-primary btn-sm" onclick={() => stopEditing(editingItem)}>
+				<button class="btn btn-primary btn-sm" onclick={() => stopEditing()}>
 					Save
 				</button>
 				</div>

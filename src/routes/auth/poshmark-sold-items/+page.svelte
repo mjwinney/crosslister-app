@@ -72,21 +72,26 @@
     }
 
 	async function updatePurchasePrice(order: any, newValue: number) {
+		console.log(`updatePurchasePrice called with:${JSON.stringify(order)}, newValue=${newValue}`);
 		const session = await authClient.getSession();
 		const userId = session.data?.session.userId || '';
 
 		const formData = new FormData();
-		formData.append('itemId', order.TransactionArray.Transaction.Item.ItemID);
+		formData.append('itemId', order.itemId);
 		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
 		formData.append('userId', userId);
 
-		await fetch('/auth/active-items?/updateItem', {
+		console.log(`updatePurchasePrice formData:itemId=${formData.get('itemId')}, metaData=${formData.get('metaData')}, userId=${formData.get('userId')}`);
+
+		await fetch('/auth/poshmark-sold-items?/updateItem', {
 			method: 'POST',
 			body: formData
 		});
 
 		// Update local data so UI reflects immediately
-		order.Metadata.purchasePrice = newValue;
+		editableItems = editableItems.map((it: any) =>
+			String(it.itemId) === String(order.itemId) ? { ...it, purchasePrice: newValue } : it
+		);
 	}
 
 	/**
@@ -155,7 +160,10 @@
 
 	function calculateROI(order: any): string {
 		const profit = calculateProfit(order);
-		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
+		const purchase = parseFloat(order.purchasePrice ? order.purchasePrice : '0');
+		if (purchase === 0) {
+			return 'N/A';
+		}
 		const roi = (Number(profit) / purchase) * 100;
 		return roi.toFixed(2) + '%';
 	}
@@ -207,31 +215,46 @@
     }
 
 	function startEditing(order: any, index: number) {
-		editingItem = order;
+		console.log(`startEditing called for order ${JSON.stringify(order)}, index ${index}`);
 
-		const rect = itemsElements[index].getBoundingClientRect();
-	    dialogPos = { top: rect.top + window.scrollY, left: rect.left };
+		const el = itemsElements[index];
+		if (el) {
+			const rect = el.getBoundingClientRect();
+			dialogPos = { top: rect.top + window.scrollY, left: rect.left };
+		}
 
-		tempPurchasePrice = order.Metadata.purchasePrice || '0';
+		tempPurchasePrice = order.purchasePrice || 0;
+		editingIndex = index;
 	}
 
-	async function stopEditing(order: any) {
-		editingItem = null;
-		// editingItemId = "";
-		order.Metadata.purchasePrice = tempPurchasePrice;
-		await updatePurchasePrice(order, tempPurchasePrice);
+	async function stopEditing() {
+		const idx = editingIndex;
+		if (idx < 0) return;
+		const order = editableItems[idx];
+		// Coerce tempPurchasePrice to number before saving
+		const newVal = Number(tempPurchasePrice);
+		// Update local copy so UI updates immediately
+		editableItems = editableItems.map((it: any, i: number) =>
+			i === idx ? { ...it, purchasePrice: newVal } : it
+		);
+		editingIndex = -1;
+		await updatePurchasePrice(order, newVal);
 	}
 
 	function cancelEditing() {
-    	editingItem = null;
+		editingIndex = -1;
 	}
 
 	let { data } = $props();
-	console.log('Data from load function:', JSON.stringify(data));
 	const daysToGoBack = data.post.daysToGoBack;
-	console.log(`daysToGoBack:${daysToGoBack}`);
 
-	let dataItems = $derived(data.post.data.items);
+	let dataItems = $derived(data.post.data);
+
+	// Local writable copy of items so we can update UI reactively
+	let editableItems = $state(dataItems?.items ?? []);
+	$effect(() => {
+		editableItems = dataItems?.items ?? [];
+	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.data.totalItemCount);
@@ -239,9 +262,13 @@
 	
 	// Track which item is being edited
 	let tempPurchasePrice = $state(0);
-	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
+	let editingIndex = $state(-1);
 
-	let editingItem = $state(null);
+	// Reactive debug logging to verify state updates (use $effect in runes mode)
+	// $effect(() => {
+	// 	console.log('editingItemId,temp,type', editingItemId, tempPurchasePrice, typeof tempPurchasePrice);
+	// });
+	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
 	let itemsElements: HTMLElement[] = [];
 	let dialogPos = { top: 0, left: 0 };
 </script>
@@ -275,7 +302,7 @@
 		</div>
 		<table class="table table-light table-striped mb-4">
 			<tbody>
-				{#each dataItems as order, index}
+				{#each editableItems as order, index}
 					<tr>
 						<td>
 							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
@@ -302,8 +329,8 @@
 								<tbody>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
-										<td class="fs-6 mb-0 py-0">${formatCurrency(order.purchasePrice ? order.purchasePrice : '0')}
-											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+										<td class="fs-6 mb-0 py-0">${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.purchasePrice || 0))}
+																	<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 										</td>
 									</tr>
 									<tr>
@@ -333,12 +360,12 @@
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">ROI:</td>
-										<!-- <td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	 -->
+										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
 									</tr>
-									<tr>
+									<!-- <tr>
 										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
-										<!-- <td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td> -->
-									</tr>
+										<td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td>
+									</tr> -->
 									<tr>
 										<td class="fs-6 mb-0 py-0">Location:</td>
 										<!-- <td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td> -->
@@ -352,31 +379,31 @@
 		</table>
 
 		<!-- Slide-in dialog -->
-		{#if editingItem}
+		{#if editingIndex !== -1}
 			<div class="side-dialog bg-light shadow p-3"
 				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
 				transition:fly={{ x: 200, duration: 300 }}>
 				<h6>Edit Purchase Price</h6>
-				<CurrencyInput
-				bind:value={tempPurchasePrice}
-				currency="USD"
-				locale="en-US"
-				inputClasses={{
-					unformatted: "form-control",
-					formatted: "form-control",
-					formattedPositive: "form-control",
-					formattedNegative: "form-control",
-				}}
+				<!-- Temporary plain input to isolate reactivity of the CurrencyInput component -->
+				<input
+					type="text"
+					class="form-control"
+					bind:value={tempPurchasePrice}
 				/>
 				<div class="mt-3 d-flex justify-content-end gap-2">
 				<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
 					Cancel
 				</button>
-				<button class="btn btn-primary btn-sm" onclick={() => stopEditing(editingItem)}>
+				<button class="btn btn-primary btn-sm" onclick={() => stopEditing()}>
 					Save
 				</button>
 				</div>
 			</div>
+		{/if}
+
+		<!-- Debug panel (temporary) -->
+		{#if editingIndex !== -1}
+			<div class="alert alert-secondary mt-2">editingIndex: {editingIndex} — temp: {tempPurchasePrice} — type: {typeof tempPurchasePrice}</div>
 		{/if}
 
 		<div class="my-3 d-flex justify-content-center">

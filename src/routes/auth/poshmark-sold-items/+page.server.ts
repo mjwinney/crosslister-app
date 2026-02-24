@@ -67,24 +67,22 @@ export const actions: Actions = {
         console.log('updateItem: ENTER');
         console.log('updateItem: request:', request);
         const formData = await request.formData();
-        console.log('updateItem: request JSON:', JSON.stringify(formData));
         const itemId = formData.get('itemId') as string;
         const metaData: MetaDataModel = JSON.parse(formData.get('metaData') as string);
         const userId = formData.get('userId') as string;
-
-        console.log('updateItem: userId:', userId);
+        console.log(`updateItem: itemId:${itemId}, metaData:${JSON.stringify(metaData)}, userId:${userId}`);
 
         // const metaData = formData.get('metaData') as MetaDataModel;
-        const response = await updateEbayMetadata(userId, itemId, metaData, true);
+        const response = await updatePoshmarkMetadata(userId, itemId, metaData, true);
 
         if (response !== StatusCodes.OK) {
-            return new Response('Failed to update eBay item metadata', {
+            return new Response('Failed to update Poshmark item metadata', {
                 status: 500,
                 headers: { 'Content-Type': 'text/html' }
             });
         }
 
-        console.log('eBay API request successful, success');
+        console.log('poshmark metadata API request successful, success');
         return { success: true, message: 'Operation complete!' };
     },
     // savePoshmarkSoldItems: async ({ request, locals }) => {
