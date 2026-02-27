@@ -29,6 +29,8 @@
         // Send to server or extension to fetch sold items
         console.log("sendPoshmarkSoldItemsRequest called");
 
+		isLoading = true; // Show loading spinner while fetching data
+
 		// This is going to go to the chrome extension content script,
 		// which will then forward to the background script,
 		// which will call our server API route.
@@ -59,15 +61,30 @@
 				body: formData
 			});
 
+			const data = await res.json();
+
+			if (!res.ok) {
+				console.error('Failed to send sold items to server', JSON.stringify(event.data.data));
+				return {
+					status: 'error',
+					message: data
+				};
+			}
+
 			// Action returns the data to be displayed in the UI
 			// so save it to a variable that the UI can access.
-			const json = await res.json();
-			console.log('Imported sold items, server response:', json);
+			// const json = await res.json();
+			// console.log('Imported sold items, server response:', json);
 
 			// Save the data so it can be displayed in the UI. 
 			// We have to do it this way because the load function only runs on page load,
 			// and we want to update the UI immediately after importing without requiring a page refresh.
 			// dataItems = json;
+            console.log("POSHMARK_SOLD_DATA EXIT");
+
+			// Force the page to reload so it will re-run the load function and get the new data 
+			// from the database, which was just updated with the imported sold items.
+			await handlePageChange(1);
 		}
     }
 
@@ -123,39 +140,12 @@
 		return amount.toFixed(2);
 	}
 
-	function getShippingCost(order: any): number {
-		if (order.IsMultiLegShipping) {
-			return parseFloat(order.MultiLegShippingDetails.SellerShipmentToLogisticsProvider.ShippingServiceDetails.TotalShippingCost || '0');
-		}
-		const shippingCost = parseFloat(order.TransactionArray.Transaction.ActualShippingCost || '0');
-		return shippingCost;
-	}
-
 	function calculateProfit(order: any): string {
 		const sold = parseFloat(order.soldPrice || '0');
 		const fee = parseFloat(order.feePrice || '0');
 		const purchase = parseFloat(order.purchasePrice || '0');
 		const profit = sold - purchase - fee;
 		return `${formatCurrency(profit.toString())}`;
-	}
-
-	function calculateShipping(order: any): number {
-		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
-		const buyerShippingCost = getShippingCost(order);
-		const profitShipping = buyerShippingCost - sellerShippingLabelCost;
-
-		return profitShipping;
-	}
-
-	function formatShippingCalc(order: any): string {
-		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
-		const buyerShippingCost = getShippingCost(order);
-
-		if (buyerShippingCost === 0) {
-			return `(Paid by seller)`;
-		}
-
-		return `($${formatCurrency(buyerShippingCost.toString())} - $${formatCurrency(sellerShippingLabelCost.toString())})`;
 	}
 
 	function calculateROI(order: any): string {
@@ -168,38 +158,12 @@
 		return roi.toFixed(2) + '%';
 	}
 
-	function parseISODate(isoString: string): Date {
-		if (typeof isoString !== 'string') {
-			throw new Error('Input must be a string in ISO format');
-		}
-
-		const date = new Date(isoString);
-
-		if (isNaN(date.getTime())) {
-			throw new Error('Invalid ISO date format');
-		}
-
-		return date;
-	}
-
-	function getDayDifference(startTime: string, endTime: string): string {
-
-		// Calculate the difference in milliseconds
-		const diffMs = parseISODate(endTime).getTime() - parseISODate(startTime).getTime();
-
-		// Convert milliseconds to days
-		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-		return diffDays === 1 ? `${diffDays} day` : `${diffDays} days`;
-	}
-
     // Example: navigate to the same route with ?page=N
     async function handlePageChange(newPage: number) {
 
 		isLoading = true;  // Loading spinner shown
 
 		currentPage = newPage;
-		const path = location.pathname;
         await goto(`?page=${newPage}`, { replaceState: true });
 		await invalidateAll(); // Force re-execution of load functions
         await tick(); // wait for DOM to update with new data
@@ -296,6 +260,7 @@
 		</div>
 		<div class="d-flex justify-content-between align-items-center mb-3">
 			<h2>Sold Items ({totalItems})</h2>
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 			<div class="text-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>

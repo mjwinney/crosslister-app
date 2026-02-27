@@ -36,11 +36,13 @@ export const POST = async ({ request, locals }) => {
         const response = await updatePoshmarkMetadata(userId, itemId, metaData, true);
     }
 
-    const poshMarkdata = await getPoshmarkMetadataByPage(userId, 0);
+    return new Response(JSON.stringify({ message: 'Items saved successfully' }), { status: 200 });
 
-    console.log(`POST: getPoshmarkMetadataByPage:${JSON.stringify(poshMarkdata)}`);
+    // const poshMarkdata = await getPoshmarkMetadataByPage(userId, 0);
 
-    return new Response(JSON.stringify({ ok: true, poshMarkdata }), {
-		headers: { 'Content-Type': 'application/json' }
-	});
+    // console.log(`POST: getPoshmarkMetadataByPage:${JSON.stringify(poshMarkdata)}`);
+
+    // return new Response(JSON.stringify({ ok: true, poshMarkdata }), {
+	// 	headers: { 'Content-Type': 'application/json' }
+	// });
 };

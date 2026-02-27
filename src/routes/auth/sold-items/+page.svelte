@@ -233,6 +233,7 @@
 	<div class="items-container">
 		<div class="d-flex justify-content-between align-items-center mb-3">
 			<h2>Sold Items ({totalItems})</h2>
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 			<div class="text-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
