@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
 	import CurrencyInput from '@canutin/svelte-currency-input';
@@ -11,23 +11,34 @@
 	let isLoading = $state(false);
 
 	onMount(async () => {
+		if (initialized) return;
+			initialized = true;
+
 		const session = await authClient.getSession();
 		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
 		if (!session || !session?.data) {
 			goto('/homepage	');
 		}
-		console.log(currencyInputEl); // now defined
+		// console.log(currencyInputEl); // now defined
 
-		// Register message listeners (handlers are declared at module scope)
+        clearInterval(interval);
+
+        // Run immediately
+        checkPoshmarkTabStatus();
+        // checkPoshmarkTabLoginStatus();
+
+        // Then every 5 seconds
+        interval = setInterval(checkPoshmarkTabStatus, 5000);
+
+        // Register message listeners (handlers are declared at module scope)
+        window.addEventListener("message", handlePoshmarkTabResponse);
+        window.addEventListener("message", handlePoshmarkLoggedInResponse);
         window.addEventListener("message", handlePoshmarkSoldItemsResponse);
-
-		// Go get poshmark sold items when page loads
-		// sendPoshmarkSoldItemsRequest();
 	});
 
 	function sendPoshmarkSoldItemsRequest() {
         // Send to server or extension to fetch sold items
-        console.log("sendPoshmarkSoldItemsRequest called");
+        // console.log("sendPoshmarkSoldItemsRequest called");
 
 		isLoading = true; // Show loading spinner while fetching data
 
@@ -45,10 +56,10 @@
     }
 
 	async function handlePoshmarkSoldItemsResponse(event: MessageEvent) {
-		console.log("handlePoshmarkSoldItemsResponse() called:");
+		// console.log("handlePoshmarkSoldItemsResponse() called:" + JSON.stringify(event));
 
         if (event.data?.type === "POSHMARK_SOLD_DATA") {
-            console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
+            // console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
             // Handle response as needed
             // let poshMarkSoldItemsData = JSON.stringify(event.data.data);
 
@@ -80,7 +91,7 @@
 			// We have to do it this way because the load function only runs on page load,
 			// and we want to update the UI immediately after importing without requiring a page refresh.
 			// dataItems = json;
-            console.log("POSHMARK_SOLD_DATA EXIT");
+            // console.log("POSHMARK_SOLD_DATA EXIT");
 
 			// Force the page to reload so it will re-run the load function and get the new data 
 			// from the database, which was just updated with the imported sold items.
@@ -133,10 +144,6 @@
 		if (isNaN(amount)) {
 			throw new Error("Invalid number input");
 		}
-		return amount.toFixed(2);
-	}
-
-	function formatCurrencyFromNumber(amount: number): string {
 		return amount.toFixed(2);
 	}
 
@@ -209,6 +216,65 @@
 		editingIndex = -1;
 	}
 
+    function checkPoshmarkTabStatus() {
+        // console.log("Checking Poshmark tab");
+
+        // Tell extension to check if it's open. When a response arrives
+        // we will request the logged-in status once from the response handler.
+        window.postMessage({ type: "CHECK_POSHMARK_TAB" }, "*");
+    }
+
+    function checkPoshmarkTabLoginStatus() {
+        console.log("Checking Poshmark login tab status");
+
+        // Tell extension to check logged-in user
+        window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
+    }
+
+	function openPoshmarkTab() {
+		// Semd message to extension to open Poshmark tab
+		window.postMessage({ type: "OPEN_POSHMARK_TAB" }, "*");
+	}
+
+    // Named handlers so we can remove them on destroy and avoid duplicates
+    function handlePoshmarkTabResponse(event: MessageEvent) {
+        if (event.data?.type === "CHECK_POSHMARK_TAB_RESPONSE") {
+            console.log("Received CHECK_POSHMARK_TAB_RESPONSE from Poshmark data:", event.data.data);
+            poshMarkTabExists = event.data.data;
+
+			console.log(`Poshmark tab exists: ${poshMarkTabExists}`);
+            // If the tab exists, request the logged-in UID once
+            if (poshMarkTabExists)
+                checkPoshmarkTabLoginStatus();
+            else
+                poshMarkTabLoggedInUid = "";
+        }
+    }
+
+    function handlePoshmarkLoggedInResponse(event: MessageEvent) {
+		console.log("handlePoshmarkLoggedInResponse() called:" + JSON.stringify(event));
+        if (event.data?.type === "CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE") {
+            console.log("Received CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE from Poshmark data:", event.data);
+            poshMarkTabLoggedInUid = event.data.uid;
+        }
+    }
+
+	// Stop timed callbacks when navigating away
+    beforeNavigate(() => {
+        clearInterval(interval);
+    });
+
+	// Clean up listeners and intervals when this component is destroyed
+    onDestroy(() => {
+        clearInterval(interval);
+        if (typeof window !== 'undefined') {
+            window.removeEventListener("message", handlePoshmarkTabResponse);
+            window.removeEventListener("message", handlePoshmarkLoggedInResponse);
+			window.removeEventListener("message", handlePoshmarkSoldItemsResponse);
+        }
+        initialized = false;
+    });
+
 	let { data } = $props();
 	const daysToGoBack = data.post.daysToGoBack;
 
@@ -232,9 +298,17 @@
 	// $effect(() => {
 	// 	console.log('editingItemId,temp,type', editingItemId, tempPurchasePrice, typeof tempPurchasePrice);
 	// });
-	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
+	// let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
 	let itemsElements: HTMLElement[] = [];
 	let dialogPos = { top: 0, left: 0 };
+
+	let poshMarkTabExists = $state(false);
+    let poshMarkTabLoggedInUid = $state("");
+    let poshMarkTabLoggedIn = $derived(poshMarkTabExists && poshMarkTabLoggedInUid !== "");
+    let interval: NodeJS.Timeout;
+	let initialized = false;
+
+
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -254,9 +328,20 @@
 {:else}
 	<div class="items-container">
 		<div class="d-flex justify-content-left">
-			<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
-				import sold items
-			</button>
+			<!-- <button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}> -->
+			{#if poshMarkTabExists && poshMarkTabLoggedIn}
+				<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
+					Import
+				</button>
+			{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
+				<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
+					User not logged in
+				</button>
+			{:else}
+				<button type="button" class="btn btn-primary" onclick={openPoshmarkTab}>
+					Open POSHMARK tab
+				</button>
+			{/if}
 		</div>
 		<div class="d-flex justify-content-between align-items-center mb-3">
 			<h2>Sold Items ({totalItems})</h2>
@@ -289,7 +374,7 @@
 							<!-- {/if} -->
 							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
 						</td>
-						<td bind:this={itemsElements[index]}>
+						<td>
 							<table class="table-sm">
 								<tbody>
 									<tr>
