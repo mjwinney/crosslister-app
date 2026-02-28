@@ -327,24 +327,23 @@
 	<p class="text-center mt-5">No sold items found.</p>
 {:else}
 	<div class="items-container">
-		<div class="d-flex justify-content-left">
-			<!-- <button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}> -->
-			{#if poshMarkTabExists && poshMarkTabLoggedIn}
-				<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
-					Import
-				</button>
-			{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
-				<button type="button" class="btn btn-primary" onclick={sendPoshmarkSoldItemsRequest}>
-					User not logged in
-				</button>
-			{:else}
-				<button type="button" class="btn btn-primary" onclick={openPoshmarkTab}>
-					Open POSHMARK tab
-				</button>
-			{/if}
-		</div>
 		<div class="d-flex justify-content-between align-items-center mb-3">
-			<h2>Sold Items ({totalItems})</h2>
+			<div class="d-flex align-items-center">
+				<h2 class="mb-0">Sold Items ({totalItems})</h2>
+				{#if poshMarkTabExists && poshMarkTabLoggedIn}
+					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+						Import
+					</button>
+				{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
+					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+						User not logged in
+					</button>
+				{:else}
+					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+						Open POSHMARK tab
+					</button>
+				{/if}
+			</div>
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 			<div class="text-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
@@ -488,5 +487,15 @@
 		height: 100px;
 		object-fit: contain;	
 		background-color: #f8f9fa;
+	}
+
+	/* Compact button used for header controls */
+	.btn-compact {
+		padding: .18rem .45rem; /* reduce vertical/horizontal padding */
+		font-size: .85rem;
+		line-height: 1; /* avoid extra height from line-height */
+		height: 1.5rem; /* let padding control height */
+		display: inline-flex;
+		align-items: center; /* vertically center icon/text */
 	}
 </style>
