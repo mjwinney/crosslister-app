@@ -92,6 +92,7 @@
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-sold-items')}>Sold</a></li>
           <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/unsold-items')}>Unsold</a></li> -->
           <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/market-places')}>Market Places</a></li> -->
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-cross-list')}>Cross list</a></li>
         </ul>
       </div>
     </div>

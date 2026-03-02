@@ -113,7 +113,7 @@
 				<tr>
 					<!-- <td>{JSON.stringify(item.Metadata)}</td> -->
 					<td>
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+						<div class="col-md-auto d-flex align-items-center justify-content-center">
 							<img
 								src={item.PictureDetails.GalleryURL}
 								class="border item-image"
@@ -125,42 +125,6 @@
 						<p class="card-title fs-6 mb-0">{item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
 						<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
-					</td>
-					<td>
-						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
-							<label for="originalPrice">Purchase Price</label>
-							<CurrencyInput
-								bind:value={item.Metadata.purchasePrice}
-								currency="USD"
-								locale="en-US"
-								inputClasses={
-									{
-										unformatted: "form-control",
-										formatted: "form-control",
-										formattedPositive: "form-control",
-										formattedNegative: "form-control",
-									}
-								}
-							/>
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="originalPrice">Purchase Date</label>
-							<DatePicker bind:selectedDate={item.Metadata.purchaseDate}/>
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="purchaseLocation">Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="storageLocation">Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
-						</div>
 					</td>
 				</tr>
 			{/each}
