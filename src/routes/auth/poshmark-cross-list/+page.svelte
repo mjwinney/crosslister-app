@@ -6,7 +6,6 @@
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	import DatePicker from '$lib/components/DatePicker.svelte';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -49,6 +48,24 @@
 		// Write the data to the database
 		postMetaData(itemID, metaData);
 	}
+
+	function sendPoshmarkCreateItemsRequest() {
+        // Send to server or extension to fetch sold items
+        console.log("sendPoshmarkCreateItemsRequest called");
+
+		// isLoading = true; // Show loading spinner while fetching data
+
+        window.postMessage({
+			type: "CREATE_POSHMARK_LISTING",
+			title: "Vintage Denim Jacket",
+			description: "Gently used, great condition.",
+			imageUrls: [
+				"https://i.ebayimg.com/images/g/lE8AAeSw0oxppihe/s-l140.png",
+				"https://i.ebayimg.com/images/g/PosAAeSw6U9ppgTQ/s-l140.png"
+			]
+		}, "*");
+    }
+
 
     // Example: navigate to the same route with ?page=N
     async function handlePageChange(newPage: number) {
@@ -106,6 +123,11 @@
 		<div class="text-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
+	</div>
+	<div class="d-flex align-items-center">
+		<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkCreateItemsRequest}>
+			Cross List to Poshmark
+		</button>
 	</div>
 	<table class="table table-light table-striped mb-4">
 		<tbody>
