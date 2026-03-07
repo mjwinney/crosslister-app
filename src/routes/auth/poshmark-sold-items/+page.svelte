@@ -366,14 +366,10 @@
 							<p class="card-title fs-6 mb-0">{order.title}</p>
 							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.itemId}</p>
 							<p class="mb-0 fs-5 text-success">${formatCurrency(order.soldPrice)}</p>
-							<!-- {#if order.TransactionArray.Transaction.ActualShippingCost > 0}
-								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order))}</p>
-							{:else} -->
 								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
-							<!-- {/if} -->
 							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
 						</td>
-						<td>
+						<td bind:this={itemsElements[index]}>
 							<table class="table-sm">
 								<tbody>
 									<tr>
@@ -386,23 +382,6 @@
 										<td class="fs-6 mb-0 py-0">Fee:</td>
 										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.feePrice)}</td>
 									</tr>
-									<!-- <tr>
-										{#if calculateShipping(order) >= 0}
-											<td class="fs-6 mb-0 py-0">Shipping:</td>
-											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
-										{:else}
-											<td class="fs-6 mb-0 py-0">Shipping:</td>
-											<td class="text-danger fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
-										{/if}
-									</tr> -->
-									<!-- <tr>
-										<td class="fs-6 mb-0 py-0">Promo Fee:</td>
-										{#if order.addFeeGeneral > 0}
-											<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.addFeeGeneral)}</td>
-										{:else}
-											<td class="text-muted fs-6 mb-0 py-0">---</td>
-										{/if}
-									</tr> -->
 									<tr>
 										<td class="fs-6 mb-0 py-0">Profit:</td>
 										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order)}</td>
@@ -411,10 +390,6 @@
 										<td class="fs-6 mb-0 py-0">ROI:</td>
 										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
 									</tr>
-									<!-- <tr>
-										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
-										<td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td>
-									</tr> -->
 									<tr>
 										<td class="fs-6 mb-0 py-0">Location:</td>
 										<!-- <td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td> -->

@@ -1125,6 +1125,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
             <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
         </RequesterCredentials>
         <ItemID>${ItemID}</ItemID>
+        <DetailLevel>ReturnAll</DetailLevel>
         ${outputSelectorString}
     </GetItemRequest>`;
 

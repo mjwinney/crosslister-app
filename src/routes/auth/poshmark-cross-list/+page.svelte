@@ -49,20 +49,41 @@
 		postMetaData(itemID, metaData);
 	}
 
-	function sendPoshmarkCreateItemsRequest() {
+	async function sendPoshmarkCreateItemsRequest() {
         // Send to server or extension to fetch sold items
         console.log("sendPoshmarkCreateItemsRequest called");
 
 		// isLoading = true; // Show loading spinner while fetching data
 
+		// Send eBay item id to server to fetch additional details 
+		// and then forward to extension for creating Poshmark listing
+		const formData = new FormData();
+		formData.append('itemId', JSON.stringify('137101724173'));
+
+		const res = await fetch('/auth/poshmark-cross-list/get-ebay-item-details', {
+			method: 'POST',
+			body: formData
+		});
+
+		const ebayData = await res.json();
+
+		if (!res.ok) {
+			console.error('Failed to send sold items to server', JSON.stringify(ebayData));
+			return {
+				status: 'error',
+				message: ebayData
+			};
+		}
+
+		console.log('Received data from server', JSON.stringify(ebayData));
+
+		// isLoading = false;
+
         window.postMessage({
 			type: "CREATE_POSHMARK_LISTING",
-			title: "Vintage Denim Jacket",
-			description: "Gently used, great condition.",
-			imageUrls: [
-				"https://i.ebayimg.com/images/g/lE8AAeSw0oxppihe/s-l140.png",
-				"https://i.ebayimg.com/images/g/PosAAeSw6U9ppgTQ/s-l140.png"
-			]
+			title: ebayData.itemDetails.title,
+			description: ebayData.itemDetails.description,
+			imageUrls: ebayData.itemDetails.pictureURL,
 		}, "*");
     }
 
