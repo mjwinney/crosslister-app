@@ -1,6 +1,30 @@
 import { updatePoshmarkMetadata, getPoshmarkMetadataByPage, type MetaDataModel } from "$lib/server/DatabaseUtils";
 import { getMyEbayItem } from "$lib/server/ebayUtils";
 
+function cleanForPoshmark(html : string | undefined): string {
+  if (!html) return "";
+
+  // 1. Convert HTML entities like &nbsp; → space
+  let text = html.replace(/&nbsp;/g, " ");
+
+  // 2. Convert <br> and <br/> to newlines
+  text = text.replace(/<br\s*\/?>/gi, "\n");
+
+  // 3. Convert <div>...</div> to "...\n"
+  text = text.replace(/<\/div>\s*<div>/gi, "\n"); // consecutive divs
+  text = text.replace(/<div>/gi, "");            // remove opening div
+  text = text.replace(/<\/div>/gi, "\n");        // closing div → newline
+
+  // 4. Strip any remaining HTML tags just in case
+  text = text.replace(/<[^>]+>/g, "");
+
+  // 5. Collapse multiple newlines into a single blank line
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  // 6. Trim leading/trailing whitespace
+  return text.trim();
+}
+
 export const POST = async ({ request, locals }) => {
     console.log('POST: ENTER');
     const form = await request.formData();
@@ -28,7 +52,7 @@ export const POST = async ({ request, locals }) => {
         title: ebayItem.Title,
         pictureURL: ebayItem.PictureDetails?.PictureURL,
         conditionDescription: ebayItem.ConditionDescription,
-        description: ebayItem.Description
+        description: cleanForPoshmark(ebayItem.Description),
     };
 
     return new Response(JSON.stringify({ message: 'Item details fetched successfully', itemDetails: responseData }), { status: 200 });
