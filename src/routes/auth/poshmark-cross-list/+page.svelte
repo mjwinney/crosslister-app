@@ -84,6 +84,7 @@
 			title: ebayData.itemDetails.title,
 			description: ebayData.itemDetails.description,
 			imageUrls: ebayData.itemDetails.pictureURL,
+			condition: ebayData.itemDetails.condition
 		}, "*");
     }
 

@@ -25,6 +25,48 @@ function cleanForPoshmark(html : string | undefined): string {
   return text.trim();
 }
 
+type PoshmarkCondition =
+  | "New With Tags (NWT)"
+  | "Like New"
+  | "Good"
+  | "Fair";
+
+// Explicit sets give you precision + easy extensibility
+const NEW = new Set<number>([
+  1000, // New
+  1500, // New with defects (optional: treat differently)
+]);
+
+const LIKE_NEW = new Set<number>([
+  2750, // Open box (unused)
+  2990, // Pre-owned - Excellent
+  3000, // Used - Like New
+]);
+
+const GOOD = new Set<number>([
+  4000, // Used - Very Good
+  5000, // Used - Good
+]);
+
+const FAIR = new Set<number>([
+  6000, // Used - Acceptable
+  7000, // For parts / not working (cosmetic)
+]);
+
+/**
+ * Maps an eBay ConditionID to a Poshmark condition.
+ * Falls back to "Good" if unknown.
+ */
+function mapEbayToPoshmarkCondition(conditionId: number): PoshmarkCondition {
+  if (NEW.has(conditionId)) return "New With Tags (NWT)";
+  if (LIKE_NEW.has(conditionId)) return "Like New";
+  if (GOOD.has(conditionId)) return "Good";
+  if (FAIR.has(conditionId)) return "Fair";
+
+  // Fallback — safest default for unknown IDs
+  return "Good";
+}
+
 export const POST = async ({ request, locals }) => {
     console.log('POST: ENTER');
     const form = await request.formData();
@@ -37,7 +79,8 @@ export const POST = async ({ request, locals }) => {
     const userId = locals?.session?.userId || '';
 
     // Call eBay API to get item details for each item in the parsed data
-    const itemData = await getMyEbayItem(locals, itemId, ['Description', 'Title', 'PictureDetails']);
+    const itemData = await getMyEbayItem(locals, itemId, ['Description', 
+        'ConditionDescription', 'ConditionID', 'Title', 'PictureDetails']);
 
     if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
         console.error('Failed to fetch item details from eBay API');
@@ -51,8 +94,10 @@ export const POST = async ({ request, locals }) => {
     const responseData = {
         title: ebayItem.Title,
         pictureURL: ebayItem.PictureDetails?.PictureURL,
-        conditionDescription: ebayItem.ConditionDescription,
-        description: cleanForPoshmark(ebayItem.Description),
+        description: cleanForPoshmark(ebayItem.Description) + 
+            (ebayItem.ConditionDescription ? 
+                "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
+        condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID)
     };
 
     return new Response(JSON.stringify({ message: 'Item details fetched successfully', itemDetails: responseData }), { status: 200 });
