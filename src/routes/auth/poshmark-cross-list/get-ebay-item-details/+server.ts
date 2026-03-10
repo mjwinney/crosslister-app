@@ -80,7 +80,7 @@ export const POST = async ({ request, locals }) => {
 
     // Call eBay API to get item details for each item in the parsed data
     const itemData = await getMyEbayItem(locals, itemId, ['Description', 
-        'ConditionDescription', 'ConditionID', 'Title', 'PictureDetails']);
+        'ConditionDescription', 'ConditionID', 'Title', 'PictureDetails', 'PrimaryCategory']);
 
     if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
         console.error('Failed to fetch item details from eBay API');
@@ -97,7 +97,8 @@ export const POST = async ({ request, locals }) => {
         description: cleanForPoshmark(ebayItem.Description) + 
             (ebayItem.ConditionDescription ? 
                 "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
-        condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID)
+        condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID),
+        primaryCategory: ebayItem.PrimaryCategory
     };
 
     return new Response(JSON.stringify({ message: 'Item details fetched successfully', itemDetails: responseData }), { status: 200 });

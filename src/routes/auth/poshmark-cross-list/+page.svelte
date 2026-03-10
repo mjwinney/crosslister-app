@@ -58,7 +58,7 @@
 		// Send eBay item id to server to fetch additional details 
 		// and then forward to extension for creating Poshmark listing
 		const formData = new FormData();
-		formData.append('itemId', JSON.stringify('137101724173'));
+		formData.append('itemId', JSON.stringify('206101764178'));
 
 		const res = await fetch('/auth/poshmark-cross-list/get-ebay-item-details', {
 			method: 'POST',
@@ -84,7 +84,8 @@
 			title: ebayData.itemDetails.title,
 			description: ebayData.itemDetails.description,
 			imageUrls: ebayData.itemDetails.pictureURL,
-			condition: ebayData.itemDetails.condition
+			condition: ebayData.itemDetails.condition,
+			primaryCategory: ebayData.itemDetails.primaryCategory			
 		}, "*");
     }
 
