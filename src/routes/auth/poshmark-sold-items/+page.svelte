@@ -375,7 +375,7 @@
 									<tr>
 										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
 										<td class="fs-6 mb-0 py-0">${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.purchasePrice || 0))}
-																	<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 										</td>
 									</tr>
 									<tr>

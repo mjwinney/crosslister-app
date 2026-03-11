@@ -49,16 +49,16 @@
 		postMetaData(itemID, metaData);
 	}
 
-	async function sendPoshmarkCreateItemsRequest() {
+	async function sendPoshmarkCreateItemsRequest(item: any) {
         // Send to server or extension to fetch sold items
-        console.log("sendPoshmarkCreateItemsRequest called");
+        console.log("sendPoshmarkCreateItemsRequest called with:", JSON.stringify(item));
 
 		// isLoading = true; // Show loading spinner while fetching data
 
 		// Send eBay item id to server to fetch additional details 
 		// and then forward to extension for creating Poshmark listing
 		const formData = new FormData();
-		formData.append('itemId', JSON.stringify('206101764178'));
+		formData.append('itemId', JSON.stringify(item.ItemID));
 
 		const res = await fetch('/auth/poshmark-cross-list/get-ebay-item-details', {
 			method: 'POST',
@@ -85,7 +85,8 @@
 			description: ebayData.itemDetails.description,
 			imageUrls: ebayData.itemDetails.pictureURL,
 			condition: ebayData.itemDetails.condition,
-			primaryCategory: ebayData.itemDetails.primaryCategory			
+			primaryCategory: ebayData.itemDetails.primaryCategory,
+			price: ebayData.itemDetails.price
 		}, "*");
     }
 
@@ -147,11 +148,11 @@
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-	<div class="d-flex align-items-center">
+	<!-- <div class="d-flex align-items-center">
 		<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkCreateItemsRequest}>
 			Cross List to Poshmark
 		</button>
-	</div>
+	</div> -->
 	<table class="table table-light table-striped mb-4">
 		<tbody>
 			{#each editableItems.Item as item}
@@ -170,6 +171,13 @@
 						<p class="card-title fs-6 mb-0">{item.Title}</p>
 						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
 						<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
+					</td>
+					<td>
+						<div class="d-flex align-items-center">
+							<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={() => sendPoshmarkCreateItemsRequest(item)}>
+								Cross List to Poshmark
+							</button>
+						</div>
 					</td>
 				</tr>
 			{/each}

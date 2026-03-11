@@ -79,8 +79,15 @@ export const POST = async ({ request, locals }) => {
     const userId = locals?.session?.userId || '';
 
     // Call eBay API to get item details for each item in the parsed data
-    const itemData = await getMyEbayItem(locals, itemId, ['Description', 
-        'ConditionDescription', 'ConditionID', 'Title', 'PictureDetails', 'PrimaryCategory']);
+    const itemData = await getMyEbayItem(locals, itemId, [
+      'Description', 
+      'ConditionDescription',
+      'ConditionID',
+      'Title',
+      'PictureDetails',
+      'PrimaryCategory',
+      'SellingStatus'
+    ]);
 
     if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
         console.error('Failed to fetch item details from eBay API');
@@ -92,13 +99,15 @@ export const POST = async ({ request, locals }) => {
 
     // build the response.
     const responseData = {
-        title: ebayItem.Title,
-        pictureURL: ebayItem.PictureDetails?.PictureURL,
-        description: cleanForPoshmark(ebayItem.Description) + 
-            (ebayItem.ConditionDescription ? 
-                "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
-        condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID),
-        primaryCategory: ebayItem.PrimaryCategory
+      title: ebayItem.Title,
+      pictureURL: ebayItem.PictureDetails?.PictureURL,
+      description: cleanForPoshmark(ebayItem.Description) + 
+        (ebayItem.ConditionDescription ? 
+          "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
+      condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID),
+      primaryCategory: ebayItem.PrimaryCategory,
+      // price: String(ebayItem.SellingStatus.CurrentPrice)
+      price: ebayItem.SellingStatus.CurrentPrice
     };
 
     return new Response(JSON.stringify({ message: 'Item details fetched successfully', itemDetails: responseData }), { status: 200 });
