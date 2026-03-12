@@ -332,7 +332,7 @@
 				<h2 class="mb-0">Sold Items ({totalItems})</h2>
 				{#if poshMarkTabExists && poshMarkTabLoggedIn}
 					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
-						Import
+						Refresh
 					</button>
 				{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
 					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
