@@ -253,7 +253,6 @@
 					</td>
 					<td>
 						<div class="d-flex align-items-center">
-
 							{#if poshMarkTabExists && poshMarkTabLoggedIn}
 								<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={() => sendPoshmarkCreateItemsRequest(item)}>
 									Cross List to Poshmark
