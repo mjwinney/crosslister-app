@@ -97,6 +97,7 @@
 
         window.postMessage({
 			type: "CREATE_POSHMARK_LISTING",
+			ebayId: item.ItemID,
 			title: ebayData.itemDetails.title,
 			description: ebayData.itemDetails.description,
 			imageUrls: ebayData.itemDetails.pictureURL,
