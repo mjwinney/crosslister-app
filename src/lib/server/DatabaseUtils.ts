@@ -195,7 +195,9 @@ export type MetaDataModel = {
     shippingLabelCost?: number,
     addFeeGeneral?: number,
     finalShippingCost?: number,
-    title?: string
+    title?: string,
+    xlistedPoshmarkItemId?: string,
+    xlistedEbayItemId?: string
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>

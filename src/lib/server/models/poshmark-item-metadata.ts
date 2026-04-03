@@ -10,13 +10,9 @@ const PoshmarkItemMetadataSchema = new mongoose.Schema({
     purchaseLocation: { type: String, required: false },
     storageLocation: { type: String, required: false },
     pictureURL: { type: String, required: false },
-    // listedTime: { type: Date, required: false }, // stored as iso string
     soldTime: { type: Date, required: false }, // stored as iso string
     feePrice: { type: Number, required: false },
-    // shippingLabelCost: { type: Number, required: false },
-    // addFeeGeneral: { type: Number, required: false },
-    // finalShippingCost: { type: Number, required: false },
-    // Add other relevant fields like creation date, user ID, etc.
+    xlistedEbayItemId: { type: String, required: false },
     createdAt: { type: Date, default: Date.now },
 });
 
