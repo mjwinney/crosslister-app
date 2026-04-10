@@ -1,9 +1,10 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
     // client only references
     let inputEl: HTMLInputElement | null = null;
     let dp: any = null;
+    const dispatch = createEventDispatcher();
 
     export let selectedDate = new Date(Date.now()).toLocaleString().split(',')[0];
 
@@ -84,4 +85,4 @@
     </style>
 </svelte:head>
 
-<input class="form-control datepicker-input" bind:this={inputEl} type="text" name="foo" on:changeDate={onChangeDate} bind:value={selectedDate} />
+<input class="form-control datepicker-input" bind:this={inputEl} type="text" name="foo" on:changeDate={onChangeDate} bind:value={selectedDate} on:blur={(e) => dispatch('blur', e)} on:focusout={(e) => dispatch('focusout', e)} />

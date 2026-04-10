@@ -147,7 +147,7 @@
 					<td>
 						<div class="form-group">
 							<label for="originalPrice">Purchase Date</label>
-							<DatePicker bind:selectedDate={item.Metadata.purchaseDate}/>
+							<DatePicker bind:selectedDate={item.Metadata.purchaseDate} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
 					</td>
 					<td>
