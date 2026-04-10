@@ -85,4 +85,18 @@
     </style>
 </svelte:head>
 
-<input class="form-control datepicker-input" bind:this={inputEl} type="text" name="foo" on:changeDate={onChangeDate} bind:value={selectedDate} on:blur={(e) => dispatch('blur', e)} on:focusout={(e) => dispatch('focusout', e)} />
+<input
+    class="form-control datepicker-input"
+    bind:this={inputEl}
+    type="text"
+    name="foo"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
+    spellcheck="false"
+    aria-autocomplete="none"
+    on:changeDate={onChangeDate}
+    bind:value={selectedDate}
+    on:blur={(e) => dispatch('blur', e)}
+    on:focusout={(e) => dispatch('focusout', e)}
+/>
