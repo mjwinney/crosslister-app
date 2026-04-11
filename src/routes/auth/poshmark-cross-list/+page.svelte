@@ -141,7 +141,7 @@
         console.log("Checking Poshmark login tab status");
 
         // Tell extension to check logged-in user
-        window.postMessage({ type: "REQUEST_POSHMARK_UID" }, "*");
+        window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
     }
 
 	function openPoshmarkTab() {

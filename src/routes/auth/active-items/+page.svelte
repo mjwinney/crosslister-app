@@ -7,6 +7,7 @@
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
+	import PoshLogo from '$lib/assets/Poshmark-Logo-Emblem-Color.png';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -107,65 +108,67 @@
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-	<table class="table table-light table-striped mb-4">
-		<tbody>
-			{#each editableItems.Item as item}
-				<tr>
-					<!-- <td>{JSON.stringify(item.Metadata)}</td> -->
-					<td>
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-							<img
-								src={item.PictureDetails.GalleryURL}
-								class="border item-image"
-								alt={item.Title}
-							/>
-						</div>
-					</td>
-					<td>
-						<p class="card-title fs-6 mb-0">{item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
-					</td>
-					<td>
-						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
-							<label for="originalPrice">Purchase Price</label>
+	<div class="items-list">
+		{#each editableItems.Item as item}
+			<div class="item-row d-flex align-items-start p-2 border-bottom">
+				<div class="col-image me-3 d-flex align-items-center justify-content-center p-3">
+					<img
+						src={item.PictureDetails.GalleryURL}
+						class="border item-image"
+						alt={item.Title}
+					/>
+				</div>
+
+				<div class="col-info me-3">
+					<p class="card-title fs-6 mb-0">{item.Title}</p>
+					<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
+					<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
+				</div>
+
+				<div class="col-right d-flex flex-column ms-auto">
+					<div class="row-fields d-flex">
+						<div class="col-field me-3" on:focusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+							<label>Purchase Price</label>
 							<CurrencyInput
 								bind:value={item.Metadata.purchasePrice}
 								currency="USD"
 								locale="en-US"
-								inputClasses={
-									{
-										unformatted: "form-control",
-										formatted: "form-control",
-										formattedPositive: "form-control",
-										formattedNegative: "form-control",
-									}
-								}
+								inputClasses={{
+									unformatted: "form-control",
+									formatted: "form-control",
+									formattedPositive: "form-control",
+									formattedNegative: "form-control",
+								}}
 							/>
 						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="originalPrice">Purchase Date</label>
+
+						<div class="col-field me-3">
+							<label>Purchase Date</label>
 							<DatePicker bind:selectedDate={item.Metadata.purchaseDate} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="purchaseLocation">Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+
+						<div class="col-field me-3">
+							<label>Purchase Location</label>
+							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
-					</td>
-					<td>
-						<div class="form-group">
-							<label for="storageLocation">Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+
+						<div class="col-field">
+							<label>Storage Location</label>
+							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
-					</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
+					</div>
+
+					<div class="row-extra mt-2">
+						{#if item.Metadata.xlistedPoshmarkItemId}
+							<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.Metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
+								<img src={PoshLogo} alt={`Poshmark ${item.Metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
+							</a>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/each}
+	</div>
 
 	<div class="my-3 d-flex justify-content-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
@@ -194,9 +197,39 @@
         scrollbar-color: #888 #f1f1f1;
     }
 	.item-image {
-		width: 100px;
-		height: 100px;
-		object-fit: contain;	
+		width: 80px;
+		height: 80px;
+		object-fit: contain;
 		background-color: #f8f9fa;
 	}
+
+	/* Flex-based layout replacements for the former table */
+	.items-list { display: block; }
+	/* Keep all fields on a single row; avoid horizontal scroll by tighter sizing */
+	.item-row { gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; }
+	.col-image { flex: 0 0 80px; }
+	.col-info { flex: 0 0 200px; min-width: 150px; }
+	.col-info p { font-size: 1rem; margin: 0; }
+	.col-field { flex: 0 0 140px; min-width: 0; }
+
+	/* Right column: single horizontal row of fields, with an extra row below */
+	.col-right { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+	.row-fields { display: flex; gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; width: 100%; }
+	.row-fields .col-field { flex: 1 1 0; min-width: 0; }
+	.row-extra { width: 100%; }
+
+	/* Poshmark thumbnail / placeholder */
+	.posh-thumb { display: flex; align-items: center; }
+	.posh-thumb img { width: 120px; height: 80px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
+	.posh-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 80px; background:#f1f1f1; border:1px solid #ddd; border-radius:4px; font-size:0.95rem; color:#333; }
+	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 60px !important; max-height: 40px !important; }
+	.posh-link { text-decoration: none; color: inherit; }
+
+	/* Make inputs expand to fill their column */
+	.col-field label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
+	.col-field .form-control,
+	.col-field input,
+	.col-field .currency-input,
+	.col-field .svelte-currency-input { width: 100%; box-sizing: border-box; font-size: 1rem; }
+	.col-field label { font-size: 1rem; }
 </style>

@@ -360,7 +360,8 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         listedTime: metaData?.listedTime || undefined,
         soldTime: metaData?.soldTime || undefined,
         soldPrice: metaData?.soldPrice || undefined,
-        finalShippingCost: metaData?.finalShippingCost || undefined 
+        finalShippingCost: metaData?.finalShippingCost || undefined ,
+        xlistedPoshmarkItemId: metaData?.xlistedPoshmarkItemId || undefined
     }};
 }
 
