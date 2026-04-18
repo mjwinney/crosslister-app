@@ -3,6 +3,8 @@
 	import { authClient } from '$lib/auth-client';
 	import { onMount, tick } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
+	import Dropdown from '$lib/components/Dropdown.svelte';
+	import CrosslistMenu from '$lib/components/CrosslistMenu.svelte';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
@@ -12,13 +14,20 @@
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
 
-	onMount(async () => {
-		const session = await authClient.getSession();
-		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
-		if (!session || !session?.data) {
-			goto('/homepage');
-		}
-	});
+
+	onMount(() => {
+			const session = authClient.getSession();
+			session.then((sess) => {
+				if (!sess || !sess?.data) {
+					goto('/homepage');
+				}
+			});
+		});
+
+// action handlers
+async function crosslistTo(market: string, itemID: string) {
+	console.log('Crosslist request:', market, itemID);
+}
 
 	function formatCurrency(amountStr: string): string {
 		const amount = parseFloat(amountStr);
@@ -47,39 +56,37 @@
 
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		console.log('Blur event received:', itemID, metaData);
-		// Write the data to the database
 		postMetaData(itemID, metaData);
 	}
 
-    // Example: navigate to the same route with ?page=N
     async function handlePageChange(newPage: number) {
 
-		isLoading = true;  // Loading spinner shown
+		isLoading = true;
 
 		currentPage = newPage;
 		const path = location.pathname;
         await goto(`?page=${newPage}`, { replaceState: true });
-		await invalidateAll(); // Force re-execution of load functions
-        await tick(); // wait for DOM to update with new data
+		await invalidateAll();
+        await tick();
 		const container = document.querySelector('.items-container') as HTMLElement | null;
 
 		if (container) {
-            container.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+			container.scrollTo({ top: 0, behavior: 'smooth' });
+		} else if (typeof window !== 'undefined') {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
 
-		isLoading = false;  // Loading spinner removed
+		isLoading = false;
     }
 
 	// Figure out pagination
 	let { data } = $props();
 
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);  // Reactive read-only; A must for pagination redraw
-	let editableItems = $state(dataItems); // Local writable copy for editing
+	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
+	let editableItems = $state(dataItems);
 
 	$effect(() => {
-  		editableItems = dataItems; // keep in sync when derived changes
+  		editableItems = dataItems;
 	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
@@ -127,7 +134,7 @@
 
 				<div class="col-right d-flex flex-column ms-auto">
 					<div class="row-fields d-flex">
-						<div class="col-field me-3" on:focusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+						<div class="col-field me-3" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
 							<label>Purchase Price</label>
 							<CurrencyInput
 								bind:value={item.Metadata.purchasePrice}
@@ -149,21 +156,41 @@
 
 						<div class="col-field me-3">
 							<label>Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
 
 						<div class="col-field">
 							<label>Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
-					</div>
+						<div class="col-field">
+							<label>Markets</label>
+							<div class="markets-images">
+								{#if item.Metadata.xlistedPoshmarkItemId}
+									<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.Metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
+										<img src={PoshLogo} alt={`Poshmark ${item.Metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
+									</a>
+								{/if}
+							</div>
+						</div>
 
-					<div class="row-extra mt-2">
-						{#if item.Metadata.xlistedPoshmarkItemId}
-							<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.Metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
-								<img src={PoshLogo} alt={`Poshmark ${item.Metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
-							</a>
-						{/if}
+						<div class="col-actions">
+							<Dropdown>
+								<li>
+									<a class="dropdown-item submenu-trigger" href="#">Crosslist</a>
+									<ul class="dropdown-menu submenu-content">
+										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} />
+									</ul>
+								</li>
+								<li>
+									<a class="dropdown-item submenu-trigger" href="#">Delist</a>
+									<ul class="dropdown-menu submenu-content">
+										<p>Are you sure you want to delist this item?</p>
+										<!-- <CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} /> -->
+									</ul>
+								</li>
+							</Dropdown>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -183,16 +210,15 @@
         align-items: center;
         justify-content: center;
         background: rgba(0, 0, 0, 0.5);
-        z-index: 9999; /* ensure overlay is on top */
+        z-index: 9999;
         pointer-events: all;
     }
     .busy-overlay .text-light { color: #fff !important; }
 
     .items-container {
-        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
+        max-height: calc(100vh - 120px);
         overflow-y: auto;
         padding: 1rem;
-        /* Optional: Add a subtle scrollbar style */
         scrollbar-width: thin;
         scrollbar-color: #888 #f1f1f1;
     }
@@ -203,29 +229,38 @@
 		background-color: #f8f9fa;
 	}
 
-	/* Flex-based layout replacements for the former table */
 	.items-list { display: block; }
-	/* Keep all fields on a single row; avoid horizontal scroll by tighter sizing */
 	.item-row { gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; }
 	.col-image { flex: 0 0 80px; }
 	.col-info { flex: 0 0 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
 	.col-field { flex: 0 0 140px; min-width: 0; }
 
-	/* Right column: single horizontal row of fields, with an extra row below */
 	.col-right { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 	.row-fields { display: flex; gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; width: 100%; }
 	.row-fields .col-field { flex: 1 1 0; min-width: 0; }
 	.row-extra { width: 100%; }
 
-	/* Poshmark thumbnail / placeholder */
 	.posh-thumb { display: flex; align-items: center; }
 	.posh-thumb img { width: 120px; height: 80px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
+
+	.markets-images {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		min-height: 38px;
+		padding: 0.375rem 0.5rem;
+		border: 1px solid #ced4da;
+		border-radius: 0.25rem;
+		background: #fff;
+		box-sizing: border-box;
+	}
 	.posh-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 80px; background:#f1f1f1; border:1px solid #ddd; border-radius:4px; font-size:0.95rem; color:#333; }
-	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 60px !important; max-height: 40px !important; }
+	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 30px !important; max-height: 20px !important; }
 	.posh-link { text-decoration: none; color: inherit; }
 
-	/* Make inputs expand to fill their column */
+	.col-actions { flex: 0 0 48px; display: flex; align-items: flex-start; justify-content: center; position: relative; }
+
 	.col-field label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
 	.col-field .form-control,
 	.col-field input,
