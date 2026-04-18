@@ -208,6 +208,7 @@
 		background: none;
 		border: none;
 		cursor: pointer;
+		text-decoration: none;
 	}
 
 	.dropdown-trigger:hover {
@@ -215,6 +216,7 @@
 	}
 
 	:global(.dropdown-menu) {
+		font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 		min-width: unset !important;
 		max-width: unset !important;
 		padding: 0.5rem 0;
@@ -242,7 +244,7 @@
 		border: none;
 		text-align: left;
 		cursor: pointer;
-		font-size: 0.875rem;
+		font-size: 1rem;
 	}
 
 	:global(.dropdown-menu .dropdown-item:hover) {

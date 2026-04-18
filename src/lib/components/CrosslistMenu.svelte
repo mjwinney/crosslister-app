@@ -64,6 +64,10 @@
 </li>
 
 <style>
+	.crosslist-menu {
+		font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	}
+
 	.crosslist-header {
 		padding: 0.25rem 1rem;
 		font-size: 0.75rem;
@@ -84,7 +88,7 @@
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
 		cursor: pointer;
-		font-size: 0.875rem;
+		font-size: 1rem;
 		color: #212529;
 	}
 
