@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { authClient } from '$lib/auth-client';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
     import CurrencyInput from '@canutin/svelte-currency-input';
 	import Dropdown from '$lib/components/Dropdown.svelte';
 	import CrosslistMenu from '$lib/components/CrosslistMenu.svelte';
@@ -13,16 +13,29 @@
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
-
+	let poshMarkTabExists = $state(false);
+	let poshMarkTabLoggedInUid = $state("");
+	let poshMarkTabLoggedIn = $derived(poshMarkTabExists && poshMarkTabLoggedInUid !== "");
+	let interval: NodeJS.Timeout;
+	let initialized = false;
 
 	onMount(() => {
-			const session = authClient.getSession();
-			session.then((sess) => {
-				if (!sess || !sess?.data) {
-					goto('/homepage');
-				}
-			});
+		if (initialized) return;
+		initialized = true;
+
+		const session = authClient.getSession();
+		session.then((sess) => {
+			if (!sess || !sess?.data) {
+				goto('/homepage');
+			}
 		});
+
+		clearInterval(interval);
+		checkPoshmarkTabStatus();
+		interval = setInterval(checkPoshmarkTabStatus, 5000);
+		window.addEventListener("message", handlePoshmarkTabResponse);
+		window.addEventListener("message", handlePoshmarkLoggedInResponse);
+	});
 
 // action handlers
 async function crosslistTo(market: string, itemID: string) {
@@ -59,6 +72,51 @@ async function crosslistTo(market: string, itemID: string) {
 		postMetaData(itemID, metaData);
 	}
 
+	function checkPoshmarkTabStatus() {
+		window.postMessage({ type: "CHECK_POSHMARK_TAB" }, "*");
+	}
+
+	function checkPoshmarkTabLoginStatus() {
+		console.log("Checking Poshmark login tab status");
+		window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
+	}
+
+	function openPoshmarkTab() {
+		window.postMessage({ type: "OPEN_POSHMARK_TAB" }, "*");
+	}
+
+	function handlePoshmarkTabResponse(event: MessageEvent) {
+		if (event.data?.type === "CHECK_POSHMARK_TAB_RESPONSE") {
+			console.log("Received CHECK_POSHMARK_TAB_RESPONSE from Poshmark data:", event.data.data);
+			poshMarkTabExists = event.data.data;
+			if (poshMarkTabExists)
+				checkPoshmarkTabLoginStatus();
+			else
+				poshMarkTabLoggedInUid = "";
+		}
+	}
+
+	function handlePoshmarkLoggedInResponse(event: MessageEvent) {
+		console.log("handlePoshmarkLoggedInResponse() called:" + JSON.stringify(event));
+		if (event.data?.type === "CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE") {
+			console.log("Received CHECK_POSHMARK_TAB_USER_LOGGED_IN_RESPONSE from Poshmark data:", event.data);
+			poshMarkTabLoggedInUid = event.data.uid;
+		}
+	}
+
+	beforeNavigate(() => {
+		clearInterval(interval);
+	});
+
+	onDestroy(() => {
+		clearInterval(interval);
+		if (typeof window !== 'undefined') {
+			window.removeEventListener("message", handlePoshmarkTabResponse);
+			window.removeEventListener("message", handlePoshmarkLoggedInResponse);
+		}
+		initialized = false;
+	});
+
     async function handlePageChange(newPage: number) {
 
 		isLoading = true;
@@ -92,6 +150,19 @@ async function crosslistTo(market: string, itemID: string) {
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
 	let totalItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries);
 	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages);
+
+	let marketplaces = $derived([
+		{
+			id: 'poshmark',
+			name: 'Poshmark',
+			enabled: poshMarkTabExists && poshMarkTabLoggedIn,
+			warning: !poshMarkTabLoggedIn || !poshMarkTabExists,
+			warningText: !poshMarkTabExists ? 'Open Poshmark tab first' : 'Please login to Poshmark'
+		},
+		{ id: 'etsy', name: 'Etsy', enabled: false },
+		{ id: 'mercari', name: 'Mercari', enabled: false },
+		{ id: 'depop', name: 'Depop', enabled: false },
+	]);
 
 </script>
 
@@ -179,7 +250,7 @@ async function crosslistTo(market: string, itemID: string) {
 								<li>
 									<a class="dropdown-item submenu-trigger" href="#">Crosslist</a>
 									<ul class="dropdown-menu submenu-content">
-										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} />
+										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} {marketplaces} />
 									</ul>
 								</li>
 								<li>

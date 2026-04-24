@@ -1,20 +1,23 @@
 <script lang="ts">
+	type Marketplace = {
+		id: string;
+		name: string;
+		enabled: boolean;
+		warning?: boolean;
+		warningText?: string;
+	};
+
 	let {
 		itemId,
 		onCrosslist,
+		marketplaces,
 	}: {
 		itemId: string;
 		onCrosslist: (marketplace: string, itemId: string) => void;
+		marketplaces: Marketplace[];
 	} = $props();
 
 	let selectedMarketplaces = $state<string[]>([]);
-
-	const marketplaces = [
-		{ id: 'poshmark', name: 'Poshmark' },
-		{ id: 'etsy', name: 'Etsy' },
-		{ id: 'mercari', name: 'Mercari' },
-		{ id: 'depop', name: 'Depop' },
-	];
 
 	function toggleMarketplace(id: string) {
 		if (selectedMarketplaces.includes(id)) {
@@ -41,11 +44,18 @@
 	<ul class="marketplace-list">
 		{#each marketplaces as marketplace}
 			<li>
-				<label class="marketplace-item">
+				<label class="marketplace-item" class:disabled={!marketplace.enabled}>
+					{#if marketplace.warning}
+						<span class="warning-icon">
+							⚠️
+							<span class="tooltip-text">{marketplace.warningText || ''}</span>
+						</span>
+					{/if}
 					<input
 						type="checkbox"
 						checked={selectedMarketplaces.includes(marketplace.id)}
 						onchange={() => toggleMarketplace(marketplace.id)}
+						disabled={!marketplace.enabled}
 					/>
 					<span class="marketplace-name">{marketplace.name}</span>
 				</label>
@@ -96,10 +106,47 @@
 		background-color: #f8f9fa;
 	}
 
-	.marketplace-item input[type='checkbox'] {
-		width: 16px;
-		height: 16px;
-		cursor: pointer;
+	.marketplace-item input[type='checkbox']:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.warning-icon {
+		cursor: help;
+		font-size: 0.9rem;
+		position: relative;
+	}
+
+	.tooltip-text {
+		visibility: hidden;
+		opacity: 0;
+		position: absolute;
+		bottom: 100%;
+		left: 50%;
+		transform: translateX(-50%);
+		background-color: #333;
+		color: #fff;
+		text-align: center;
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.25rem;
+		font-size: 0.75rem;
+		white-space: nowrap;
+		z-index: 1;
+		transition: opacity 0.2s, visibility 0.2s;
+	}
+
+	.warning-icon:hover .tooltip-text {
+		visibility: visible;
+		opacity: 1;
+	}
+
+	.marketplace-item.disabled {
+		color: #adb5bd;
+		cursor: not-allowed;
+	}
+
+	.marketplace-item.disabled:hover {
+		background-color: transparent;
 	}
 
 	.crosslist-footer {
