@@ -15,13 +15,12 @@
 
 <NavSideBar children={children} />
 
-{#if navigating && (navigating.to?.url.pathname === '/auth/sold-items' || 
+{#if navigating && (navigating.to?.url.pathname === '/auth/sold-items' ||
 navigating.to?.url.pathname === '/auth/active-items' ||
 navigating.to?.url.pathname === '/auth/unsold-items' ||
 navigating.to?.url.pathname === '/auth/dashboard' ||
 navigating.to?.url.pathname === '/auth/scheduled-items' ||
-navigating.to?.url.pathname === '/auth/poshmark-sold-items' ||
-navigating.to?.url.pathname === '/auth/poshmark-cross-list')}
+navigating.to?.url.pathname === '/auth/poshmark-sold-items')}
     <!-- full-screen busy overlay shown during client-side navigation to active-items -->
     <div class="busy-overlay" aria-hidden={!navigating}>
         <div class="text-center">
