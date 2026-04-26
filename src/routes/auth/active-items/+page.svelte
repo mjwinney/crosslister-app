@@ -38,9 +38,48 @@
 	});
 
 // action handlers
-async function crosslistTo(market: string, itemID: string) {
-	console.log('Crosslist request:', market, itemID);
+async function crosslistTo(market: string, item: any) {
+	console.log('Crosslist request:', market, item);
+
+	if (market === 'poshmark') {
+		await sendPoshmarkCreateItemsRequest(item);
+	}
 }
+
+	async function sendPoshmarkCreateItemsRequest(item: any) {
+        console.log("sendPoshmarkCreateItemsRequest called with:", JSON.stringify(item));
+
+		const formData = new FormData();
+		formData.append('itemId', JSON.stringify(item.ItemID));
+
+		const res = await fetch('/auth/poshmark-cross-list/get-ebay-item-details', {
+			method: 'POST',
+			body: formData
+		});
+
+		const ebayData = await res.json();
+
+		if (!res.ok) {
+			console.error('Failed to send sold items to server', JSON.stringify(ebayData));
+			return {
+				status: 'error',
+				message: ebayData
+			};
+		}
+
+		console.log('Received data from server', JSON.stringify(ebayData));
+
+        window.postMessage({
+			type: "CREATE_POSHMARK_LISTING",
+			ebayId: item.ItemID,
+			title: ebayData.itemDetails.title,
+			description: ebayData.itemDetails.description,
+			imageUrls: ebayData.itemDetails.pictureURL,
+			condition: ebayData.itemDetails.condition,
+			category: ebayData.itemDetails.category,
+			price: ebayData.itemDetails.price
+		}, "*");
+    }
 
 	function formatCurrency(amountStr: string): string {
 		const amount = parseFloat(amountStr);
@@ -250,7 +289,7 @@ async function crosslistTo(market: string, itemID: string) {
 								<li>
 									<a class="dropdown-item submenu-trigger" href="#">Crosslist</a>
 									<ul class="dropdown-menu submenu-content">
-										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} {marketplaces} />
+										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} {marketplaces} {item} />
 									</ul>
 								</li>
 								<li>
@@ -302,6 +341,7 @@ async function crosslistTo(market: string, itemID: string) {
 
 	.items-list { display: block; }
 	.item-row { gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; }
+	.item-row:hover { background-color: #e9ecef; }
 	.col-image { flex: 0 0 80px; }
 	.col-info { flex: 0 0 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
@@ -330,7 +370,8 @@ async function crosslistTo(market: string, itemID: string) {
 	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 30px !important; max-height: 20px !important; }
 	.posh-link { text-decoration: none; color: inherit; }
 
-	.col-actions { flex: 0 0 48px; display: flex; align-items: flex-start; justify-content: center; position: relative; }
+	.col-actions { flex: 0 0 48px; visibility: hidden; align-items: flex-start; justify-content: center; position: relative; }
+	.item-row:hover .col-actions { visibility: visible; }
 
 	.col-field label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
 	.col-field .form-control,

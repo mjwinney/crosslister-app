@@ -11,10 +11,12 @@
 		itemId,
 		onCrosslist,
 		marketplaces,
+		item,
 	}: {
 		itemId: string;
-		onCrosslist: (marketplace: string, itemId: string) => void;
+		onCrosslist: (marketplace: string, item: any) => void;
 		marketplaces: Marketplace[];
+		item?: any;
 	} = $props();
 
 	let selectedMarketplaces = $state<string[]>([]);
@@ -29,7 +31,7 @@
 
 	function handleDoIt() {
 		selectedMarketplaces.forEach((marketplace) => {
-			onCrosslist(marketplace, itemId);
+			onCrosslist(marketplace, item);
 		});
 		selectedMarketplaces = [];
 

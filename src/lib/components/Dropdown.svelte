@@ -213,6 +213,7 @@
 
 	.dropdown-trigger:hover {
 		color: #000;
+		text-decoration: none;
 	}
 
 	:global(.dropdown-menu) {
