@@ -23,6 +23,16 @@ interface EbayTokens {
 // Combine them into a discriminated union
 type Result<T> = Success<T> | Failure;
 
+// Helper to safely get ItemID whether Transaction is an object or array
+function getItemIdFromTransaction(transaction: any): string | null {
+    if (!transaction) return null;
+    const txns = Array.isArray(transaction) ? transaction : [transaction];
+    for (const tx of txns) {
+        if (tx?.Item?.ItemID) return tx.Item.ItemID;
+    }
+    return null;
+}
+
 export async function buildEbayAuthURL(): Promise<Result<string>> {
     console.log('buildEbayAuthURL called');
 
@@ -214,7 +224,7 @@ export async function getTransactions(locals: App.Locals, orderId: string): Prom
             headers: headers
         });
 
-        console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
+        // console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
 
         if (!refreshResponse.ok) {
             console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
@@ -819,7 +829,11 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Parallelize the calls to getMyEbayItem for each order item as they are slow!
             // Step 1: Create an array of Promises
             const itemPromises = orders.map((item: any) => {
-                const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                const itemId = getItemIdFromTransaction(item.TransactionArray?.Transaction);
+                if (!itemId) {
+                    console.error('Invalid order item structure, missing ItemID:', JSON.stringify(item));
+                    return Promise.resolve({ status: 500, message: 'Invalid order item structure' });
+                }
                 return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails"]);
             });
 
@@ -891,7 +905,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
 
             // Gather the metadata for the item and combine it into the returned JSON
             for (const item of orders) {
-                const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                const itemId = getItemIdFromTransaction(item.TransactionArray?.Transaction);
+                if (!itemId) continue;
                 const metadata = await getEbayMetadata(userId, itemId);
 
                 if (!metadata.ok) {
@@ -929,7 +944,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
 }
 
 export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fromDate: Date): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    // console.log(`getMyEbayOrdersAll called, using access token: ${locals.ebayAccessToken}`);
+    // console.log(`getMyEbayOrdersDates called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -956,7 +971,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
         <IncludeFinalValueFee>true</IncludeFinalValueFee>
     </GetOrdersRequest>`;
 
-    // console.log('getMyEbayOrders xmlBody:', xmlBody);
+    // console.log('getMyEbayOrdersDates xmlBody:', xmlBody);
 
     try {
         const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
@@ -986,10 +1001,24 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
 
             const orders = jsonData.GetOrdersResponse.OrderArray.Order;
 
+            // Normalize Transaction to always be an array, then find the first ItemID
+            const getItemId = (transaction: any): string | null => {
+                const txns = Array.isArray(transaction) ? transaction : [transaction];
+                for (const tx of txns) {
+                    if (tx?.Item?.ItemID) return tx.Item.ItemID;
+                }
+                return null;
+            };
+
             // Parallelize the calls to getMyEbayItem for each order item as they are slow!
             // Step 1: Create an array of Promises
             const itemPromises = orders.map((item: any) => {
-                const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                const itemId = item.TransactionArray ? getItemId(item.TransactionArray.Transaction) : null;
+                if (!itemId) {
+                    console.error('Invalid order item structure, missing TransactionArray.Transaction.Item.ItemID:', JSON.stringify(item));
+                    return Promise.resolve({ status: 500, message: 'Invalid order item structure' });
+                }
+                // console.log(`getMyEbayOrdersDates itemId: ${itemId}`);
                 return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails"]);
             });
 
@@ -1004,14 +1033,19 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
 
                 if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
                     const ebayItem = itemData.data.GetItemResponse.Item;
-                    const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                    const itemId = item.TransactionArray ? getItemId(item.TransactionArray.Transaction) : null;
+                    if (!itemId) return;
+
+                    const txns = item.TransactionArray.Transaction;
+                    const txnArr = Array.isArray(txns) ? txns : [txns];
+                    const txn = txnArr[0];
 
                     const metaData: MetaDataModel = {
                         // pictureURL: item.PictureURL,
                         soldTime: ebayItem.ListingDetails?.EndTime,
                         listedTime: ebayItem.ListingDetails?.StartTime,
-                        soldPrice: item.TransactionArray.Transaction.TransactionPrice,
-                        feePrice: item.TransactionArray.Transaction.FinalValueFee
+                        soldPrice: txn?.TransactionPrice,
+                        feePrice: txn?.FinalValueFee
                     };
 
                     // Upsert into the metadata table
@@ -1051,7 +1085,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     if (item.IsMultiLegShipping) {
                         buyerShippingCost = parseFloat(item.MultiLegShippingDetails.SellerShipmentToLogisticsProvider.ShippingServiceDetails.TotalShippingCost || '0');
                     } else {
-                        buyerShippingCost = parseFloat(item.TransactionArray.Transaction.ActualShippingCost || '0');
+                        const txns = item.TransactionArray?.Transaction;
+                        const txnArr = Array.isArray(txns) ? txns : [txns];
+                        buyerShippingCost = parseFloat(txnArr[0]?.ActualShippingCost || '0');
                     }
 
                     // Find put the add free price
@@ -1064,7 +1100,8 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                         addFeeGeneral = nonSaleCharge[0].amount.value;
                     }
 
-                    const itemId = item.TransactionArray.Transaction.Item.ItemID;
+                    const itemId = getItemIdFromTransaction(item.TransactionArray?.Transaction);
+                    if (!itemId) return;
 
                     const metaData: MetaDataModel = {
                         shippingLabelCost: sellerShippingLabelCost,
@@ -1082,8 +1119,8 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 data: jsonData
             };
         } else {
-            // console.log(`getMyEbayOrdersDates data: ${JSON.stringify(data)}`);
-            // console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
+            console.log(`getMyEbayOrdersDates data: ${JSON.stringify(data)}`);
+            console.log(`getMyEbayOrdersDates response.status: ${JSON.stringify(response.status)}`);
 
             return {
                 status: response.status,

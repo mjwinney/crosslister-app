@@ -52,7 +52,7 @@ async function crosslistTo(market: string, item: any) {
 		const formData = new FormData();
 		formData.append('itemId', JSON.stringify(item.ItemID));
 
-		const res = await fetch('/auth/poshmark-cross-list/get-ebay-item-details', {
+		const res = await fetch('/auth/active-items/get-ebay-item-details', {
 			method: 'POST',
 			body: formData
 		});
