@@ -59,6 +59,9 @@
 	}
 
 	function formatCurrency(amountStr: string): string {
+		if (amountStr === null || amountStr === undefined) {
+			return '0.00';
+		}
 		const amount = parseFloat(amountStr);
 		if (isNaN(amount)) {
 			throw new Error("Invalid number input");
@@ -70,18 +73,33 @@
 		return amount.toFixed(2);
 	}
 
-	function getShippingCost(order: any): number {
-		if (order.IsMultiLegShipping) {
-			return parseFloat(order.MultiLegShippingDetails.SellerShipmentToLogisticsProvider.ShippingServiceDetails.TotalShippingCost || '0');
-		}
-		const shippingCost = parseFloat(order.TransactionArray.Transaction.ActualShippingCost || '0');
-		return shippingCost;
+	// Helper to always return an array for transactions (handles single-object vs array)
+	function transactionsOf(order: any) {
+		const t = order?.TransactionArray?.Transaction;
+		if (!t) return [];
+		return Array.isArray(t) ? t : [t];
 	}
 
-	function calculateProfit(order: any): string {
-		const sold = parseFloat(order.TransactionArray.Transaction.TransactionPrice || '0');
+	function getShippingCostInternal(order: any, transaction?: any): number {
+	if (order?.IsMultiLegShipping) {
+		return parseFloat(order.MultiLegShippingDetails?.SellerShipmentToLogisticsProvider?.ShippingServiceDetails?.TotalShippingCost || '0');
+	}
+
+	const tx = transaction ?? order?.TransactionArray?.Transaction;
+	const actual = Array.isArray(tx) ? tx[0]?.ActualShippingCost : tx?.ActualShippingCost;
+	return parseFloat(actual || '0');
+}
+
+	// Public wrapper preserved for existing callers
+	function getShippingCost(order: any, transaction?: any): number {
+		return getShippingCostInternal(order, transaction);
+	}
+
+	function calculateProfit(order: any, transaction?: any): string {
+		const soldRaw = transaction?.TransactionPrice ?? (Array.isArray(order?.TransactionArray?.Transaction) ? order.TransactionArray.Transaction[0]?.TransactionPrice : order.TransactionArray.Transaction?.TransactionPrice);
+		const sold = parseFloat(soldRaw || '0');
 		const fee = parseFloat(order.finalValueFee || '0');
-		const shippingCost = calculateShipping(order);
+		const shippingCost = calculateShipping(order, transaction);
 		const addFeeGeneral = parseFloat(order.addFeeGeneral || '0');
 		const purchaseRaw = order.Metadata?.purchasePrice;
 
@@ -95,17 +113,17 @@
 		return `${formatCurrency(profit.toString())}`;
 	}
 
-	function calculateShipping(order: any): number {
+	function calculateShipping(order: any, transaction?: any): number {
 		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
-		const buyerShippingCost = getShippingCost(order);
+		const buyerShippingCost = getShippingCost(order, transaction);
 		const profitShipping = buyerShippingCost - sellerShippingLabelCost;
 
 		return profitShipping;
 	}
 
-	function formatShippingCalc(order: any): string {
+	function formatShippingCalc(order: any, transaction?: any): string {
 		const sellerShippingLabelCost = parseFloat(order.shippingLabelCost || '0');
-		const buyerShippingCost = getShippingCost(order);
+		const buyerShippingCost = getShippingCost(order, transaction);
 
 		if (buyerShippingCost === 0) {
 			return `(Paid by seller)`;
@@ -114,8 +132,8 @@
 		return `($${formatCurrency(buyerShippingCost.toString())} - $${formatCurrency(sellerShippingLabelCost.toString())})`;
 	}
 
-	function calculateROI(order: any): string {
-		const profit = calculateProfit(order);
+	function calculateROI(order: any, transaction?: any): string {
+		const profit = calculateProfit(order, transaction);
 		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
 		const roi = (Number(profit) / purchase) * 100;
 		return roi.toFixed(2) + '%';
@@ -230,6 +248,12 @@
 {#if dataItems == null || dataItems.length === 0}
 	<p class="text-center mt-5">No sold items found.</p>
 {:else}
+	<!-- <p>{JSON.stringify(editableItems.length)}</p>
+	{#each editableItems as order}
+		<div class="items-container">
+			<div>{JSON.stringify(order.TransactionArray)} </div>
+		</div> <!-- for debugging -->
+	<!-- {/each} -->
 	<div class="items-container">
 		<div class="d-flex justify-content-between align-items-center mb-3">
 			<h2>Sold Items ({totalItems})</h2>
@@ -241,26 +265,27 @@
 		<table class="table table-light table-striped mb-4">
 			<tbody>
 				{#each editableItems as order, index}
+					{#each transactionsOf(order) as transaction}
 					<tr>
 						<td>
 							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
 								<img
 									src={order.PictureURL}
 									class="border item-image"
-									alt={order.TransactionArray.Transaction.Item.Title}
+									alt={transaction.Item.Title}
 								/>
 							</div>
 						</td>
 						<td>
-							<p class="card-title fs-6 mb-0">{order.TransactionArray.Transaction.Item.Title}</p>
-							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.TransactionArray.Transaction.Item.ItemID}</p>
-							<p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p>
-							{#if order.TransactionArray.Transaction.ActualShippingCost > 0}
-								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order))}</p>
+							<p class="card-title fs-6 mb-0">{transaction.Item.Title}</p>
+							<p class="card-text text-muted fs-6 mb-0">Item ID: {transaction.Item.ItemID}</p>
+							<p class="mb-0 fs-5 text-success">${formatCurrency(transaction.TransactionPrice)}</p>
+							{#if transaction.ActualShippingCost > 0}
+								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order, transaction))}</p>
 							{:else}
 								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
 							{/if}
-							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p>
+							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(transaction.CreatedDate)}</p>
 						</td>
 						<td bind:this={itemsElements[index]}>
 							<table class="table-sm">
@@ -276,9 +301,9 @@
 										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.finalValueFee)}</td>
 									</tr>
 									<tr>
-										{#if calculateShipping(order) >= 0}
+										{#if calculateShipping(order, transaction) >= 0}
 											<td class="fs-6 mb-0 py-0">Shipping:</td>
-											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
+											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order, transaction))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order, transaction)}</span></td>
 										{:else}
 											<td class="fs-6 mb-0 py-0">Shipping:</td>
 											<td class="text-danger fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
@@ -294,11 +319,11 @@
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Profit:</td>
-										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order)}</td>
+										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order, transaction)}</td>
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">ROI:</td>
-										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
+										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order, transaction)}</td>	
 									</tr>
 									<tr>
 										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
@@ -312,6 +337,7 @@
 							</table>
 						</td>
 					</tr>
+				{/each}
 				{/each}
 			</tbody>
 		</table>

@@ -87,11 +87,8 @@
       data-bs-parent="#sidebarAccordion">
       <div class="accordion-body">
         <ul class="list-unstyled fw-normal pb-1 small">
-          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/active-items')}>Active</a></li> -->
-          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/scheduled-items')}>Scheduled</a></li> -->
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-dashboard')}>Dashboard</a></li>
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-sold-items')}>Sold</a></li>
-          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/unsold-items')}>Unsold</a></li> -->
-          <!-- <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded" href="#" onclick={() => goto('/auth/market-places')}>Market Places</a></li> -->
         </ul>
       </div>
     </div>

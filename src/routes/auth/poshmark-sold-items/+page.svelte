@@ -228,7 +228,7 @@
         console.log("Checking Poshmark login tab status");
 
         // Tell extension to check logged-in user
-        window.postMessage({ type: "REQUEST_POSHMARK_UID" }, "*");
+        window.postMessage({ type: "CHECK_POSHMARK_TAB_USER_LOGGED_IN" }, "*");
     }
 
 	function openPoshmarkTab() {
@@ -323,8 +323,22 @@
     </div>
 {/if}
 
-{#if dataItems == null || dataItems.length === 0}
-	<p class="text-center mt-5">No sold items found.</p>
+{#if editableItems == null || editableItems.length === 0}
+	<div class="text-center mt-5">No sold items found.
+		{#if poshMarkTabExists && poshMarkTabLoggedIn}
+			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+				Refresh
+			</button>
+		{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
+			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+				User not logged in
+			</button>
+		{:else}
+			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+				Open POSHMARK tab
+			</button>
+		{/if}
+	</div>
 {:else}
 	<div class="items-container">
 		<div class="d-flex justify-content-between align-items-center mb-3">
@@ -335,7 +349,7 @@
 						Refresh
 					</button>
 				{:else if poshMarkTabExists && !poshMarkTabLoggedIn}
-					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
 						User not logged in
 					</button>
 				{:else}

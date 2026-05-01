@@ -11,7 +11,7 @@
       }
 
       // force reload whenever you enter the page
-      invalidate('app:dashboard');
+      invalidate('app:poshmark-dashboard');
   });
 
   function formatCurrency(amountStr: string): string {
