@@ -1,4 +1,4 @@
-import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold } from '$lib/server/DatabaseUtils';
+import { getCurrentWeekStats, getLast6MonthStats, getPoshmarkDaysInPastToScrape, getPoshmarkMetadataByPage, getPreviousMonthStats, getPreviousWeekStats, getSold } from '$lib/server/DatabaseUtils';
 import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
@@ -14,32 +14,58 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
         });
     }
 
-    // See if we need to gather some more sold
-    // items based on the last time they were gathered
-    const soldResult = await getSold(userId);
+    // See how many days back we need to go back in the poshmark sold items
+    // by looking at the poshmark database and finding the most recent sold item
+    // and calculating how many days back we need to go to get new items.
+    // This is then passed to the page to get the new items.
+    const daysToGoBack = await getPoshmarkDaysInPastToScrape(userId);
+    console.log('load: daysToGoBack:', daysToGoBack);
 
-    const toDate = new Date();
-    let fromDate = toDate;
+    // Just use page 1 for now
+    const response = await getPoshmarkMetadataByPage(userId, 1);
 
-    if (!soldResult.ok) {
-        // Possible first time retrieveing sold items
-        // So set back 90 days from now
-        fromDate = new Date(toDate.getTime() - (90 * 24 * 60 * 60 * 1000));
-    }
+    // if (!('data' in response)) {
+    //     return new Response('Failed to retrieve Poshmark metadata items', {
+    //         status: 500,
+    //         headers: { 'Content-Type': 'text/html' }
+    //     });
+    // }
 
-    const ordersResponse = await getMyEbayOrdersDates(locals, toDate, fromDate);
+    console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response));
 
-    if (ordersResponse.status !== 200 || !('data' in ordersResponse)) {
-        return new Response('Failed to retrieve eBay inventory items', {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' }
-        });
-    }
+    // const response = { data: [] };
+    // console.log('Poshmark metadata API request successful, returning data...');
 
-    const weekStats = await getCurrentWeekStats(userId);
-    const previousWeekStats = await getPreviousWeekStats(userId);
-    const previousMonthStats = await getPreviousMonthStats(userId);
-    const last6MonthStats = await getLast6MonthStats(userId);
+    return {
+        post: { daysToGoBack: daysToGoBack.days, data: response.data }
+    };
+
+    // // See if we need to gather some more sold
+    // // items based on the last time they were gathered
+    // const soldResult = await getSold(userId);
+
+    // const toDate = new Date();
+    // let fromDate = toDate;
+
+    // if (!soldResult.ok) {
+    //     // Possible first time retrieveing sold items
+    //     // So set back 90 days from now
+    //     fromDate = new Date(toDate.getTime() - (90 * 24 * 60 * 60 * 1000));
+    // }
+
+    // const ordersResponse = await getMyEbayOrdersDates(locals, toDate, fromDate);
+
+    // if (ordersResponse.status !== 200 || !('data' in ordersResponse)) {
+    //     return new Response('Failed to retrieve eBay inventory items', {
+    //         status: 500,
+    //         headers: { 'Content-Type': 'text/html' }
+    //     });
+    // }
+
+    // const weekStats = await getCurrentWeekStats(userId);
+    // const previousWeekStats = await getPreviousWeekStats(userId);
+    // const previousMonthStats = await getPreviousMonthStats(userId);
+    // const last6MonthStats = await getLast6MonthStats(userId);
 
     // Update the sold database table with the current date as this was last time
     // the sold items were retrieved
@@ -89,14 +115,14 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
     // return {
     //     post: ordersResponse.data,
     // };
-    return {
-        post: {
-            weekStats: weekStats,
-            previousWeekStats: previousWeekStats,
-            previousMonthStats: previousMonthStats,
-            last6MonthStats: last6MonthStats,
-        },
-    };
+    // return {
+    //     post: {
+    //         weekStats: weekStats,
+    //         previousWeekStats: previousWeekStats,
+    //         previousMonthStats: previousMonthStats,
+    //         last6MonthStats: last6MonthStats,
+    //     },
+    // };
 };
 
 // export const actions: Actions = {

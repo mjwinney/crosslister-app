@@ -2,9 +2,11 @@
 	import { onMount } from 'svelte';
 	import { navigating } from '$app/state';
 	import 'bootstrap/dist/css/bootstrap.min.css';
+    import PoshmarkTabWatcher from '$lib/components/PoshmarkTabWatcher.svelte';
 
 	onMount(async () => {
 		// Dynamically import the Bootstrap JS on the client side only
+		// console.log('\\src\\routes\\auth\\+layout.svelte Layout onMount');
 	    import('bootstrap/dist/js/bootstrap.bundle.min.js');
   	});
 
@@ -13,6 +15,8 @@
 	let { children } = $props();
 </script>
 
+<PoshmarkTabWatcher />
+
 <NavSideBar children={children} />
 
 {#if navigating && (navigating.to?.url.pathname === '/auth/sold-items' ||
@@ -20,6 +24,7 @@ navigating.to?.url.pathname === '/auth/active-items' ||
 navigating.to?.url.pathname === '/auth/unsold-items' ||
 navigating.to?.url.pathname === '/auth/dashboard' ||
 navigating.to?.url.pathname === '/auth/scheduled-items' ||
+navigating.to?.url.pathname === '/auth/poshmark-dashboard' ||
 navigating.to?.url.pathname === '/auth/poshmark-sold-items')}
     <!-- full-screen busy overlay shown during client-side navigation to active-items -->
     <div class="busy-overlay" aria-hidden={!navigating}>

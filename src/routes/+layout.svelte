@@ -4,6 +4,7 @@
 
 	onMount(async () => {
 		// Dynamically import the Bootstrap JS on the client side only
+		// console.log('\\src\\routes\\+layout.svelte Layout onMount');
 	    import('bootstrap/dist/js/bootstrap.bundle.min.js');
   	});
 
