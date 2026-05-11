@@ -298,8 +298,9 @@ export const POST = async ({ request, locals }) => {
     const responseData = {
       title: ebayItem.Title,
       pictureURL: pictureURLs,
-      description: cleanForPoshmark(ebayItem.Description) + 
-        (ebayItem.ConditionDescription ? "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
+      // description: cleanForPoshmark(ebayItem.Description) + 
+      //   (ebayItem.ConditionDescription ? "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
+      description: cleanForPoshmark(ebayItem.Description),
       condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID),
       category: mapEbayCategoryToPoshmark(ebayItem.PrimaryCategory.CategoryID, ebayItem.PrimaryCategory.CategoryName),
       // price: String(ebayItem.SellingStatus.CurrentPrice)
