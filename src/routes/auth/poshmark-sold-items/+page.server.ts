@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     //     });
     // }
 
-    console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response));
+    console.log('Poshmark-sold-items metadata API request successful, response.data:', JSON.stringify(response));
 
     // const response = { data: [] };
     // console.log('Poshmark metadata API request successful, returning data...');

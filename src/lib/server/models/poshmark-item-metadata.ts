@@ -5,7 +5,7 @@ const PoshmarkItemMetadataSchema = new mongoose.Schema({
     userId: { type: String, required: true },
     title: { type: String, required: false },
     purchasePrice: { type: Number, required: false },
-    soldPrice: { type: Number, required: false },
+    soldPrice: { type: Number, required: false, default: undefined },
     purchaseDate: { type: String, required: false }, // stored as MM/DD/YYYY string
     purchaseLocation: { type: String, required: false },
     storageLocation: { type: String, required: false },

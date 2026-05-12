@@ -450,8 +450,9 @@ export async function getPoshmarkMetadataByPage(userId: string, page: number) : 
     // Total count of all
     const totalCount = await PoshmarkItemMetadata.countDocuments({ userId });
 
-    const metaData = await PoshmarkItemMetadata.find({ userId })
+    const metaData = await PoshmarkItemMetadata.find({ userId, soldTime: { $exists: true, $ne: null } })
     .sort({ soldTime: -1 }) // optional but recommended for stable pagination
+    .setOptions({ rawResult: true }) // <-- CRITICAL
     .skip((page - 1) * pageSize)
     .limit(pageSize)
     .lean()
@@ -498,12 +499,15 @@ export async function getPoshmarkDaysInPastToScrape(userId: string): Promise<{ o
         return { ok: true, code: StatusCodes.EmptyTable, days: 90 }; // If empty, we want to scrape the full 90 days of data
     }
 
-    // 2. Get the most recently created item
-    const latestItem = await PoshmarkItemMetadata.findOne({ userId })
+    const latestItem = await PoshmarkItemMetadata.findOne(
+        { userId, soldTime: { $exists: true, $ne: null } }
+    )
     .sort({ createdAt: -1 })
-    .limit(1)
+    .setOptions({ rawResult: true }) // <-- CRITICAL
     .lean()
     .exec();
+
+    console.log("Latest item with soldTime:", latestItem);
 
     if (!latestItem) {
         return { ok: true, code: StatusCodes.EmptyTable, days: 90 };
