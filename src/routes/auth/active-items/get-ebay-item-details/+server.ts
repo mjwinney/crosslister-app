@@ -15,6 +15,11 @@ function cleanForPoshmark(html : string | undefined): string {
   text = text.replace(/<div>/gi, "");            // remove opening div
   text = text.replace(/<\/div>/gi, "\n");        // closing div → newline
 
+  // 3.1 Convert <p>...</p> to "...\n"
+  text = text.replace(/<\/p>\s*<p>/gi, "\n"); // consecutive paragraphs
+  text = text.replace(/<p>/gi, "");            // remove opening p
+  text = text.replace(/<\/p>/gi, "\n");        // closing p → newline
+
   // 4. Strip any remaining HTML tags just in case
   text = text.replace(/<[^>]+>/g, "");
 
