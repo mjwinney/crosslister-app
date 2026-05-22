@@ -20,15 +20,32 @@
 			const rect = triggerRef.getBoundingClientRect();
 			const spaceRight = window.innerWidth - rect.right;
 			const spaceLeft = rect.left;
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const spaceAbove = rect.top;
 			const submenuWidth = 160;
+			const menuHeight = 200; // approximate height of the dropdown menu
 
+			// Determine horizontal position (left or right)
+			let horizontalStyle = '';
 			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
-				menuStyle = `position: fixed; left: ${rect.right}px; right: auto; top: ${rect.bottom}px;`;
+				horizontalStyle = `left: ${rect.right}px; right: auto;`;
 				submenuSide = 'right';
 			} else {
-				menuStyle = `position: fixed; left: auto; right: ${spaceRight}px; top: ${rect.bottom}px;`;
+				horizontalStyle = `left: auto; right: ${window.innerWidth - rect.left}px;`;
 				submenuSide = 'left';
 			}
+
+			// Determine vertical position (below or above)
+			let verticalStyle = '';
+			if (spaceBelow >= menuHeight || spaceBelow >= spaceAbove) {
+				// Position below
+				verticalStyle = `top: ${rect.bottom}px; bottom: auto;`;
+			} else {
+				// Position above
+				verticalStyle = `top: auto; bottom: ${window.innerHeight - rect.top}px;`;
+			}
+
+			menuStyle = `position: fixed; ${horizontalStyle} ${verticalStyle}`;
 		}
 	}
 
@@ -51,9 +68,13 @@
 		if (submenu && submenu.classList.contains('submenu-content') && dropdownMenu) {
 			const menuRect = dropdownMenu.getBoundingClientRect();
 			const submenuWidth = 140;
+			const submenuHeight = 300; // approximate height
 			const spaceRight = window.innerWidth - menuRect.right;
 			const spaceLeft = menuRect.left;
+			const spaceBelow = window.innerHeight - menuRect.top;
+			const spaceAbove = menuRect.top;
 
+			// Horizontal positioning
 			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
 				submenu.style.left = `${menuRect.right}px`;
 				submenu.style.right = 'auto';
@@ -63,7 +84,16 @@
 				submenu.style.left = 'auto';
 				submenuSide = 'left';
 			}
-			submenu.style.top = `${menuRect.top}px`;
+
+			// Vertical positioning - flip above if not enough space below
+			if (spaceBelow >= submenuHeight || spaceBelow >= spaceAbove) {
+				submenu.style.top = `${menuRect.top}px`;
+				submenu.style.bottom = 'auto';
+			} else {
+				submenu.style.bottom = `${window.innerHeight - menuRect.bottom}px`;
+				submenu.style.top = 'auto';
+			}
+
 			submenu.style.display = 'block';
 		}
 	}

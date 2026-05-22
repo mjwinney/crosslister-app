@@ -7,6 +7,7 @@
 	import CrosslistMenu from '$lib/components/CrosslistMenu.svelte';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import PoshLogo from '$lib/assets/Poshmark-Logo-Emblem-Color.png';
@@ -177,9 +178,10 @@
 {/if}
 
  <div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<h2>Active Items ({totalItems})</h2>
+	<div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+		<h2 class="mb-0">Active Items ({totalItems})</h2>
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+		<SearchBar placeholder="Search items..." />
 		<div class="text-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
