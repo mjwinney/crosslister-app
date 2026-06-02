@@ -158,7 +158,7 @@ export async function refreshEbayToken(locals: App.Locals) {
     console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
 
     try {
-        const sellResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
+        const refreshResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,34 +167,34 @@ export async function refreshEbayToken(locals: App.Locals) {
             body: params.toString()
         });
 
-        const sellData = await sellResponse.json();
+        const data = await refreshResponse.json();
 
-        if (!sellResponse.ok) {
-            return json({ error: sellData }, { status: sellResponse.status });
+        if (!refreshResponse.ok) {
+            return json({ error: data }, { status: refreshResponse.status });
         }
 
-        console.log(`refreshEbayToken Callback data: ${JSON.stringify(sellData)}`);
-            const userId = locals?.session?.userId;
+        console.log(`refreshEbayToken Callback data: ${JSON.stringify(data)}`);
 
-        if (sellResponse.ok) {
+        if (refreshResponse.ok) {
+            const userId = locals?.session?.userId;
             console.log(`refreshEbayToken userId: ${userId}`);
-            console.log(`New access token: ${sellData.access_token}`);
-            console.log(`New refresh token: ${sellData.refresh_token}`);
-            console.log(`New expires in: ${sellData.expires_in}`);
+            console.log(`New access token: ${data.access_token}`);
+            console.log(`New refresh token: ${data.refresh_token}`);
+            console.log(`New expires in: ${data.expires_in}`);
 
             // Update the token store and database
             updateEbayToken({
-                userId: userId || '',
-                accessToken: sellData.access_token,
-                refreshToken: sellData.refresh_token,
-                expiresIn: sellData.expires_in
+                userId,
+                accessToken: data.access_token,
+                refreshToken: data.refresh_token,
+                expiresIn: data.expires_in
             });
             // tokenStore.accessToken = data.access_token;
             // tokenStore.expiresAt = Date.now() + data.expires_in * 1000;
         } else {
             // Handle error, e.g., if the refresh token is also expired or revoked
             // In this case, you must re-authenticate the user.
-            console.error('Refresh token failed', sellData);
+            console.error('Refresh token failed', data);
             // tokenStore = { accessToken: null, refreshToken: null, expiresAt: 0 };
             throw new Error('Could not refresh eBay access token. Re-authentication required.');
         }
