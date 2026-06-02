@@ -8,6 +8,8 @@ declare global {
 			user: import("better-auth").User | null;
 			ebayAccessToken: string | null;
 			ebayRefreshToken: string | null;
+			ebayBrowseToken?: string | null;
+			ebaySellerUsername?: string | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

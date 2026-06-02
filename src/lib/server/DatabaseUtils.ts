@@ -45,8 +45,19 @@ export enum StatusCodes {
     EmptyTable
 }
 
-export async function updateEbayToken(userId: string, accessToken: string, refreshToken: string, expiresIn: number): Promise<StatusCodes> {
-    console.log(`updateEbayToken called with userId=${userId}, accessToken=${accessToken}, refreshToken=${refreshToken}, expiresIn=${expiresIn}`);
+export interface UpdateEbayTokenParams {
+    userId: string;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    browseToken?: string;
+    browseExpiresIn?: number;
+    sellerUsername?: string;
+}
+
+export async function updateEbayToken(params: UpdateEbayTokenParams): Promise<StatusCodes> {
+    const { userId, accessToken, refreshToken, expiresIn, browseToken, browseExpiresIn, sellerUsername } = params;
+    console.log(`updateEbayToken called with userId=${userId}, accessToken=${accessToken}, refreshToken=${refreshToken}, expiresIn=${expiresIn}, browseToken=${browseToken}, browseExpiresIn=${browseExpiresIn}, sellerUsername=${sellerUsername}`);
 
     // Ensure the database connection is established
     await connectToDatabase();
@@ -57,19 +68,36 @@ export async function updateEbayToken(userId: string, accessToken: string, refre
     }
 
     try {
-        // Calculate the future expiration timestamp
-        // Add seconds to the 'now' date
         const now = new Date();
-        const expiresAt = now.setSeconds(now.getSeconds() + expiresIn);
+        const updateData: any = { userId };
+        
+        // Only add fields that were provided
+        if (accessToken !== undefined) {
+            updateData.accessToken = accessToken;
+        }
+        if (refreshToken !== undefined) {
+            updateData.refreshToken = refreshToken;
+        }
+        if (expiresIn !== undefined) {
+            updateData.expiresAt = new Date(now.getTime() + expiresIn * 1000);
+        }
+        if (browseToken !== undefined) {
+            updateData.browseToken = browseToken;
+        }
+        if (browseExpiresIn !== undefined) {
+            updateData.browseExpiresAt = new Date(now.getTime() + browseExpiresIn * 1000);
+        }
+        if (sellerUsername !== undefined) {
+            updateData.sellerUsername = sellerUsername;
+        }   
 
         // Use upsert to update the token if it exists or create a new entry if it doesn't
-        await EbayToken.updateOne({ userId }, {
-            accessToken,
-            refreshToken,
-            expiresAt
-        },
+        const result = await EbayToken.updateOne({ userId }, updateData,
         { upsert: true } // Create a new document if one doesn't exist
         );
+        
+        console.log(`updateEbayToken: Result - matched: ${result.matchedCount}, modified: ${result.modifiedCount}, upserted: ${result.upsertedId}`);
+        
         return StatusCodes.OK;
     } catch (error) {
         console.error("Error updating eBay token:", error);
@@ -87,18 +115,18 @@ interface Failure {
   message: string;
 }
 
-interface ExpiredToken<T> {
-    status: 'expired';
-    data: T;
-}
-
 interface EbayInfo {
     accessToken: string;
     refreshToken: string;
+    browseToken?: string;
+    browseExpiresAt?: Date;
+    refreshTokenStatus: 'valid' | 'expired';
+    browseTokenStatus?: 'valid' | 'expired' | 'undefined';
+    sellerUsername: string;
 }
 
 // Combine them into a discriminated union
-type Result<T> = Success<T> | Failure | ExpiredToken<T>;
+type Result<T> = Success<T> | Failure;
 
 export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayInfo>>
 {
@@ -117,14 +145,30 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
             return { status: 'error', message: `Error finding eBay data for userId:${userId}` };
         }
 
-        // Check if the token is expired or about to expire (e.g., within the next 5 minutes)
+        // Check if the refresh token is expired or about to expire (e.g., within the next 5 minutes)
         const now = new Date();
         const bufferTime = 5 * 60 * 1000;
-        if (ebayData.expiresAt.getTime() < now.getTime() + bufferTime) {
-            return { status: 'expired', data: { accessToken: ebayData.accessToken, refreshToken: ebayData.refreshToken } };
+        const refreshTokenExpired = ebayData.expiresAt.getTime() < now.getTime() + bufferTime;
+        
+        // Determine browse token status: undefined if missing, expired if expired, valid otherwise
+        let browseTokenStatus: 'valid' | 'expired' | 'undefined';
+        if (!ebayData.browseToken) {
+            browseTokenStatus = 'undefined';
+        } else if (ebayData.browseExpiresAt && ebayData.browseExpiresAt.getTime() < now.getTime()) {
+            browseTokenStatus = 'expired';
+        } else {
+            browseTokenStatus = 'valid';
         }
 
-        return { status: 'success', data: { accessToken: ebayData.accessToken, refreshToken: ebayData.refreshToken } };
+        return { status: 'success', data: { 
+            accessToken: ebayData.accessToken, 
+            refreshToken: ebayData.refreshToken, 
+            browseToken: ebayData.browseToken, 
+            browseExpiresAt: ebayData.browseExpiresAt,
+            refreshTokenStatus: refreshTokenExpired ? 'expired' : 'valid',
+            browseTokenStatus,
+            sellerUsername: ebayData.sellerUsername
+        } };
 
     } catch (error) {
         console.error(`Error finding eBay data for userId:${userId}`, error);

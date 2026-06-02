@@ -1,5 +1,5 @@
-import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateSold } from '$lib/server/DatabaseUtils';
-import { getMyEbayItem, getMyEbayOrdersDates } from '$lib/server/ebayUtils';
+import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
+import { getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ depends, request, locals }) => {
@@ -12,6 +12,22 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
             status: 500,
             headers: { 'Content-Type': 'text/html' }
         });
+    }
+
+    // See if we need to get the ebay SellerUsername for the user to display on the dashboard
+    if (!locals.ebaySellerUsername) {
+        const ebayUsernameResult = await getUser(locals);
+        console.log('getUser result:', ebayUsernameResult);
+        if (ebayUsernameResult.status === 'success') {
+            console.log('Setting ebaySellerUsername in locals:', ebayUsernameResult.data);
+            locals.ebaySellerUsername = ebayUsernameResult.data;
+            console.log('locals after setting ebaySellerUsername:', locals);
+            // Save to database as well for future reference
+            await updateEbayToken({
+                userId,
+                sellerUsername: ebayUsernameResult.data
+            });
+        }
     }
 
     // See if we need to gather some more sold

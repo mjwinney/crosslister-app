@@ -17,6 +17,8 @@
 	let isLoading = $state(false);
 	let poshMarkTabLoggedIn = $derived($poshmarkTabOpen && $poshmarkTabLoggedInUid !== "");
 	let initialized = false;
+	let searchResults = $state<any>(null);
+	let searchQuery = $state<string>('');
 
 	onMount(() => {
 		if (initialized) return;
@@ -116,6 +118,47 @@
 		initialized = false;
 	});
 
+	async function handleSearch(query: string) {
+		console.log('handleSearch called with query:', query);
+		searchQuery = query;
+		isLoading = true;
+
+		try {
+			const formData = new FormData();
+			formData.append('keywords', query);
+			formData.append('page', '1');
+
+			console.log('Sending search request with keywords:', query);
+
+			const response = await fetch('?/searchKeywords', {
+				method: 'POST',
+				body: formData
+			});
+
+			console.log('Search response status:', response.status);
+
+			if (!response.ok) {
+				console.error('Search request failed with status:', response.status);
+				const errorText = await response.text();
+				console.error('Error response:', errorText);
+				return;
+			}
+
+			const result = await response.json();
+			console.log('Search result:', result);
+
+			if (result.success) {
+				console.log(`Search successful`);
+			} else {
+				console.error('Search failed:', result);
+			}
+		} catch (error) {
+			console.error('Error performing search:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
+
     async function handlePageChange(newPage: number) {
 
 		isLoading = true;
@@ -181,7 +224,7 @@
 	<div class="d-flex justify-content-between align-items-center mb-3 gap-3">
 		<h2 class="mb-0">Active Items ({totalItems})</h2>
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-		<SearchBar placeholder="Search items..." />
+		<SearchBar placeholder="Search items..." onSearch={handleSearch} />
 		<div class="text-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>

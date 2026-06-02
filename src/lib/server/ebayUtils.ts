@@ -158,7 +158,7 @@ export async function refreshEbayToken(locals: App.Locals) {
     console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
 
     try {
-        const refreshResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
+        const sellResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,35 +167,100 @@ export async function refreshEbayToken(locals: App.Locals) {
             body: params.toString()
         });
 
-        const data = await refreshResponse.json();
+        const sellData = await sellResponse.json();
 
-        if (!refreshResponse.ok) {
-            return json({ error: data }, { status: refreshResponse.status });
+        if (!sellResponse.ok) {
+            return json({ error: sellData }, { status: sellResponse.status });
         }
 
-        console.log(`refreshEbayToken Callback data: ${JSON.stringify(data)}`);
-
-        if (refreshResponse.ok) {
+        console.log(`refreshEbayToken Callback data: ${JSON.stringify(sellData)}`);
             const userId = locals?.session?.userId;
+
+        if (sellResponse.ok) {
             console.log(`refreshEbayToken userId: ${userId}`);
-            console.log(`New access token: ${data.access_token}`);
-            console.log(`New refresh token: ${data.refresh_token}`);
-            console.log(`New expires in: ${data.expires_in}`);
+            console.log(`New access token: ${sellData.access_token}`);
+            console.log(`New refresh token: ${sellData.refresh_token}`);
+            console.log(`New expires in: ${sellData.expires_in}`);
 
             // Update the token store and database
-            updateEbayToken(userId || '', data.access_token, data.refresh_token, data.expires_in);
+            updateEbayToken({
+                userId: userId || '',
+                accessToken: sellData.access_token,
+                refreshToken: sellData.refresh_token,
+                expiresIn: sellData.expires_in
+            });
             // tokenStore.accessToken = data.access_token;
             // tokenStore.expiresAt = Date.now() + data.expires_in * 1000;
         } else {
             // Handle error, e.g., if the refresh token is also expired or revoked
             // In this case, you must re-authenticate the user.
-            console.error('Refresh token failed', data);
+            console.error('Refresh token failed', sellData);
             // tokenStore = { accessToken: null, refreshToken: null, expiresAt: 0 };
             throw new Error('Could not refresh eBay access token. Re-authentication required.');
         }
     } catch (error) {
         console.error('Error refreshing eBay token:', error);
         throw error;
+    }
+}
+
+export async function getBrowseApiToken(userId: string): Promise<Result<{ access_token: string; expires_in: number; }>> {
+    console.log(`getBrowseApiToken called for userId: ${userId}`);
+
+    const clientId = env.EBAY_CLIENT_ID;
+    const clientSecret = env.EBAY_CLIENT_SECRET;
+
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+    const browseParams = new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: 'https://api.ebay.com/oauth/api_scope'
+    });
+
+    console.log(`Requesting BROWSE API token`);
+
+    try {
+        const browseResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${basicAuth}`,
+            },
+            body: browseParams.toString()
+        });
+
+        const browseData = await browseResponse.json();
+
+        if (!browseResponse.ok) {
+            console.error("Browse API token request failed:", browseData);
+            return {
+                status: 'error',
+                message: JSON.stringify(browseData)
+            };
+        }
+
+        console.log(`BROWSE API token retrieved: ${JSON.stringify(browseData)}`);
+
+        // Store token to database
+        await updateEbayToken({
+            userId,
+            browseToken: browseData.access_token,
+            browseExpiresIn: browseData.expires_in
+        });
+
+        return {
+            status: 'success',
+            data: {
+                access_token: browseData.access_token,
+                expires_in: browseData.expires_in
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching Browse API token:', error);
+        return {
+            status: 'error',
+            message: `Error fetching Browse API token: ${error}`
+        };
     }
 }
 
@@ -426,6 +491,107 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
         return {
             status: 500,
             data: {}
+        };
+    }
+}
+
+export async function findItemsByKeywords(locals: App.Locals, keywords: string, page: number = 1, sortOrder: string = 'BEST_MATCH'): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`findItemsByKeywords called with keywords: ${keywords}, page: ${page}, sortOrder: ${sortOrder}`);
+
+    // Browse API uses offset-based pagination, not page numbers
+    // offset = (page - 1) * limit
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    console.log('findItemsByKeywords locals.ebaySellerUsername:', locals.ebaySellerUsername);
+    const qsParams = new URLSearchParams({
+        q: keywords,
+        limit: limit.toString(),
+        offset: offset.toString(),
+        sort: sortOrder,
+        filter: `sellers:{${locals.ebaySellerUsername}},buyingOptions:{AUCTION|FIXED_PRICE}`
+    });
+
+    const endpoint = `${env.EBAY_API_ENDPOINT}buy/browse/v1/item_summary/search?${qsParams.toString()}`;
+
+    // Browse API search endpoint requires OAuth Bearer token
+    const browseToken = locals.ebayBrowseToken;
+    if (!browseToken) {
+        console.error('No eBay browse token available for search');
+        return {
+            status: 401,
+            message: 'eBay authentication required'
+        };
+    }
+
+    const headers: Record<string, string> = {
+        'Authorization': `Bearer ${browseToken}`,
+        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US'
+    };
+
+    console.log('findItemsByKeywords endpoint:', endpoint);
+    console.log('findItemsByKeywords headers:', JSON.stringify(headers));
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: headers
+        });
+
+        // Get the raw text first to inspect what's being returned
+        const textData = await response.text();
+        console.log('findItemsByKeywords raw response status:', response.status);
+        console.log('findItemsByKeywords raw response text:', textData.substring(0, 500));
+
+        if (!response.ok) {
+            console.error('findItemsByKeywords error response:', textData);
+            return {
+                status: response.status,
+                message: textData
+            };
+        }
+
+        // Try to parse as JSON
+        let data;
+        try {
+            data = JSON.parse(textData);
+        } catch (parseError) {
+            console.error('Failed to parse JSON response:', parseError);
+            console.error('Response text:', textData.substring(0, 1000));
+            return {
+                status: 500,
+                message: `Invalid JSON response from eBay API: ${textData.substring(0, 500)}`
+            };
+        }
+
+        console.log('findItemsByKeywords parsed data:', JSON.stringify(data, null, 2));
+
+        // Check if any items were returned
+        if (!data.itemSummaries || data.itemSummaries.length === 0) {
+            console.log('No items found for keywords:', keywords);
+            return {
+                status: response.status,
+                data: {
+                    itemSummaries: [],
+                    itemCount: 0
+                }
+            };
+        }
+
+        const itemCount = data.itemSummaries.length;
+        console.log(`Found ${itemCount} items for keywords: ${keywords}`);
+
+        return {
+            status: response.status,
+            data: data
+        };
+    } catch (error) {
+        console.error('Error findItemsByKeywords:', error);
+        return {
+            status: 500,
+            message: `Error performing keyword search: ${error}`
         };
     }
 }
@@ -1439,6 +1605,74 @@ export async function getMyEbayOrderTransactions(locals: App.Locals, ItemID: str
         return {
             status: 500,
             data: {}
+        };
+    }
+}
+
+export async function getUser(locals: App.Locals): Promise<Result<string>> {
+    console.log('getUser called');
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetUser',
+    };
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetUserRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+    </GetUserRequest>`;
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+
+            console.log(`getUser response status: ${response.status}`);
+
+            // Extract UserID from the response
+            const userId = jsonData.GetUserResponse?.User?.UserID;
+
+            if (!userId) {
+                console.error('UserID not found in eBay GetUser response');
+                return {
+                    status: 'error',
+                    message: 'UserID not found in eBay response'
+                };
+            }
+
+            console.log(`getUser retrieved UserID: ${userId}`);
+
+            return {
+                status: 'success',
+                data: userId
+            };
+        } else {
+            console.error(`getUser error response: ${response.status} - ${data}`);
+            return {
+                status: 'error',
+                message: `eBay API error: ${response.status}`
+            };
+        }
+    } catch (error) {
+        console.error('Error getUser:', error);
+        return {
+            status: 'error',
+            message: `Error retrieving user: ${error}`
         };
     }
 }

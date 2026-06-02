@@ -6,6 +6,9 @@ const EbayTokenSchema = new mongoose.Schema({
     accessToken: { type: String, required: true },
     refreshToken: { type: String, required: true },
     expiresAt: { type: Date, required: true },
+    browseToken: { type: String, required: true },
+    browseExpiresAt: { type: Date, required: true },
+    sellerUsername: { type: String, required: true },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });

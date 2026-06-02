@@ -1,5 +1,6 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
-import { getMyEbaySellingActive, getMyEbaySellingSold } from '$lib/server/ebayUtils';
+import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords } from '$lib/server/ebayUtils';
+import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
@@ -43,13 +44,45 @@ export const actions: Actions = {
         const response = await updateEbayMetadata(userId, itemId, metaData, true);
 
         if (response !== StatusCodes.OK) {
-            return new Response('Failed to update eBay item metadata', {
-                status: 500,
-                headers: { 'Content-Type': 'text/html' }
-            });
+            return fail(500, { message: "Failed to update eBay item metadata" });
+            // return new Response('Failed to update eBay item metadata', {
+            //     status: 500,
+            //     headers: { 'Content-Type': 'text/html' }
+            // });
         }
 
         console.log('eBay API request successful, success');
         return { success: true, message: 'Operation complete!' };
+    },
+
+    searchKeywords: async ({ request, locals }) => {
+        console.log('searchKeywords: ENTER');
+        const formData = await request.formData();
+        const keywords = formData.get('keywords') as string;
+        const page = parseInt(formData.get('page') as string) || 1;
+
+        console.log('searchKeywords: keywords:', keywords, 'page:', page);
+
+        const response = await findItemsByKeywords(locals, keywords, page, 'BEST_MATCH');
+
+        if (response.status !== 200) {
+            console.log('searchKeywords: search failed');
+            return fail(500, { message: "Failed to search eBay items" });
+            // return new Response('Failed to search eBay items', {
+            //     status: response.status,
+            //     headers: { 'Content-Type': 'application/json' }
+            // });
+        }
+
+        console.log('searchKeywords: search successful');
+        return { 
+            success: true, 
+            // data: response.data,
+            // itemCount: response.data?.FindItemsByKeywordsResponse?.searchResult?.item 
+            //     ? (Array.isArray(response.data.FindItemsByKeywordsResponse.searchResult.item) 
+            //         ? response.data.FindItemsByKeywordsResponse.searchResult.item.length 
+            //         : 1)
+            //     : 0
+        };
     },
 };
