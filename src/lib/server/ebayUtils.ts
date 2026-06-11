@@ -495,7 +495,29 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
     }
 }
 
-export async function findItemsByKeywords(locals: App.Locals, keywords: string, page: number = 1, sortOrder: string = 'BEST_MATCH'): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+function extractLegacyEbayItemId(item: any): string {
+    if (!item) return '';
+
+    const rawValue = item.legacyItemId ?? item.itemId ?? item.itemHref ?? item.itemWebUrl ?? '';
+    if (typeof rawValue !== 'string' || rawValue.trim() === '') return '';
+
+    const decoded = decodeURIComponent(rawValue);
+    const parts = decoded.split('|').map((part) => part.trim()).filter(Boolean);
+
+    if (parts.length >= 2) {
+        const maybeId = parts[parts.length - 2];
+        if (/^\d+$/.test(maybeId)) return maybeId;
+    }
+
+    if (parts.length === 1 && /^\d+$/.test(parts[0])) {
+        return parts[0];
+    }
+
+    const match = decoded.match(/(\d{8,})/);
+    return match ? match[1] : rawValue;
+}
+
+export async function findItemsByKeywords(locals: App.Locals, keywords: string, page: number = 1, sortOrder: string = 'newlyListed'): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`findItemsByKeywords called with keywords: ${keywords}, page: ${page}, sortOrder: ${sortOrder}`);
 
     // Browse API uses offset-based pagination, not page numbers
@@ -542,8 +564,8 @@ export async function findItemsByKeywords(locals: App.Locals, keywords: string, 
 
         // Get the raw text first to inspect what's being returned
         const textData = await response.text();
-        console.log('findItemsByKeywords raw response status:', response.status);
-        console.log('findItemsByKeywords raw response text:', textData.substring(0, 500));
+        // console.log('findItemsByKeywords raw response status:', response.status);
+        // console.log('findItemsByKeywords raw response text:', textData.substring(0, 500));
 
         if (!response.ok) {
             console.error('findItemsByKeywords error response:', textData);
@@ -579,6 +601,37 @@ export async function findItemsByKeywords(locals: App.Locals, keywords: string, 
                 }
             };
         }
+
+        const userId = locals?.session?.userId || '';
+
+        for (const item of data.itemSummaries) {
+            const itemId = extractLegacyEbayItemId(item) || item.ItemID || item.itemId || item.legacyItemId || '';
+            item.itemId = itemId;
+            console.log(`Processing itemId: ${itemId} for keywords: ${keywords}`);
+            // const startDate = new Date(item.ListingDetails.StartTime);
+
+            // const status = await updateActiveEbayItem(userId, itemId, startDate, true);
+            // if (status !== StatusCodes.OK) {
+            //     console.error(`Failed to insert active eBay item for itemId:${itemId}`);
+            //     return {
+            //         status: 500,
+            //         data: {}
+            //     };
+            // }
+
+            // Gather the metadata for the item and combine it into the returned JSON
+            const metadata = await getEbayMetadata(userId, itemId);
+
+            if (!metadata.ok) {
+                // Create empty metadata object
+                item.Metadata = {};
+            }
+            else {
+                // Must have gotten metadata back so combine the data into the item
+                item.Metadata = metadata.data;
+            }
+        }
+
 
         const itemCount = data.itemSummaries.length;
         console.log(`Found ${itemCount} items for keywords: ${keywords}`);

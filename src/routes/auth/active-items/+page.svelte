@@ -20,6 +20,14 @@
 	let searchResults = $state<any>(null);
 	let searchQuery = $state<string>('');
 
+	let { data } = $props();
+
+	let normalizedItems = $derived(data.post?.normalizedItems ?? []);
+	let totalItems = $derived(data.post?.totalItems ?? 0);
+	let totalNumberOfPages = $derived(Math.max(1, Math.ceil((data.post?.totalItems ?? 0) / 20)));
+	// console.log('normalizedItems:', JSON.stringify(normalizedItems));
+	// console.log('Page props data:', JSON.stringify(data));
+
 	onMount(() => {
 		if (initialized) return;
 		initialized = true;
@@ -44,8 +52,9 @@
 	async function sendPoshmarkCreateItemsRequest(item: any) {
         console.log("sendPoshmarkCreateItemsRequest called with:", JSON.stringify(item));
 
+		const marketplaceItemId = item.itemId ?? item.ItemID ?? item.sourceItem?.ItemID ?? '';
 		const formData = new FormData();
-		formData.append('itemId', JSON.stringify(item.ItemID));
+		formData.append('itemId', String(marketplaceItemId));
 
 		const res = await fetch('/auth/active-items/get-ebay-item-details', {
 			method: 'POST',
@@ -66,7 +75,7 @@
 
         window.postMessage({
 			type: "CREATE_POSHMARK_LISTING",
-			ebayId: item.ItemID,
+			ebayId: marketplaceItemId,
 			title: ebayData.itemDetails.title,
 			description: ebayData.itemDetails.description,
 			imageUrls: ebayData.itemDetails.pictureURL,
@@ -106,9 +115,9 @@
 		postMetaData(itemID, metaData);
 	}
 
-	function openPoshmarkTab() {
-		window.postMessage({ type: "OPEN_POSHMARK_TAB" }, "*");
-	}
+	// function openPoshmarkTab() {
+	// 	window.postMessage({ type: "OPEN_POSHMARK_TAB" }, "*");
+	// }
 
 	beforeNavigate(() => {
 		// clearInterval(interval);
@@ -124,37 +133,45 @@
 		isLoading = true;
 
 		try {
-			const formData = new FormData();
-			formData.append('keywords', query);
-			formData.append('page', '1');
+			await goto(`?search=${encodeURIComponent(query)}&page=1`, { replaceState: true });
+			await invalidateAll();
+			await tick();
+			const container = document.querySelector('.items-container') as HTMLElement | null;
 
-			console.log('Sending search request with keywords:', query);
-
-			const response = await fetch('?/searchKeywords', {
-				method: 'POST',
-				body: formData
-			});
-
-			console.log('Search response status:', response.status);
-
-			if (!response.ok) {
-				console.error('Search request failed with status:', response.status);
-				const errorText = await response.text();
-				console.error('Error response:', errorText);
-				return;
+			if (container) {
+				container.scrollTo({ top: 0, behavior: 'smooth' });
+			} else if (typeof window !== 'undefined') {
+				window.scrollTo({ top: 0, behavior: 'smooth' });
 			}
 
-			const result = await response.json();
-			console.log('Search result:', result);
-
-			if (result.success) {
-				console.log(`Search successful`);
-			} else {
-				console.error('Search failed:', result);
-			}
+			isLoading = false;
 		} catch (error) {
 			console.error('Error performing search:', error);
 		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleClearSearch() {
+		console.log('handleClearSearch called');
+		searchQuery = '';
+		isLoading = true;
+
+		try {
+			await goto(`?page=1`, { replaceState: true });
+			await invalidateAll();
+			await tick();
+			const container = document.querySelector('.items-container') as HTMLElement | null;
+
+			if (container) {
+				container.scrollTo({ top: 0, behavior: 'smooth' });
+			} else if (typeof window !== 'undefined') {
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+
+			isLoading = false;
+		} catch (error) {
+			console.error('Error clearing search:', error);
 			isLoading = false;
 		}
 	}
@@ -164,47 +181,40 @@
 		isLoading = true;
 
 		currentPage = newPage;
-		const path = location.pathname;
-        await goto(`?page=${newPage}`, { replaceState: true });
-		await invalidateAll();
+		const searchParam = page.url.searchParams.get('search');
+		const queryString = searchParam ? `?search=${encodeURIComponent(searchParam)}&page=${newPage}` : `?page=${newPage}`;
+        await goto(queryString, { replaceState: true });
+        await invalidateAll();
         await tick();
-		const container = document.querySelector('.items-container') as HTMLElement | null;
+        const container = document.querySelector('.items-container') as HTMLElement | null;
 
-		if (container) {
-			container.scrollTo({ top: 0, behavior: 'smooth' });
-		} else if (typeof window !== 'undefined') {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
-		}
+        if (container) {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
-		isLoading = false;
+        isLoading = false;
     }
 
-	// Figure out pagination
-	let { data } = $props();
+    // Figure out pagination
+    let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
+    $effect(() => {
+        currentPage = parseInt(page.url.searchParams.get('page') || '1', 10);
+    });
 
-	let dataItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.ItemArray);
-	let editableItems = $state(dataItems);
-
-	$effect(() => {
-  		editableItems = dataItems;
-	});
-
-	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.ActiveList.PaginationResult.TotalNumberOfPages);
-
-	let marketplaces = $derived([
-		{
-			id: 'poshmark',
-			name: 'Poshmark',
-			enabled: $poshmarkTabOpen && poshMarkTabLoggedIn,
-			warning: !poshMarkTabLoggedIn || !$poshmarkTabOpen,
-			warningText: !$poshmarkTabOpen ? 'Open Poshmark tab first' : 'Please login to Poshmark'
-		},
-		{ id: 'etsy', name: 'Etsy', enabled: false },
-		{ id: 'mercari', name: 'Mercari', enabled: false },
-		{ id: 'depop', name: 'Depop', enabled: false },
-	]);
+    let marketplaces = $derived([
+        {
+            id: 'poshmark',
+            name: 'Poshmark',
+            enabled: $poshmarkTabOpen && poshMarkTabLoggedIn,
+            warning: !poshMarkTabLoggedIn || !$poshmarkTabOpen,
+            warningText: !$poshmarkTabOpen ? 'Open Poshmark tab first' : 'Please login to Poshmark'
+        },
+        { id: 'etsy', name: 'Etsy', enabled: false },
+        { id: 'mercari', name: 'Mercari', enabled: false },
+        { id: 'depop', name: 'Depop', enabled: false },
+    ]);
 
 </script>
 
@@ -224,34 +234,34 @@
 	<div class="d-flex justify-content-between align-items-center mb-3 gap-3">
 		<h2 class="mb-0">Active Items ({totalItems})</h2>
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-		<SearchBar placeholder="Search items..." onSearch={handleSearch} />
+		<SearchBar placeholder="Search items..." onSearch={handleSearch} onClear={handleClearSearch} />
 		<div class="text-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
 	<div class="items-list">
-		{#each editableItems.Item as item}
+		{#each normalizedItems as item}
 			<div class="item-row d-flex align-items-start p-2 border-bottom">
 				<div class="col-image me-3 d-flex align-items-center justify-content-center p-3">
 					<img
-						src={item.PictureDetails.GalleryURL}
+						src={item.imageUrl}
 						class="border item-image"
-						alt={item.Title}
+						alt={item.title}
 					/>
 				</div>
 
 				<div class="col-info me-3">
-					<p class="card-title fs-6 mb-0">{item.Title}</p>
-					<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-					<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
+					<p class="card-title fs-6 mb-0">{item.title}</p>
+					<p class="card-text text-muted fs-6 mb-0">Item ID: {item.itemId}</p>
+					<p class="mb-0 fs-6 text-success">${formatCurrency(item.price)}</p>
 				</div>
 
 				<div class="col-right d-flex flex-column ms-auto">
 					<div class="row-fields d-flex">
-						<div class="col-field me-3" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+						<div class="col-field me-3" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
 							<label>Purchase Price</label>
 							<CurrencyInput
-								bind:value={item.Metadata.purchasePrice}
+								bind:value={item.metadata.purchasePrice}
 								currency="USD"
 								locale="en-US"
 								inputClasses={{
@@ -265,24 +275,24 @@
 
 						<div class="col-field me-3">
 							<label>Purchase Date</label>
-							<DatePicker bind:selectedDate={item.Metadata.purchaseDate} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<DatePicker bind:selectedDate={item.metadata.purchaseDate} on:blur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
 						<div class="col-field me-3">
 							<label>Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="form-control" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
 						<div class="col-field">
 							<label>Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="form-control" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 						<div class="col-field">
 							<label>Markets</label>
 							<div class="markets-images">
-								{#if item.Metadata.xlistedPoshmarkItemId}
-									<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.Metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
-										<img src={PoshLogo} alt={`Poshmark ${item.Metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
+								{#if item.metadata.xlistedPoshmarkItemId}
+									<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
+										<img src={PoshLogo} alt={`Poshmark ${item.metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
 									</a>
 								{/if}
 							</div>
@@ -293,7 +303,7 @@
 								<li>
 									<a class="dropdown-item submenu-trigger" href="#">Crosslist</a>
 									<ul class="dropdown-menu submenu-content">
-										<CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} {marketplaces} {item} />
+										<CrosslistMenu itemId={item.itemId} onCrosslist={crosslistTo} {marketplaces} item={item} />
 									</ul>
 								</li>
 								<li>

@@ -7,14 +7,14 @@ import { refreshEbayToken, getBrowseApiToken } from "$lib/server/ebayUtils";
  
 
 export async function handle({ event, resolve }) {
-  console.log('hooks.server.ts Handling request...');
+  // console.log('hooks.server.ts Handling request...');
   // Fetch current session from Better Auth
   const session = await auth.api.getSession({
     headers: event.request.headers,
   });
   // console.log('Session:', session);
  
-  console.log(`hooks.server.ts: event.url.pathname=${event.url.pathname}, session=${JSON.stringify(session)}`);
+  // console.log(`hooks.server.ts: event.url.pathname=${event.url.pathname}, session=${JSON.stringify(session)}`);
 
   // Make session and user available on server
   if (session) {
@@ -42,8 +42,8 @@ export async function handle({ event, resolve }) {
       }
     }
     else if (status.status === 'success') {
-      console.log("ebayAccessToken:", status.data.accessToken);
-      console.log("ebayRefreshToken:", status.data.refreshToken);
+      // console.log("ebayAccessToken:", status.data.accessToken);
+      // console.log("ebayRefreshToken:", status.data.refreshToken);
       event.locals.ebayAccessToken = status.data.accessToken;
       event.locals.ebayRefreshToken = status.data.refreshToken;
       event.locals.ebaySellerUsername = status.data.sellerUsername;
