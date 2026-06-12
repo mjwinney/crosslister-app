@@ -1,12 +1,29 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
 
-    export let page: number = 1; // current page (1-based)
-    export let totalPages: number = 1; // total number of pages
-    export let maxPagesToShow: number = 7; // how many page buttons to show (including first/last and ellipses)
-    export let disabled: boolean = false; // disable all controls
-    // Optional callback: preferred usage is to pass a function that receives the new page number.
-    export let onPageChange: ((p: number) => void) | undefined;
+    const props = $props<{
+        page?: number;
+        totalPages?: number;
+        maxPagesToShow?: number;
+        disabled?: boolean;
+        onPageChange?: (p: number) => void;
+    }>();
+
+    // reactive state variables
+    let page = $state(props.page ?? 1);
+    let totalPages = $state(props.totalPages ?? 1);
+    let maxPagesToShow = $state(props.maxPagesToShow ?? 7);
+    let disabled = $state(props.disabled ?? false);
+    let onPageChange = props.onPageChange;
+
+    // keep state in sync when parent updates props
+    $effect(() => {
+        page = props.page ?? 1;
+        totalPages = props.totalPages ?? 1;
+        maxPagesToShow = props.maxPagesToShow ?? 7;
+        disabled = props.disabled ?? false;
+        onPageChange = props.onPageChange;
+    });
 
     const dispatch = createEventDispatcher();
 
