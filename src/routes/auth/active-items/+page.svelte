@@ -27,6 +27,10 @@
 	let totalNumberOfPages = $derived(Math.max(1, Math.ceil((data.post?.totalItems ?? 0) / 20)));
 	// console.log('normalizedItems:', JSON.stringify(normalizedItems));
 	// console.log('Page props data:', JSON.stringify(data));
+	let editableItems = $state(normalizedItems); // Local writable copy for editing
+	$effect(() => {
+  		editableItems = normalizedItems; // keep in sync when derived changes
+	});
 
 	onMount(() => {
 		if (initialized) return;
@@ -94,7 +98,7 @@
 	}
 
 	async function postMetaData(itemID: string, metaData: MetaDataModel) {
-		console.log('postMetaData called:', itemID, metaData);
+		// console.log('postMetaData called:', itemID, metaData);
 
 		const session = await authClient.getSession();
 		const userId = session.data?.session.userId || '';
@@ -111,7 +115,7 @@
 	}
 
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
-		console.log('Blur event received:', itemID, metaData);
+		// console.log('Blur event received:', itemID, metaData);
 		postMetaData(itemID, metaData);
 	}
 
@@ -240,7 +244,7 @@
 		</div>
 	</div>
 	<div class="items-list">
-		{#each normalizedItems as item}
+		{#each editableItems as item}
 			<div class="item-row d-flex align-items-start p-2 border-bottom">
 				<div class="col-image me-3 d-flex align-items-center justify-content-center p-3">
 					<img
