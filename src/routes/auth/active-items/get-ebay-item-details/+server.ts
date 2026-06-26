@@ -4,6 +4,8 @@ import { getMyEbayItem } from "$lib/server/ebayUtils";
 function cleanForPoshmark(html : string | undefined): string {
   if (!html) return "";
 
+  // console.log("cleanForPoshmark: Cleaning HTML for Poshmark:", html);
+
   // 1. Convert HTML entities like &nbsp; → space
   let text = html.replace(/&nbsp;/g, " ");
 
@@ -12,11 +14,11 @@ function cleanForPoshmark(html : string | undefined): string {
 
   // 3. Convert <div>...</div> to "...\n"
   text = text.replace(/<\/div>\s*<div>/gi, "\n"); // consecutive divs
-  text = text.replace(/<div>/gi, "");            // remove opening div
-  text = text.replace(/<\/div>/gi, "\n");        // closing div → newline
+  text = text.replace(/<\/div>/gi, "");           // remove closing div
+  text = text.replace(/<div>/gi, "\n");           // opening div → newline
 
   // 3.1 Convert <p>...</p> to "...\n"
-  text = text.replace(/<\/p>\s*<p>/gi, "\n"); // consecutive paragraphs
+  text = text.replace(/<\/p>\s*<p>/gi, "\n");  // consecutive paragraphs
   text = text.replace(/<p>/gi, "");            // remove opening p
   text = text.replace(/<\/p>/gi, "\n");        // closing p → newline
 
@@ -303,7 +305,6 @@ export const POST = async ({ request, locals }) => {
     const responseData = {
       title: ebayItem.Title,
       pictureURL: pictureURLs,
-      // description: cleanForPoshmark(ebayItem.Description) + 
       //   (ebayItem.ConditionDescription ? "\n\n" + "Condition:\n" + ebayItem.ConditionDescription : ""),
       description: cleanForPoshmark(ebayItem.Description),
       condition: mapEbayToPoshmarkCondition(ebayItem.ConditionID),
