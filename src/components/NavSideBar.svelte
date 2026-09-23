@@ -21,9 +21,10 @@
 
 <main>
   <div class="container-fluid pb-3">
-    <div class="d-grid gap-3" style="grid-template-columns: 0fr 1fr">
+    <div class="sidebar-layout">
       <!-- left nav menu -->
-      <div class="accordion" id="sidebarAccordion">
+      <aside class="sidebar-panel">
+        <div class="accordion" id="sidebarAccordion">
   <!-- Dashboard Section -->
   <div class="accordion-item">
     <h2 class="accordion-header" id="headingInventory">
@@ -140,85 +141,172 @@
       </div>
     </div>
   </div> -->
-</div>
+        </div>
+      </aside>
       <!-- left nav menu end -->
       <!-- main content -->
-      <div class="bg-body-tertiary border rounded-3">
+      <section class="content-panel">
         <!-- Main content goes here -->
         {@render children()}
-      </div>
+      </section>
     </div>
   </div>
 </main>
 
 <style>
+  :global(html) {
+    height: 100%;
+  }
 
-.accordion-body a {
-  font-size: 14px !important;
-}
+  :global(body) {
+    min-height: 100%;
+    margin: 0;
+    background: #07111f;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    color: #edf6ff;
+  }
 
-body {
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-}
+  main {
+    min-height: calc(100vh - 74px);
+    overflow-x: hidden;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(124, 58, 237, 0.14), transparent 26rem),
+      linear-gradient(135deg, #040b14 0%, #0a1628 48%, #07111f 100%);
+  }
 
-html {
-  height: -webkit-fill-available;
-}
+  .container-fluid {
+    padding: clamp(1rem, 2vw, 2rem) !important;
+  }
 
-main {
-  height: 100vh;
-  height: -webkit-fill-available;
-  max-height: 100vh;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
+  .sidebar-layout {
+    display: grid;
+    grid-template-columns: minmax(165px, 188px) minmax(0, 1fr);
+    gap: clamp(1rem, 2vw, 1.5rem);
+    align-items: start;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
 
-.dropdown-toggle { outline: 0; }
+  .sidebar-panel,
+  .content-panel {
+    position: relative;
+    min-width: 0;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 8px;
+    background:
+      linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+      linear-gradient(145deg, rgba(7, 17, 31, 0.98), rgba(4, 11, 20, 0.96));
+    background-size: 28px 28px, 28px 28px, auto;
+    box-shadow: 0 12px 32px rgba(4, 11, 20, 0.22);
+  }
 
-.btn-toggle {
-  padding: .25rem .5rem;
-  font-weight: 600;
-  color: var(--bs-emphasis-color);
-  background-color: transparent;
-}
-.btn-toggle:hover,
-.btn-toggle:focus {
-  color: rgba(var(--bs-emphasis-color-rgb), .85);
-  background-color: var(--bs-tertiary-bg);
-}
+  .sidebar-panel {
+    position: sticky;
+    top: 1rem;
+    overflow: hidden;
+  }
 
-.btn-toggle::before {
-  width: 1.25em;
-  line-height: 0;
-  content: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='rgba%280,0,0,.5%29' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 14l6-6-6-6'/%3e%3c/svg%3e");
-  transition: transform .35s ease;
-  transform-origin: .5em 50%;
-}
+  .content-panel {
+    min-height: calc(100vh - 122px);
+    overflow: auto;
+    background: transparent;
+    box-shadow: none;
+  }
 
-[data-bs-theme="dark"] .btn-toggle::before {
-  content: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='rgba%28255,255,255,.5%29' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M5 14l6-6-6-6'/%3e%3c/svg%3e");
-}
+  .sidebar-panel :global(.accordion) {
+    --bs-accordion-bg: transparent;
+    --bs-accordion-color: #dbeafe;
+    --bs-accordion-border-color: rgba(148, 163, 184, 0.16);
+    --bs-accordion-btn-color: #edf6ff;
+    --bs-accordion-btn-bg: transparent;
+    --bs-accordion-active-color: #fff;
+    --bs-accordion-active-bg: rgba(124, 58, 237, 0.16);
+    --bs-accordion-btn-focus-box-shadow: 0 0 0 0.18rem rgba(34, 211, 238, 0.14);
+    border: 0;
+  }
 
-.btn-toggle[aria-expanded="true"] {
-  color: rgba(var(--bs-emphasis-color-rgb), .85);
-}
-.btn-toggle[aria-expanded="true"]::before {
-  transform: rotate(90deg);
-}
+  .sidebar-panel :global(.accordion-item) {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: transparent;
+  }
 
-.btn-toggle-nav a {
-  padding: .1875rem .5rem;
-  margin-top: .125rem;
-  margin-left: 1.25rem;
-}
-.btn-toggle-nav a:hover,
-.btn-toggle-nav a:focus {
-  background-color: var(--bs-tertiary-bg);
-}
+  .sidebar-panel :global(.accordion-button) {
+    min-height: 3.25rem;
+    padding: 0.9rem 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #edf6ff;
+    background: transparent;
+    box-shadow: none;
+  }
 
-.scrollarea {
-  overflow-y: auto;
-}
+  .sidebar-panel :global(.accordion-button)::after {
+    width: 0.8rem;
+    height: 0.8rem;
+    background-image: none;
+    border-right: 2px solid #8da3ba;
+    border-bottom: 2px solid #8da3ba;
+    transform: rotate(45deg);
+    transition: transform 180ms ease, border-color 180ms ease;
+  }
+
+  .sidebar-panel :global(.accordion-button:not(.collapsed))::after {
+    border-color: #67e8f9;
+    transform: translateY(3px) rotate(225deg);
+  }
+
+  .sidebar-panel :global(.accordion-button:hover),
+  .sidebar-panel :global(.accordion-button:focus-visible) {
+    color: #fff;
+    background: rgba(124, 58, 237, 0.2);
+  }
+
+  .sidebar-panel :global(.accordion-button:focus-visible) {
+    box-shadow: inset 3px 0 #22d3ee, 0 0 0 0.18rem rgba(34, 211, 238, 0.14);
+  }
+
+  .sidebar-panel :global(.accordion-button:not(.collapsed)) {
+    color: #fff;
+    background: rgba(124, 58, 237, 0.2);
+  }
+
+  .sidebar-panel :global(.accordion-collapse) {
+    background: rgba(4, 11, 20, 0.42);
+  }
+
+  .sidebar-panel :global(.accordion-body) {
+    padding: 0.55rem 0.75rem 0.7rem;
+  }
+
+  .sidebar-panel :global(.accordion-body a) {
+    width: 100%;
+    padding: 0.48rem 0.7rem;
+    font-size: 0.875rem !important;
+    color: #9fb2c8 !important;
+    transition: color 180ms ease, background-color 180ms ease, padding-left 180ms ease;
+  }
+
+  .sidebar-panel :global(.accordion-body a:hover),
+  .sidebar-panel :global(.accordion-body a:focus-visible) {
+    padding-left: 0.9rem;
+    color: #fff !important;
+    background: rgba(34, 211, 238, 0.12);
+    outline: none;
+  }
+
+  @media (max-width: 720px) {
+    .sidebar-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar-panel {
+      position: static;
+    }
+
+    .content-panel {
+      min-height: 0;
+    }
+  }
 </style>
 

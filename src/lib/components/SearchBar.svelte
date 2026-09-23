@@ -67,7 +67,7 @@
 	</div>
 
 	<button
-		class="btn btn-primary d-flex align-items-center justify-content-center ms-2"
+		class="btn btn-primary d-flex align-items-center justify-content-center ms-2 search-cta"
 		onclick={handleSearch}
 		disabled={isSearchDisabled}
 		aria-label="Search"
@@ -95,6 +95,42 @@
 	}
 
 	.search-input-wrapper { position: relative; }
+
+	.search-input-wrapper .form-control {
+		color: #edf6ff !important;
+		background: rgba(15, 23, 42, 0.72) !important;
+		border-color: rgba(148, 163, 184, 0.25);
+	}
+
+	.search-input-wrapper .form-control:focus {
+		color: #fff !important;
+		background: rgba(15, 23, 42, 0.92) !important;
+		border-color: #22d3ee;
+		box-shadow: 0 0 0 0.18rem rgba(34, 211, 238, 0.14);
+	}
+
+	.search-input-wrapper .form-control::placeholder {
+		color: #7890aa;
+		opacity: 1;
+	}
+
+	.search-cta {
+		padding: 0.375rem 0.75rem;
+		border: 0;
+		border-radius: 999px;
+		font-weight: 700;
+		color: #fff;
+		background: linear-gradient(135deg, #7c3aed, #22d3ee);
+		box-shadow: 0 8px 24px rgba(124, 58, 237, 0.32);
+		transition: transform 180ms ease, box-shadow 180ms ease;
+	}
+
+	.search-cta:hover:not(:disabled) { transform: translateY(-1px); }
+
+	.search-cta:disabled {
+		color: #fff;
+		opacity: 0.65;
+	}
 
 	.clear-btn {
 		position: absolute;

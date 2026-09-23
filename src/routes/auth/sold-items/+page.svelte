@@ -14,7 +14,7 @@
 		const session = await authClient.getSession();
 		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
 		if (!session || !session?.data) {
-			goto('/homepage	');
+			goto('/');
 		}
 		console.log(currencyInputEl); // now defined
 	});

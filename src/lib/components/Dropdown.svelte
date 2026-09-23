@@ -28,18 +28,18 @@
 			// Determine horizontal position (left or right)
 			let horizontalStyle = '';
 			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
-				horizontalStyle = `left: ${rect.right}px; right: auto;`;
+				horizontalStyle = `left: ${rect.right - 12}px; right: auto;`;
 				submenuSide = 'right';
 			} else {
-				horizontalStyle = `left: auto; right: ${window.innerWidth - rect.left}px;`;
+				horizontalStyle = `left: auto; right: ${window.innerWidth - rect.left - 12}px;`;
 				submenuSide = 'left';
 			}
 
 			// Determine vertical position (below or above)
 			let verticalStyle = '';
 			if (spaceBelow >= menuHeight || spaceBelow >= spaceAbove) {
-				// Position below
-				verticalStyle = `top: ${rect.bottom}px; bottom: auto;`;
+				// Align with the trigger
+				verticalStyle = `top: ${rect.top}px; bottom: auto;`;
 			} else {
 				// Position above
 				verticalStyle = `top: auto; bottom: ${window.innerHeight - rect.top}px;`;
@@ -51,98 +51,11 @@
 
 	function handleClickOutside(e: MouseEvent) {
 		if (dropdownRef) {
-			// Check if click is inside dropdown or any submenu
 			const isInsideDropdown = dropdownRef.contains(e.target as Node);
-			const isInsideSubmenu = (e.target as Node).closest?.('.submenu-content');
 
-			if (!isInsideDropdown && !isInsideSubmenu) {
+			if (!isInsideDropdown) {
 				isOpen = false;
 			}
-		}
-	}
-
-	function handleSubmenuPosition(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		const submenu = target.nextElementSibling as HTMLElement | null;
-		const dropdownMenu = dropdownRef?.querySelector('.dropdown-menu') as HTMLElement | null;
-		if (submenu && submenu.classList.contains('submenu-content') && dropdownMenu) {
-			const triggerRect = target.getBoundingClientRect();
-			const menuRect = dropdownMenu.getBoundingClientRect();
-			const submenuWidth = 140;
-			const submenuHeight = 300; // approximate height
-			const spaceRight = window.innerWidth - triggerRect.right;
-			const spaceLeft = triggerRect.left;
-			const spaceBelow = window.innerHeight - triggerRect.top;
-			const spaceAbove = triggerRect.top;
-
-			// Horizontal positioning relative to the trigger item so the submenu lines up with the option
-			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
-				submenu.style.left = `${triggerRect.right + 4}px`;
-				submenu.style.right = 'auto';
-				submenuSide = 'right';
-			} else {
-				submenu.style.left = 'auto';
-				submenu.style.right = `${window.innerWidth - triggerRect.left + 4}px`;
-				submenuSide = 'left';
-			}
-
-			// Vertical positioning - keep the submenu aligned with the trigger row
-			if (spaceBelow >= submenuHeight || spaceBelow >= spaceAbove) {
-				submenu.style.top = `${triggerRect.top}px`;
-				submenu.style.bottom = 'auto';
-			} else {
-				submenu.style.bottom = `${window.innerHeight - triggerRect.bottom}px`;
-				submenu.style.top = 'auto';
-			}
-
-			submenu.style.display = 'block';
-		}
-	}
-
-	function handleMouseMove(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		if (target.classList.contains('submenu-trigger')) {
-			handleSubmenuPosition(e);
-		}
-	}
-
-	function handleTriggerMouseLeave(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		if (target.classList.contains('submenu-trigger')) {
-			const submenu = target.nextElementSibling as HTMLElement | null;
-			if (submenu && submenu.classList.contains('submenu-content')) {
-				// Check if mouse is moving to submenu - if so, don't hide
-				const related = e.relatedTarget as HTMLElement | null;
-				if (related && (submenu.contains(related) || related === submenu)) {
-					return;
-				}
-				// Delay hide to allow mouse to reach submenu
-				submenu.dataset.hideTimeout = String(setTimeout(() => {
-					submenu.style.display = 'none';
-				}, 150));
-			}
-		}
-	}
-
-	function handleSubmenuMouseEnter(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		const submenu = target.classList.contains('submenu-content')
-			? target
-			: target.closest?.('.submenu-content') as HTMLElement | null;
-		if (submenu) {
-			// Cancel pending hide
-			const timeout = submenu.dataset.hideTimeout;
-			if (timeout) {
-				clearTimeout(parseInt(timeout));
-				delete submenu.dataset.hideTimeout;
-			}
-		}
-	}
-
-	function handleSubmenuMouseLeave(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		if (target.classList.contains('submenu-content')) {
-			target.style.display = 'none';
 		}
 	}
 
@@ -153,66 +66,17 @@
 	$effect(() => {
 		if (isOpen) {
 			document.addEventListener('click', handleClickOutside, true);
-			document.addEventListener('mousemove', handleMouseMove, true);
 			document.addEventListener('crosslist-complete', handleCrosslistComplete);
-
-			// Insert caret arrows and add mouse listeners to submenu triggers and content
-			requestAnimationFrame(() => {
-				const triggers = dropdownRef?.querySelectorAll('.submenu-trigger');
-				triggers?.forEach((trigger) => {
-					const existingCaret = trigger.querySelector('.caret-arrow');
-					if (existingCaret) existingCaret.remove();
-
-					const caret = document.createElement('span');
-					caret.className = 'caret-arrow';
-					const arrowId = submenuSide === 'right' ? 'arrow-right' : 'arrow-left';
-					caret.innerHTML = `<svg width="12" height="12"><use href="#${arrowId}"/></svg>`;
-					trigger.insertBefore(caret, trigger.firstChild);
-
-					trigger.addEventListener('mouseenter', handleSubmenuMouseEnter);
-					trigger.addEventListener('mouseleave', handleTriggerMouseLeave);
-				});
-
-				const submenus = dropdownRef?.querySelectorAll('.submenu-content');
-				submenus?.forEach((submenu) => {
-					submenu.addEventListener('mouseenter', handleSubmenuMouseEnter);
-					submenu.addEventListener('mouseleave', handleSubmenuMouseLeave);
-				});
-			});
 		} else {
 			document.removeEventListener('click', handleClickOutside, true);
-			document.removeEventListener('mousemove', handleMouseMove, true);
 			document.removeEventListener('crosslist-complete', handleCrosslistComplete);
 		}
 		return () => {
 			document.removeEventListener('click', handleClickOutside, true);
-			document.removeEventListener('mousemove', handleMouseMove, true);
 			document.removeEventListener('crosslist-complete', handleCrosslistComplete);
-
-			// Clean up listeners
-			const triggers = dropdownRef?.querySelectorAll('.submenu-trigger');
-			triggers?.forEach((trigger) => {
-				trigger.removeEventListener('mouseenter', handleSubmenuMouseEnter);
-				trigger.removeEventListener('mouseleave', handleTriggerMouseLeave);
-			});
-
-			const submenus = dropdownRef?.querySelectorAll('.submenu-content');
-			submenus?.forEach((submenu) => {
-				submenu.removeEventListener('mouseenter', handleSubmenuMouseEnter);
-				submenu.removeEventListener('mouseleave', handleSubmenuMouseLeave);
-			});
 		};
 	});
 </script>
-
-<svg style="display:none">
-	<symbol id="arrow-right" viewBox="0 0 16 16">
-		<path fill="currentColor" d="M6 3l5 5-5 5z"/>
-	</symbol>
-	<symbol id="arrow-left" viewBox="0 0 16 16">
-		<path fill="currentColor" d="M10 3L5 8l5 5z"/>
-	</symbol>
-</svg>
 
 <div class="dropdown" bind:this={dropdownRef}>
 	<button class="btn btn-link p-0 text-dark dropdown-trigger" type="button" onclick={toggle} bind:this={triggerRef} title="Actions">
@@ -229,6 +93,7 @@
 	.dropdown {
 		position: relative;
 		display: inline-block;
+		overflow: visible;
 	}
 
 	.dropdown-trigger {
@@ -253,16 +118,21 @@
 		max-width: unset !important;
 		padding: 0.5rem 0;
 		margin: 0;
-		background-color: #fff;
+		background-color: var(--bs-body-bg, #fff);
 		background-clip: padding-box;
-		border: 1px solid rgba(0, 0, 0, 0.15);
+		border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.15));
 		border-radius: 0.25rem;
 		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
 		z-index: 1000;
+		overflow: visible;
 	}
 
 	:global(.dropdown-menu li) {
 		list-style: none;
+	}
+
+	:global(.dropdown-menu > li) {
+		position: relative;
 	}
 
 	:global(.dropdown-menu .dropdown-item) {
@@ -270,7 +140,7 @@
 		width: 100%;
 		padding: 0.5rem 1rem;
 		clear: both;
-		color: #212529;
+		color: var(--bs-body-color, #212529);
 		text-decoration: none;
 		background: none;
 		border: none;
@@ -280,8 +150,8 @@
 	}
 
 	:global(.dropdown-menu .dropdown-item:hover) {
-		background-color: #f8f9fa;
-		color: #16181b;
+		background-color: var(--bs-secondary-bg, #f8f9fa);
+		color: var(--bs-emphasis-color, #16181b);
 	}
 
 	:global(.dropdown-menu .submenu-trigger) {
@@ -292,28 +162,43 @@
 		background-color: transparent !important;
 	}
 
-	:global(.dropdown-menu .submenu-trigger .caret-arrow) {
-		display: inline-flex;
-		align-items: center;
-		color: #212529;
+	:global(.dropdown-menu .submenu-trigger::before) {
+		content: '›';
+		margin-right: 0.75rem;
+		color: currentColor;
+		font-size: 1.25rem;
+		line-height: 0.75;
 		flex-shrink: 0;
 	}
 
-	:global(.dropdown-menu .submenu-trigger .caret-arrow svg) {
-		width: 12px;
-		height: 12px;
+	:global(.dropdown-menu.caret-left .submenu-trigger::before) {
+		content: '‹';
 	}
 
 	:global(.dropdown-menu .submenu-content) {
 		display: none;
-		position: fixed;
-		min-width: 140px;
+		position: absolute;
+		top: -0.5rem;
+		left: calc(100% + 4px);
+		right: auto;
+		min-width: 140px !important;
+		width: max-content;
 		padding: 0.5rem 0;
-		background-color: #fff;
+		background-color: var(--bs-body-bg, #fff);
 		background-clip: padding-box;
-		border: 1px solid rgba(0, 0, 0, 0.15);
+		border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.15));
 		border-radius: 0.25rem;
 		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
 		z-index: 1001;
+	}
+
+	:global(.dropdown-menu > li:hover > .submenu-content),
+	:global(.dropdown-menu > li:focus-within > .submenu-content) {
+		display: block;
+	}
+
+	:global(.dropdown-menu.caret-left .submenu-content) {
+		left: auto;
+		right: calc(100% + 4px);
 	}
 </style>

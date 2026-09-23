@@ -39,7 +39,7 @@
 		const session = authClient.getSession();
 		session.then((sess) => {
 			if (!sess || !sess?.data) {
-				goto('/homepage');
+				goto('/');
 			}
 		});
 	});

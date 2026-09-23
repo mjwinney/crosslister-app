@@ -82,8 +82,8 @@ export async function handle({ event, resolve }) {
 
   // Check if the current route is protected and the user is not authenticated
   if (protectedRoutes.includes(event.url.pathname) && !event.locals.session) {
-    console.log(`Unauthorized access attempt to ${event.url.pathname}, redirecting to /homepage`);
-    throw redirect(302, "/homepage"); // Redirect to your home page
+    console.log(`Unauthorized access attempt to ${event.url.pathname}, redirecting to /`);
+    throw redirect(302, "/"); // Redirect to the public homepage
   }
 
   return svelteKitHandler({ event, resolve, auth, building });
