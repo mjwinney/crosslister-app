@@ -66,31 +66,32 @@
 		const submenu = target.nextElementSibling as HTMLElement | null;
 		const dropdownMenu = dropdownRef?.querySelector('.dropdown-menu') as HTMLElement | null;
 		if (submenu && submenu.classList.contains('submenu-content') && dropdownMenu) {
+			const triggerRect = target.getBoundingClientRect();
 			const menuRect = dropdownMenu.getBoundingClientRect();
 			const submenuWidth = 140;
 			const submenuHeight = 300; // approximate height
-			const spaceRight = window.innerWidth - menuRect.right;
-			const spaceLeft = menuRect.left;
-			const spaceBelow = window.innerHeight - menuRect.top;
-			const spaceAbove = menuRect.top;
+			const spaceRight = window.innerWidth - triggerRect.right;
+			const spaceLeft = triggerRect.left;
+			const spaceBelow = window.innerHeight - triggerRect.top;
+			const spaceAbove = triggerRect.top;
 
-			// Horizontal positioning
+			// Horizontal positioning relative to the trigger item so the submenu lines up with the option
 			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
-				submenu.style.left = `${menuRect.right}px`;
+				submenu.style.left = `${triggerRect.right + 4}px`;
 				submenu.style.right = 'auto';
 				submenuSide = 'right';
 			} else {
-				submenu.style.right = `${window.innerWidth - menuRect.left}px`;
 				submenu.style.left = 'auto';
+				submenu.style.right = `${window.innerWidth - triggerRect.left + 4}px`;
 				submenuSide = 'left';
 			}
 
-			// Vertical positioning - flip above if not enough space below
+			// Vertical positioning - keep the submenu aligned with the trigger row
 			if (spaceBelow >= submenuHeight || spaceBelow >= spaceAbove) {
-				submenu.style.top = `${menuRect.top}px`;
+				submenu.style.top = `${triggerRect.top}px`;
 				submenu.style.bottom = 'auto';
 			} else {
-				submenu.style.bottom = `${window.innerHeight - menuRect.bottom}px`;
+				submenu.style.bottom = `${window.innerHeight - triggerRect.bottom}px`;
 				submenu.style.top = 'auto';
 			}
 

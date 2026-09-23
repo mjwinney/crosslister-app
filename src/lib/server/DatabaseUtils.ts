@@ -241,7 +241,14 @@ export type MetaDataModel = {
     finalShippingCost?: number,
     title?: string,
     xlistedPoshmarkItemId?: string,
-    xlistedEbayItemId?: string
+    originalListedAt?: Date | string | null,
+    currentListedAt?: Date | string | null,
+    relistEnabled?: boolean,
+    relistAt?: Date | string | null,
+    relistIntervalDays?: number,
+    lastRelistAttemptAt?: Date | string | null,
+    lastRelistResult?: string | null,
+    relistAttemptCount?: number
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -259,6 +266,19 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
     }
 
     try {
+        const existingRecord = await EbayItemMetadata.findOne({ itemId, userId }).exec();
+
+        if (existingRecord) {
+            if (!metaDataModel.originalListedAt && existingRecord.originalListedAt) {
+                metaDataModel.originalListedAt = existingRecord.originalListedAt;
+            }
+            if (!metaDataModel.currentListedAt && existingRecord.currentListedAt) {
+                metaDataModel.currentListedAt = existingRecord.currentListedAt;
+            }
+        } else if (!metaDataModel.originalListedAt && metaDataModel.currentListedAt) {
+            metaDataModel.originalListedAt = metaDataModel.currentListedAt;
+        }
+
         const result = await EbayItemMetadata.findOneAndUpdate(
             { itemId, userId },         // match by _id and userId
             { $set: metaDataModel },    // apply provided metadata fields
@@ -276,6 +296,70 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
         console.error(`Error updating eBay metadata for itemId:${itemId} userId:${userId}`, error);
         return StatusCodes.InsertFailed;
     }
+}
+
+export async function updateRelistSettings(userId: string, itemId: string, relistData: Partial<MetaDataModel>) : Promise<StatusCodes>
+{
+    if (relistData.relistIntervalDays !== undefined) {
+        const interval = Number(relistData.relistIntervalDays);
+        if (!Number.isInteger(interval) || interval <= 0) {
+            return StatusCodes.BadRequest;
+        }
+    }
+
+    if (relistData.relistAt !== undefined && relistData.relistAt !== null && Number.isNaN(new Date(relistData.relistAt).getTime())) {
+        return StatusCodes.BadRequest;
+    }
+
+    if (relistData.relistEnabled === false) {
+        relistData.relistAt = null;
+    }
+
+    return updateEbayMetadata(userId, itemId, {
+        relistEnabled: relistData.relistEnabled,
+        relistAt: relistData.relistAt ?? null,
+        relistIntervalDays: relistData.relistIntervalDays,
+        originalListedAt: relistData.originalListedAt,
+        currentListedAt: relistData.currentListedAt,
+        lastRelistAttemptAt: relistData.lastRelistAttemptAt,
+        lastRelistResult: relistData.lastRelistResult,
+        relistAttemptCount: relistData.relistAttemptCount
+    }, true);
+}
+
+export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok: true; data: Array<{ itemId: string; userId: string; metadata: MetaDataModel }> } | { ok: false; code: StatusCodes }>
+{
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const items = await EbayItemMetadata.find({
+        relistEnabled: true,
+        relistAt: { $ne: null, $lte: now }
+    })
+    .limit(limit)
+    .lean()
+    .exec();
+
+    return {
+        ok: true,
+        data: items.map((item) => ({
+            itemId: item.itemId,
+            userId: item.userId,
+            metadata: {
+                relistEnabled: item.relistEnabled,
+                relistAt: item.relistAt,
+                relistIntervalDays: item.relistIntervalDays,
+                originalListedAt: item.originalListedAt,
+                currentListedAt: item.currentListedAt,
+                lastRelistAttemptAt: item.lastRelistAttemptAt,
+                lastRelistResult: item.lastRelistResult,
+                relistAttemptCount: item.relistAttemptCount
+            }
+        }))
+    };
 }
 
 export async function updatePoshmarkMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -404,8 +488,13 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         listedTime: metaData?.listedTime || undefined,
         soldTime: metaData?.soldTime || undefined,
         soldPrice: metaData?.soldPrice || undefined,
-        finalShippingCost: metaData?.finalShippingCost || undefined ,
-        xlistedPoshmarkItemId: metaData?.xlistedPoshmarkItemId || undefined
+        finalShippingCost: metaData?.finalShippingCost || undefined,
+        xlistedPoshmarkItemId: metaData?.xlistedPoshmarkItemId || undefined,
+        originalListedAt: metaData?.originalListedAt || undefined,
+        currentListedAt: metaData?.currentListedAt || undefined,
+        relistEnabled: metaData?.relistEnabled ?? undefined,
+        relistAt: metaData?.relistAt || undefined,
+        relistIntervalDays: metaData?.relistIntervalDays ?? undefined
     }};
 }
 

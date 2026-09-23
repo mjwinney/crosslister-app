@@ -114,27 +114,6 @@
 		});
 	}
 
-	async function handleRelistToggle(item: any, checked: boolean) {
-		const nextRelistDate = checked
-			? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-			: null;
-
-		const updatedMetaData: MetaDataModel = {
-			...item.metadata,
-			relistEnabled: checked,
-			relistIntervalDays: 30,
-			relistAt: nextRelistDate
-		};
-
-		item.metadata = updatedMetaData;
-
-		try {
-			await postMetaData(String(item.itemId), updatedMetaData);
-		} catch (error) {
-			console.error('Failed to save relist setting:', error);
-		}
-	}
-
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		// console.log('Blur event received:', itemID, metaData);
 		postMetaData(itemID, metaData);
@@ -332,22 +311,12 @@
 									</ul>
 								</li>
 								<li>
-									<a class="dropdown-item submenu-trigger" href="#">Relist</a>
-									<ul class="dropdown-menu submenu-content relist-submenu">
-										<li class="dropdown-item relist-option">
-											<label class="form-check d-flex align-items-center gap-2 mb-0">
-												<input
-													type="checkbox"
-													class="form-check-input"
-													checked={!!item.metadata?.relistEnabled}
-													onchange={(event) => handleRelistToggle(item, event.currentTarget.checked)}
-												/>
-												<span>Relist every 30 days</span>
-											</label>
-										</li>
+									<a class="dropdown-item submenu-trigger" href="#">Delist</a>
+									<ul class="dropdown-menu submenu-content">
+										<p>Are you sure you want to delist this item?</p>
+										<!-- <CrosslistMenu itemId={String(item.ItemID)} onCrosslist={crosslistTo} /> -->
 									</ul>
 								</li>
-
 							</Dropdown>
 						</div>
 					</div>
@@ -421,21 +390,6 @@
 
 	.col-actions { flex: 0 0 48px; visibility: hidden; align-items: flex-start; justify-content: center; position: relative; }
 	.item-row:hover .col-actions { visibility: visible; }
-
-	.relist-submenu {
-		min-width: 210px;
-		padding: 0.5rem 0.75rem;
-	}
-
-	.relist-option {
-		padding: 0.25rem 0;
-	}
-
-	.relist-option label {
-		width: 100%;
-		font-size: 0.9rem;
-		cursor: pointer;
-	}
 
 	.col-field label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
 	.col-field .form-control,

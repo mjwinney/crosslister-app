@@ -88,6 +88,7 @@
       <div class="accordion-body">
         <ul class="list-unstyled fw-normal pb-1 small">
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-dashboard')}>Dashboard</a></li>
+          <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-active-items')}>Active</a></li>
           <li><a class="link-body-emphasis d-inline-flex text-decoration-none rounded mb-2" href="#" onclick={() => goto('/auth/poshmark-sold-items')}>Sold</a></li>
         </ul>
       </div>

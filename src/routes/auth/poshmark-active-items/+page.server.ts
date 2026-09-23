@@ -164,48 +164,21 @@ export const actions: Actions = {
         console.log('updateItem: request:', request);
         const formData = await request.formData();
         console.log('updateItem: request JSON:', JSON.stringify(formData));
-
-        const itemId = String(formData.get('itemId') ?? '').trim();
-        const userId = String(formData.get('userId') ?? '').trim();
-        const rawMetaData = formData.get('metaData');
-
-        if (!itemId || !userId || !rawMetaData) {
-            return fail(400, { message: 'itemId, userId, and metaData are required' });
-        }
-
-        let metaData: MetaDataModel;
-        try {
-            metaData = JSON.parse(String(rawMetaData));
-        } catch {
-            return fail(400, { message: 'metaData must be valid JSON' });
-        }
-
-        if (metaData.relistIntervalDays !== undefined) {
-            const interval = Number(metaData.relistIntervalDays);
-            if (!Number.isInteger(interval) || interval <= 0) {
-                return fail(400, { message: 'relistIntervalDays must be a positive integer' });
-            }
-        }
-
-        if (metaData.relistAt !== undefined && metaData.relistAt !== null && Number.isNaN(new Date(metaData.relistAt).getTime())) {
-            return fail(400, { message: 'relistAt must be a valid date string or null' });
-        }
-
-        if (metaData.relistEnabled === false) {
-            metaData.relistAt = null;
-        }
-
-        const existingRecord = await (await import('$lib/server/models/ebay-item-metadata')).EbayItemMetadata.findOne({ itemId }).select('userId').lean().exec();
-        if (existingRecord && existingRecord.userId !== userId) {
-            return fail(403, { message: 'You do not own this eBay item' });
-        }
+        const itemId = formData.get('itemId') as string;
+        const metaData: MetaDataModel = JSON.parse(formData.get('metaData') as string);
+        const userId = formData.get('userId') as string;
 
         console.log('updateItem: userId:', userId);
 
+        // const metaData = formData.get('metaData') as MetaDataModel;
         const response = await updateEbayMetadata(userId, itemId, metaData, true);
 
         if (response !== StatusCodes.OK) {
             return fail(500, { message: "Failed to update eBay item metadata" });
+            // return new Response('Failed to update eBay item metadata', {
+            //     status: 500,
+            //     headers: { 'Content-Type': 'text/html' }
+            // });
         }
 
         console.log('eBay API request successful, success');
