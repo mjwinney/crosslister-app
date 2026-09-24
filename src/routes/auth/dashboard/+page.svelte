@@ -14,18 +14,16 @@
       invalidate('app:dashboard');
   });
 
-  function formatCurrency(amountStr: string): string {
-		const amount = parseFloat(amountStr);
-		if (isNaN(amount)) {
+  function formatCurrency(amount: string | number): string {
+		const numericAmount = Number(amount);
+		if (Number.isNaN(numericAmount)) {
 			throw new Error("Invalid number input");
 		}
-		return amount.toFixed(2);
+		return numericAmount.toFixed(2);
 	}
 
   function calculateROI(totalProfit: number, totalCost: number): string {
-		// const totalCost = Number(totalPurchasePrice) + Number(totalFees);
-
-    if (totalCost === 0) {
+		if (totalCost === 0) {
       return '0.00%';
     }
 
@@ -35,15 +33,51 @@
 
 	let { data } = $props();
 
-  const totalWeekProfit = data.post.weekStats.data.grossSales - data.post.weekStats.data.totalFees - data.post.weekStats.data.totalPurchasePrice + data.post.weekStats.data.finalShippingCost;
-  const totalPrevWeekProfit = data.post.previousWeekStats.data.grossSales - data.post.previousWeekStats.data.totalFees - data.post.previousWeekStats.data.totalPurchasePrice + data.post.previousWeekStats.data.finalShippingCost;
-  const totalWeekROI = calculateROI(totalWeekProfit, data.post.weekStats.data.totalPurchasePrice + data.post.weekStats.data.totalFees - data.post.weekStats.data.finalShippingCost);
-  const totalPrevWeekROI = calculateROI(totalPrevWeekProfit, data.post.previousWeekStats.data.totalPurchasePrice + data.post.previousWeekStats.data.totalFees - data.post.previousWeekStats.data.finalShippingCost);
+  type DashboardSummary = {
+    itemCount: number;
+    grossSales: number;
+    totalFees: number;
+    totalPurchasePrice: number;
+    finalShippingCost: number;
+  };
 
-  const totalPreviousMonthProfit = data.post.previousMonthStats.data.grossSales - data.post.previousMonthStats.data.totalFees - data.post.previousMonthStats.data.totalPurchasePrice + data.post.previousMonthStats.data.finalShippingCost;
-  const totalLast6MonthProfit = data.post.last6MonthStats.data.grossSales - data.post.last6MonthStats.data.totalFees - data.post.last6MonthStats.data.totalPurchasePrice + data.post.last6MonthStats.data.finalShippingCost;
-  const totalPreviousMonthROI = calculateROI(totalPreviousMonthProfit, data.post.previousMonthStats.data.totalPurchasePrice + data.post.previousMonthStats.data.totalFees - data.post.previousMonthStats.data.finalShippingCost);
-  const totalLast6MonthROI = calculateROI(totalLast6MonthProfit, data.post.last6MonthStats.data.totalPurchasePrice + data.post.last6MonthStats.data.totalFees - data.post.last6MonthStats.data.finalShippingCost);
+  const emptySummary: DashboardSummary = {
+    itemCount: 0,
+    grossSales: 0,
+    totalFees: 0,
+    totalPurchasePrice: 0,
+    finalShippingCost: 0
+  };
+
+  function normalizeSummary(value: unknown): DashboardSummary {
+    if (value && typeof value === 'object') {
+      const candidate = value as Partial<DashboardSummary>;
+      return {
+        itemCount: Number(candidate.itemCount ?? 0),
+        grossSales: Number(candidate.grossSales ?? 0),
+        totalFees: Number(candidate.totalFees ?? 0),
+        totalPurchasePrice: Number(candidate.totalPurchasePrice ?? 0),
+        finalShippingCost: Number(candidate.finalShippingCost ?? 0)
+      };
+    }
+
+    return emptySummary;
+  }
+
+  const weekStats = $derived(normalizeSummary(data?.post?.weekStats));
+  const previousWeekStats = $derived(normalizeSummary(data?.post?.previousWeekStats));
+  const previousMonthStats = $derived(normalizeSummary(data?.post?.previousMonthStats));
+  const last6MonthStats = $derived(normalizeSummary(data?.post?.last6MonthStats));
+
+  const totalWeekProfit = $derived((weekStats.grossSales ?? 0) - (weekStats.totalFees ?? 0) - (weekStats.totalPurchasePrice ?? 0) + (weekStats.finalShippingCost ?? 0));
+  const totalPrevWeekProfit = $derived((previousWeekStats.grossSales ?? 0) - (previousWeekStats.totalFees ?? 0) - (previousWeekStats.totalPurchasePrice ?? 0) + (previousWeekStats.finalShippingCost ?? 0));
+  const totalWeekROI = $derived(calculateROI(totalWeekProfit, (weekStats.totalPurchasePrice ?? 0) + (weekStats.totalFees ?? 0) - (weekStats.finalShippingCost ?? 0)));
+  const totalPrevWeekROI = $derived(calculateROI(totalPrevWeekProfit, (previousWeekStats.totalPurchasePrice ?? 0) + (previousWeekStats.totalFees ?? 0) - (previousWeekStats.finalShippingCost ?? 0)));
+
+  const totalPreviousMonthProfit = $derived((previousMonthStats.grossSales ?? 0) - (previousMonthStats.totalFees ?? 0) - (previousMonthStats.totalPurchasePrice ?? 0) + (previousMonthStats.finalShippingCost ?? 0));
+  const totalLast6MonthProfit = $derived((last6MonthStats.grossSales ?? 0) - (last6MonthStats.totalFees ?? 0) - (last6MonthStats.totalPurchasePrice ?? 0) + (last6MonthStats.finalShippingCost ?? 0));
+  const totalPreviousMonthROI = $derived(calculateROI(totalPreviousMonthProfit, (previousMonthStats.totalPurchasePrice ?? 0) + (previousMonthStats.totalFees ?? 0) - (previousMonthStats.finalShippingCost ?? 0)));
+  const totalLast6MonthROI = $derived(calculateROI(totalLast6MonthProfit, (last6MonthStats.totalPurchasePrice ?? 0) + (last6MonthStats.totalFees ?? 0) - (last6MonthStats.finalShippingCost ?? 0)));
 
 </script>
 
@@ -68,41 +102,41 @@
           <tbody>
             <tr>
               <td>Items Sold</td>
-              <td>{data.post.weekStats.data.itemCount}</td>
-              <td>{data.post.previousWeekStats.data.itemCount}</td>
+              <td>{weekStats.itemCount}</td>
+              <td>{previousWeekStats.itemCount}</td>
             </tr>
             <tr>
               <td>Gross Sales</td>
-              <td class="text-success">${formatCurrency(data.post.weekStats.data.grossSales)}</td>
-              <td class="text-success">${formatCurrency(data.post.previousWeekStats.data.grossSales)}</td>
+              <td class="text-success">${formatCurrency(weekStats.grossSales ?? 0)}</td>
+              <td class="text-success">${formatCurrency(previousWeekStats.grossSales ?? 0)}</td>
             </tr>
             <tr>
               <td>Total Fees</td>
-              <td class="text-danger">${formatCurrency(data.post.weekStats.data.totalFees)}</td>
-              <td class="text-danger">${formatCurrency(data.post.previousWeekStats.data.totalFees)}</td>
+              <td class="text-danger">${formatCurrency(weekStats.totalFees ?? 0)}</td>
+              <td class="text-danger">${formatCurrency(previousWeekStats.totalFees ?? 0)}</td>
             </tr>
             <tr>
               <td>Shipping</td>
-              {#if data.post.weekStats.data.finalShippingCost > 0}
-                <td class="text-success">${formatCurrency(data.post.weekStats.data.finalShippingCost)}</td>
+              {#if (weekStats.finalShippingCost ?? 0) > 0}
+                <td class="text-success">${formatCurrency(weekStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(data.post.weekStats.data.finalShippingCost).toFixed(2))}</td>
+                <td class="text-danger">${formatCurrency(Math.abs(weekStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
-              {#if data.post.previousWeekStats.data.finalShippingCost > 0}
-                <td class="text-success">${formatCurrency(data.post.previousWeekStats.data.finalShippingCost)}</td>
+              {#if (previousWeekStats.finalShippingCost ?? 0) > 0}
+                <td class="text-success">${formatCurrency(previousWeekStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(data.post.previousWeekStats.data.finalShippingCost).toFixed(2))}</td>
-              {/if  }
+                <td class="text-danger">${formatCurrency(Math.abs(previousWeekStats.finalShippingCost ?? 0).toFixed(2))}</td>
+              {/if}
             </tr>
             <tr>
               <td>COG</td>
-              <td class="text-danger">${formatCurrency(data.post.weekStats.data.totalPurchasePrice)}</td>
-              <td class="text-danger">${formatCurrency(data.post.previousWeekStats.data.totalPurchasePrice)}</td>
+              <td class="text-danger">${formatCurrency(weekStats.totalPurchasePrice ?? 0)}</td>
+              <td class="text-danger">${formatCurrency(previousWeekStats.totalPurchasePrice ?? 0)}</td>
             </tr>
             <tr>
               <td>Net Sales</td>
-              <td class="text-success">${formatCurrency(totalWeekProfit.toString())}</td>
-              <td class="text-success">${formatCurrency(totalPrevWeekProfit.toString())}</td>
+              <td class="text-success">${formatCurrency(totalWeekProfit)}</td>
+              <td class="text-success">${formatCurrency(totalPrevWeekProfit)}</td>
             </tr>
             <tr>
               <td>ROI</td>
@@ -130,8 +164,8 @@
           <tbody>
             <tr>
               <td>Items Sold</td>
-              <td>{data.post.previousMonthStats.data.itemCount}</td>
-              <td>{data.post.last6MonthStats.data.itemCount}</td>
+              <td>{previousMonthStats.itemCount}</td>
+              <td>{last6MonthStats.itemCount}</td>
             </tr>
             <tr>
               <td>Gross Sales</td>
@@ -140,31 +174,31 @@
             </tr>
             <tr>
               <td>Total Fees</td>
-              <td class="text-danger">${formatCurrency(data.post.previousMonthStats.data.totalFees)}</td>
-              <td class="text-danger">${formatCurrency(data.post.last6MonthStats.data.totalFees)}</td>
+              <td class="text-danger">${formatCurrency(previousMonthStats.totalFees ?? 0)}</td>
+              <td class="text-danger">${formatCurrency(last6MonthStats.totalFees ?? 0)}</td>
             </tr>
             <tr>
               <td>Shipping</td>
-              {#if data.post.previousMonthStats.data.finalShippingCost > 0}
-                <td class="text-success">${formatCurrency(data.post.previousMonthStats.data.finalShippingCost)}</td>
+              {#if (previousMonthStats.finalShippingCost ?? 0) > 0}
+                <td class="text-success">${formatCurrency(previousMonthStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(data.post.previousMonthStats.data.finalShippingCost).toFixed(2))}</td>
+                <td class="text-danger">${formatCurrency(Math.abs(previousMonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
-              {#if data.post.last6MonthStats.data.finalShippingCost > 0}
-                <td class="text-success">${formatCurrency(data.post.last6MonthStats.data.finalShippingCost)}</td>
+              {#if (last6MonthStats.finalShippingCost ?? 0) > 0}
+                <td class="text-success">${formatCurrency(last6MonthStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(data.post.last6MonthStats.data.finalShippingCost).toFixed(2))}</td>
-              {/if  }
+                <td class="text-danger">${formatCurrency(Math.abs(last6MonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
+              {/if}
             </tr>
             <tr>
               <td>COG</td>
-              <td class="text-danger">${formatCurrency(data.post.previousMonthStats.data.totalPurchasePrice)}</td>
-              <td class="text-danger">${formatCurrency(data.post.last6MonthStats.data.totalPurchasePrice)}</td>
+              <td class="text-danger">${formatCurrency(previousMonthStats.totalPurchasePrice ?? 0)}</td>
+              <td class="text-danger">${formatCurrency(last6MonthStats.totalPurchasePrice ?? 0)}</td>
             </tr>
             <tr>
               <td>Net Sales</td>
-              <td class="text-success">${formatCurrency(totalPrevWeekProfit.toString())}</td>
-              <td class="text-success">${formatCurrency(totalLast6MonthProfit.toString())}</td>
+              <td class="text-success">${formatCurrency(totalPreviousMonthProfit)}</td>
+              <td class="text-success">${formatCurrency(totalLast6MonthProfit)}</td>
             </tr>
             <tr>
               <td>ROI</td>

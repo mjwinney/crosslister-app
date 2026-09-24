@@ -16,7 +16,6 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     shippingLabelCost: { type: Number, required: false },
     addFeeGeneral: { type: Number, required: false },
     finalShippingCost: { type: Number, required: false },
-    xlistedPoshmarkItemId: { type: String, required: false },
     originalListedAt: { type: Date, required: false },
     currentListedAt: { type: Date, required: false },
     relistEnabled: { type: Boolean, default: false },

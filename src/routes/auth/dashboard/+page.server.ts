@@ -52,10 +52,23 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
         });
     }
 
-    const weekStats = await getCurrentWeekStats(userId);
-    const previousWeekStats = await getPreviousWeekStats(userId);
-    const previousMonthStats = await getPreviousMonthStats(userId);
-    const last6MonthStats = await getLast6MonthStats(userId);
+    const weekStatsResult = await getCurrentWeekStats(userId);
+    const previousWeekStatsResult = await getPreviousWeekStats(userId);
+    const previousMonthStatsResult = await getPreviousMonthStats(userId);
+    const last6MonthStatsResult = await getLast6MonthStats(userId);
+
+    const emptySummary = {
+        itemCount: 0,
+        grossSales: 0,
+        totalFees: 0,
+        totalPurchasePrice: 0,
+        finalShippingCost: 0
+    };
+
+    const weekStats = weekStatsResult.ok ? weekStatsResult.data : emptySummary;
+    const previousWeekStats = previousWeekStatsResult.ok ? previousWeekStatsResult.data : emptySummary;
+    const previousMonthStats = previousMonthStatsResult.ok ? previousMonthStatsResult.data : emptySummary;
+    const last6MonthStats = last6MonthStatsResult.ok ? last6MonthStatsResult.data : emptySummary;
 
     // Update the sold database table with the current date as this was last time
     // the sold items were retrieved

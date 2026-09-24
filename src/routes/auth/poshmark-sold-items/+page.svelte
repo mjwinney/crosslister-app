@@ -127,29 +127,29 @@
 	  return `${month} ${day} ${year}`;
 	}
 
-	function formatCurrency(amountStr: string): string {
-		const amount = parseFloat(amountStr);
-		if (isNaN(amount)) {
-			throw new Error("Invalid number input");
+	function formatCurrency(amount: number | string | null | undefined): string {
+		const parsed = Number(amount ?? 0);
+		if (!Number.isFinite(parsed)) {
+			return '0.00';
 		}
-		return amount.toFixed(2);
+		return parsed.toFixed(2);
 	}
 
 	function calculateProfit(order: any): string {
-		const sold = parseFloat(order.soldPrice || '0');
-		const fee = parseFloat(order.feePrice || '0');
-		const purchase = parseFloat(order.purchasePrice || '0');
+		const sold = Number(order?.soldPrice ?? 0);
+		const fee = Number(order?.feePrice ?? 0);
+		const purchase = Number(order?.purchasePrice ?? 0);
 		const profit = sold - purchase - fee;
-		return `${formatCurrency(profit.toString())}`;
+		return formatCurrency(profit);
 	}
 
 	function calculateROI(order: any): string {
-		const profit = calculateProfit(order);
-		const purchase = parseFloat(order.purchasePrice ? order.purchasePrice : '0');
+		const profit = Number(calculateProfit(order));
+		const purchase = Number(order?.purchasePrice ?? 0);
 		if (purchase === 0) {
 			return 'N/A';
 		}
-		const roi = (Number(profit) / purchase) * 100;
+		const roi = (profit / purchase) * 100;
 		return roi.toFixed(2) + '%';
 	}
 
@@ -222,9 +222,9 @@
     });
 
 	let { data } = $props();
-	const daysToGoBack = data.post.daysToGoBack;
+	const daysToGoBack = $derived(data?.post?.daysToGoBack ?? 90);
 
-	let dataItems = $derived(data.post.data);
+	let dataItems = $derived(data?.post?.data ?? { itemCount: 0, totalItemCount: 0, items: [] });
 
 	// Local writable copy of items so we can update UI reactively
 	let editableItems = $state(dataItems?.items ?? []);
@@ -233,8 +233,8 @@
 	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.data.totalItemCount);
-	let totalNumberOfPages = $derived(data.post.data.totalItemCount > 0 ? Math.ceil(data.post.data.totalItemCount / 20) : 0);
+	let totalItems = $derived(dataItems.totalItemCount ?? 0);
+	let totalNumberOfPages = $derived((dataItems.totalItemCount ?? 0) > 0 ? Math.ceil((dataItems.totalItemCount ?? 0) / 20) : 0);
 	
 	// Track which item is being edited
 	let tempPurchasePrice = $state(0);
@@ -246,7 +246,7 @@
 	// });
 	// let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
 	let itemsElements: HTMLElement[] = [];
-	let dialogPos = { top: 0, left: 0 };
+	let dialogPos = $state({ top: 0, left: 0 });
 
     let poshMarkTabLoggedIn = $derived($poshmarkTabOpen && $poshmarkTabLoggedInUid !== "");
 	let poshMarkTabOpenButNotLoggedIn = $derived($poshmarkTabOpen && ($poshmarkTabLoggedInUid === "" || $poshmarkTabLoggedInUid === null));

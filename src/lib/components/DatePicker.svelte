@@ -1,35 +1,32 @@
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
+    type DatepickerEvent = Event & { detail?: { datepicker?: { element?: { value?: string } } } };
+
     // client only references
     let inputEl: HTMLInputElement | null = null;
     let dp: any = null;
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{ blur: FocusEvent; focusout: FocusEvent; }>();
 
     export let selectedDate = new Date(Date.now()).toLocaleString().split(',')[0];
 
-    function onChangeDate(ev: Event) {
-        // the library dispatches a custom event with detail.datepicker
-        // fallback to input value if detail is not present
-        // @ts-ignore
-        selectedDate = (ev as CustomEvent).detail?.datepicker?.element?.value ?? inputEl?.value ?? selectedDate;
+    function onChangeDate(ev: DatepickerEvent) {
+        selectedDate = ev.detail?.datepicker?.element?.value ?? inputEl?.value ?? selectedDate;
     }
 
     onMount(async () => {
-        // run only in the browser
         if (typeof window === 'undefined' || !inputEl) return;
 
-        // dynamic import so module is not loaded during SSR
         const mod = await import('vanillajs-datepicker');
         const Datepicker = (mod as any).Datepicker ?? (mod as any).default ?? mod;
 
         dp = new Datepicker(inputEl, {
-            buttonClass: 'btn btn-sm btn-outline-secondary', // use Bootstrap button style for controls
+            buttonClass: 'btn btn-sm btn-outline-secondary',
             allowOneSidedRange: true,
             format: 'mm/dd/yyyy',
             autohide: true
         });
-        // the library emits a custom 'changeDate' event on the input
+
         inputEl.addEventListener('changeDate', onChangeDate as EventListener);
     });
 
@@ -95,7 +92,6 @@
     autocapitalize="off"
     spellcheck="false"
     aria-autocomplete="none"
-    on:changeDate={onChangeDate}
     bind:value={selectedDate}
     on:blur={(e) => dispatch('blur', e)}
     on:focusout={(e) => dispatch('focusout', e)}

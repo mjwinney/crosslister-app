@@ -1,23 +1,16 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { navigating } from '$app/state';
-	import 'bootstrap/dist/css/bootstrap.min.css';
-    import PoshmarkTabWatcher from '$lib/components/PoshmarkTabWatcher.svelte';
-
-	onMount(async () => {
-		// Dynamically import the Bootstrap JS on the client side only
-		// console.log('\\src\\routes\\auth\\+layout.svelte Layout onMount');
-	    import('bootstrap/dist/js/bootstrap.bundle.min.js');
-  	});
-
-	import NavSideBar from "../../components/NavSideBar.svelte";
+	import PoshmarkTabWatcher from '$lib/components/PoshmarkTabWatcher.svelte';
+	import NavSideBar from '../../components/NavSideBar.svelte';
+	import { appTheme } from '$lib/stores/theme';
 
 	let { children } = $props();
 </script>
 
-<PoshmarkTabWatcher />
-
-<NavSideBar children={children} />
+<div class="auth-app" data-theme={$appTheme}>
+	<PoshmarkTabWatcher />
+	<NavSideBar children={children} />
+</div>
 
 {#if navigating && (navigating.to?.url.pathname === '/auth/sold-items' ||
 navigating.to?.url.pathname === '/auth/active-items' ||
@@ -49,4 +42,17 @@ navigating.to?.url.pathname === '/auth/poshmark-sold-items')}
         pointer-events: all;
     }
     .busy-overlay .text-light { color: #fff !important; }
+
+    .auth-app {
+        min-height: 100vh;
+        background: radial-gradient(circle at 8% 0%, rgba(124, 58, 237, 0.14), transparent 26rem),
+            linear-gradient(135deg, #040b14 0%, #0a1628 48%, #07111f 100%);
+        color: #e2e8f0;
+    }
+
+    :global(html[data-theme='light']) .auth-app {
+        background: radial-gradient(circle at 8% 0%, rgba(99, 102, 241, 0.1), transparent 26rem),
+            linear-gradient(135deg, #f8fafc 0%, #e2e8f0 48%, #dbeafe 100%);
+        color: #0f172a;
+    }
 </style>

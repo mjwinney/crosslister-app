@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { authClient } from '../lib/auth-client'; //import the auth client
-	import { onMount } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
+	import { authClient } from '$lib/auth-client';
+	import { authModal, closeAuthModal, openAuthModal } from '$lib/auth-modal';
+
+	const dispatch = createEventDispatcher<{ close: void; switch: 'signin' | 'register' }>();
 
 	let email = $state('');
 	let password = $state('');
@@ -8,36 +11,48 @@
 	let displayName = $state('');
 	let userError = $state('');
 	let success = $state(false);
-	let enableRegisterButton = $derived((email === '') || (password === '') || (confirmPassword === '') || (displayName === ''));
-	let myModalElement: HTMLDivElement; // Bind this to your modal's root element
-	
-	// Svelte lifecycle hook to attach the event listener so we can see when dialog is closed
-	// and clear down the variables.
-	onMount(() => {
-		console.log('Component mounted');
-		if (myModalElement) {
-			myModalElement.addEventListener('hidden.bs.modal', () => {
-				console.log('Register Modal is now hidden..Cleanup dialog variables!');
-				handleModalReset();
-			});
-		}
-	});
+	let enableRegisterButton = $derived(
+		email === '' || password === '' || confirmPassword === '' || displayName === ''
+	);
+	let isOpen = $derived($authModal === 'register');
 
 	function handleModalReset() {
-		// Reset the dialog
 		email = '';
 		password = '';
 		confirmPassword = '';
-		userError = ''
 		displayName = '';
+		userError = '';
+		success = false;
 	}
 
-	// Handle registration with the authClient
+	function handleClose() {
+		handleModalReset();
+		dispatch('close');
+		closeAuthModal();
+	}
+
+	function handleBackdropClick(event: MouseEvent) {
+		if (event.target === event.currentTarget) {
+			handleClose();
+		}
+	}
+
+	function handleBackdropKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			handleClose();
+		}
+	}
+
+	function handleOpenSignIn() {
+		handleModalReset();
+		dispatch('switch', 'signin');
+		openAuthModal('signin');
+	}
+
 	async function handleRegister(event: Event) {
 		userError = '';
-
 		event.preventDefault();
-		if (!email || !password || !confirmPassword) {
+		if (!email || !password || !confirmPassword || !displayName) {
 			userError = 'All fields are required.';
 			return;
 		}
@@ -46,210 +61,126 @@
 			return;
 		}
 
-		// submitting = true;
-
-		const { data, error } = await authClient.signUp.email({
-        	email: email.toString() || "", // user email address
-        	password: password.toString() || "", // user password -> min 8 characters by default
-			name: "MarksName"
-	        // name: name.toString() || "", // user display name
-	        // image, // User image URL (optional)
-	        // callbackURL: "/dashboard" // A URL to redirect to after the user verifies their email (optional)
-	    }, {
-			onRequest: (ctx) => {
-				//show loading
-		        console.log('onRequest call to authClient.signUp.email:');
+		const { error } = await authClient.signUp.email(
+			{
+				email: email.toString() || '',
+				password: password.toString() || '',
+				name: displayName.toString().trim() || 'User'
 			},
-			onSuccess: (ctx) => {
-				// Display a success message and then show button to signin
-				handleModalReset();
-				success = true;
-			},
-			onError: (ctx) => {
-				//show error
-				console.log('onError call to authClient.signUp.email:');
-				// display the error message
-				// return fail(400, { email, message: 'Invalid email address' });
-				// reject({ status: 'error', message: ctx.error.message });
+			{
+				onRequest: () => {
+					console.log('onRequest call to authClient.signUp.email:');
+				},
+				onSuccess: () => {
+					console.log('onSuccess call to authClient.signUp.email:');
+					handleModalReset();
+					success = true;
+				},
+				onError: (ctx) => {
+					console.log('onError call to authClient.signUp.email:');
+					alert(ctx.error.message);
+				}
+			}
+		);
 
-				alert(ctx.error.message);
-			},
-		});
-
-
-
-		// const formData = new FormData();
-		// formData.append('email', email);
-		// formData.append('password', password);
-
-		// // Send request to the auth/+page.server.ts
-		// const response = await fetch('/auth?/anotherAction', {
-		// 	method: 'POST',
-		// 	body: formData
-		// });
-
-		// Handle response
-		// if (!response.ok) {
-		// 	const errorData = await response.json();
-		// 	console.log(`Registration failed: error=${errorData.message} code=${errorData.code}`);
-		// 	error = errorData.message;
-		// 	submitting = false;
-		// 	return;
-		// } else {
-		// 	const successData = await response.json();
-		// 	console.log(`Registration successful: error=${successData.message} code=${successData.code}`);
-		// 	success = 'Registration complete.  You can now sign in';
-		// 	submitting = true;
-        //     // Perhaps instead of closing we should tell user was successful and
-        //     // allow them to log in
-		// 	// Now must close the dialog
-		// 	// const modalElement = document.getElementById('registerModal');
-		// 	// const modal =
-		// 	// 	bootstrap.Modal.getInstance(modalElement as HTMLElement) ||
-		// 	// 	new bootstrap.Modal(modalElement as HTMLElement);
-		// 	// modal.hide(); // Hide the modal
-		// }
-
-		userError = '';
+		if (error) {
+			userError = error?.message ?? 'Registration failed. Please try again.';
+		}
 	}
 </script>
 
-<div
-	class="modal fade"
-	id="registerModal"
-	tabindex="-1"
-	aria-labelledby="registerModalLabel"
-	aria-hidden="true"
-	bind:this={myModalElement}
->
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="registerModalLabel">Register</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+{#if isOpen}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="registerModalLabel"
+		tabindex="0"
+		onclick={handleBackdropClick}
+		onkeydown={handleBackdropKeydown}
+	>
+		<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900/90 shadow-2xl shadow-violet-900/20">
+			<div class="flex items-center justify-between border-b border-slate-700/60 px-5 py-4">
+				<h5 id="registerModalLabel" class="text-xl font-semibold text-slate-50">Register</h5>
+				<button
+					type="button"
+					class="rounded-full border border-slate-600/80 px-2 py-1 text-lg text-slate-300 transition hover:border-slate-400 hover:text-white"
+					aria-label="Close"
+					onclick={handleClose}
+				>
+					×
+				</button>
 			</div>
-			<div class="modal-body">
-				<!-- Your sign-in form elements go here -->
-				<form onsubmit={handleRegister}>
+
+			<div class="space-y-4 p-5">
+				<form class="space-y-4" onsubmit={handleRegister}>
 					{#if userError}
-						<div class="alert alert-danger mb-2">{userError}</div>
+						<div class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+							{userError}
+						</div>
 					{/if}
 					{#if success}
-						<div class="alert alert-success mb-2">Registration successful! You can now sign in.
-							<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#signInModal">
+						<div class="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+							Registration successful! You can now sign in.
+							<button type="button" class="ml-2 font-semibold text-cyan-300 underline" onclick={handleOpenSignIn}>
 								Sign In
 							</button>
 						</div>
 					{/if}
-					<div class="mb-3">
-						<label for="email" class="form-label">Email</label>
-						<input type="email" class="form-control" id="register-email" bind:value={email} />
+
+					<div>
+						<label for="register-email" class="mb-2 block text-sm font-medium text-slate-200">Email</label>
+						<input
+							type="email"
+							id="register-email"
+							class="w-full rounded-xl border border-slate-600 bg-slate-950/70 px-3 py-2.5 text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+							bind:value={email}
+							autocomplete="email"
+						/>
 					</div>
-					<div class="mb-3">
-						<label for="passwordInput" class="form-label">Password</label>
+
+					<div>
+						<label for="register-passwordInput" class="mb-2 block text-sm font-medium text-slate-200">Password</label>
 						<input
 							type="password"
-							class="form-control"
 							id="register-passwordInput"
+							class="w-full rounded-xl border border-slate-600 bg-slate-950/70 px-3 py-2.5 text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
 							bind:value={password}
+							autocomplete="new-password"
 						/>
 					</div>
-					<div class="mb-3">
-						<label for="passwordInput" class="form-label">Confirm Password</label>
+
+					<div>
+						<label for="register-confirmPasswordInput" class="mb-2 block text-sm font-medium text-slate-200">Confirm Password</label>
 						<input
 							type="password"
-							class="form-control"
 							id="register-confirmPasswordInput"
+							class="w-full rounded-xl border border-slate-600 bg-slate-950/70 px-3 py-2.5 text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
 							bind:value={confirmPassword}
+							autocomplete="new-password"
 						/>
 					</div>
-					<div class="mb-3">
-						<label for="displayNameInput" class="form-label">Display name</label>
+
+					<div>
+						<label for="register-displayNameInput" class="mb-2 block text-sm font-medium text-slate-200">Display name</label>
 						<input
 							type="text"
-							class="form-control"
 							id="register-displayNameInput"
+							class="w-full rounded-xl border border-slate-600 bg-slate-950/70 px-3 py-2.5 text-slate-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
 							bind:value={displayName}
+							autocomplete="name"
 						/>
 					</div>
-					<button type="submit" class="btn btn-primary" disabled={enableRegisterButton}>Register</button>
+
+					<button
+						type="submit"
+						class="w-full rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-4 py-2.5 font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={enableRegisterButton}
+					>
+						Register
+					</button>
 				</form>
 			</div>
-			<!-- <div class="modal-footer d-flex justify-content-center">
-				{#if success}
-						<div class="text-success">{success}
-							<a href="#" class="btn btn-link" data-bs-toggle="modal" data-bs-target="#signInModal">Sign In</a>
-						</div>
-				{/if}
-            </div> -->
 		</div>
 	</div>
-</div>
-
-<!-- <script lang="ts">
-    export let onRegister: (
-        event: { username: string; password: string }
-    ) => void;  // Callback function to handle registration
-
-    let username = '';
-    let password = '';
-    let confirmPassword = '';
-    let error = '';
-
-    function handleRegister(event: Event) {
-        event.preventDefault();
-        if (!username || !password || !confirmPassword) {
-            error = 'All fields are required.';
-            return;
-        }
-        if (password !== confirmPassword) {
-            error = 'Passwords do not match.';
-            return;
-        }
-        error = '';
-        // Call the callback function if provided
-        if (typeof onRegister === 'function') {
-            onRegister({ username, password });
-        }
-    }
-</script>
-
-<form class="container mt-4 p-4 bg-white rounded shadow-sm" on:submit|preventDefault={handleRegister}>
-    <h2 class="mb-4">Register</h2>
-    {#if error}
-        <div class="alert alert-danger mb-2">{error}</div>
-    {/if}
-    <div class="mb-3">
-        <label class="form-label" for="username">Username</label>
-        <input
-            id="username"
-            type="text"
-            class="form-control"
-            bind:value={username}
-            autocomplete="username"
-        />
-    </div>
-    <div class="mb-3">
-        <label class="form-label" for="password">Password</label>
-        <input
-            id="password"
-            type="password"
-            class="form-control"
-            bind:value={password}
-            autocomplete="new-password"
-        />
-    </div>
-    <div class="mb-3">
-        <label class="form-label" for="confirmPassword">Confirm Password</label>
-        <input
-            id="confirmPassword"
-            type="password"
-            class="form-control"
-            bind:value={confirmPassword}
-            autocomplete="new-password"
-        />
-    </div>
-    <button type="submit" class="btn btn-success w-100">
-        Register
-    </button>
-</form> -->
+{/if}

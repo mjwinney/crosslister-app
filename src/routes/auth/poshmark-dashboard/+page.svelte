@@ -23,7 +23,7 @@
   });
 
 	let { data } = $props();
-	const daysToGoBack = data.post.daysToGoBack;
+	const daysToGoBack = $derived(data?.post?.daysToGoBack ?? 90);
 
   console.log(`Dashboard page load function: data=${JSON.stringify(data)}`);
 

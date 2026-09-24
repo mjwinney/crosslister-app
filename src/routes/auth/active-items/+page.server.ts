@@ -26,8 +26,7 @@ function ensureMetadata(item: any): MetaDataModel {
         purchasePrice: 0,
         purchaseDate: '',
         purchaseLocation: '',
-        storageLocation: '',
-        xlistedPoshmarkItemId: ''
+        storageLocation: ''
     };
 }
 

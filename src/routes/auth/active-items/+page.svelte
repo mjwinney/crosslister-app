@@ -316,11 +316,7 @@
 						<div class="col-field">
 							<span class="field-label">Markets</span>
 							<div class="markets-images">
-								{#if item.metadata.xlistedPoshmarkItemId}
-									<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
-										<img src={PoshLogo} alt={`Poshmark ${item.metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
-									</a>
-								{/if}
+								<!-- Cross-reference IDs are intentionally not stored; itemId remains the canonical identifier. -->
 							</div>
 						</div>
 
@@ -462,10 +458,10 @@
 	.relist-option label { width: 100%; color: #dbeafe; font-size: 0.9rem; cursor: pointer; }
 
 	:global(.pagination) { gap: 0.25rem; }
-	:global(.page-link) { color: #cbd5e1; background: rgba(15, 23, 42, 0.72); border-color: rgba(148, 163, 184, 0.2); border-radius: 6px !important; }
-	:global(.page-link:hover) { color: #fff; background: rgba(124, 58, 237, 0.42); border-color: rgba(124, 58, 237, 0.65); }
-	:global(.page-item.active .page-link) { color: #fff; background: linear-gradient(135deg, #7c3aed, #0891b2); border-color: transparent; box-shadow: 0 5px 18px rgba(124, 58, 237, 0.28); }
-	:global(.page-item.disabled .page-link) { color: #52657d; background: rgba(15, 23, 42, 0.42); border-color: rgba(148, 163, 184, 0.12); }
+	:global(.page-link) { color: #dbeafe; background: rgba(15, 36, 62, 0.82); border: 0; border-radius: 999px !important; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.18); }
+	:global(.page-link:hover), :global(.page-link:focus-visible) { color: #fff; background: rgba(124, 58, 237, 0.42); box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.14), 0 8px 24px rgba(124, 58, 237, 0.24); }
+	:global(.page-item.active .page-link) { color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee); border-color: transparent; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.32); }
+	:global(.page-item.disabled .page-link) { color: #7890aa; background: rgba(15, 36, 62, 0.5); border: 0; opacity: 0.6; box-shadow: none; }
 
 	:global(.dropdown-menu) { color: #dbeafe !important; background: #0d1a2d !important; border: 1px solid rgba(124, 58, 237, 0.42) !important; border-radius: 7px !important; box-shadow: 0 16px 36px rgba(4, 11, 20, 0.5), 0 0 24px rgba(124, 58, 237, 0.16) !important; }
 	:global(.dropdown-menu .dropdown-item) { color: #dbeafe !important; }

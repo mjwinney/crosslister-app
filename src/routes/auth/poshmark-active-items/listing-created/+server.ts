@@ -52,14 +52,10 @@ export const POST = async ({ request, locals }) => {
 
     console.log(`Processing listing-created: userId=${userId}, poshmarkId=${poshmarkId}, ebayId=${ebayId}`);
 
-    const poshmarkItemMetadata: MetaDataModel = {
-        xlistedEbayItemId: ebayId,
-    };
+    const poshmarkItemMetadata: MetaDataModel = {};
 
     // Use the Poshmark listing ID as the itemId in the database.
-    // The ebayId is stored in the page tracking / extension correlation layer,
-    // not in this model — if you need to persist the ebayId on the PoshmarkItemMetadata
-    // document itself, add an ebayId field to the schema and populate it here.
+    // We intentionally do not persist the cross-reference IDs here; itemId is the canonical key.
     console.log(`listing-created: userId=${userId}, poshmarkId=${poshmarkId}, ebayId=${ebayId}`);
 
     const response = await updatePoshmarkMetadata(userId, poshmarkId, poshmarkItemMetadata, true);
@@ -72,12 +68,8 @@ export const POST = async ({ request, locals }) => {
         });
     }
 
-    // Now update ebay metadata to link to this poshmark listing, if applicable
-    const ebayItemMetadata: MetaDataModel = {
-        xlistedPoshmarkItemId: poshmarkId,
-    };
-
-    const ebayResponse = await updateEbayMetadata(userId, ebayId, ebayItemMetadata, true);
+    // No extra cross-reference IDs are stored; the canonical lookup remains itemId.
+    const ebayResponse = await updateEbayMetadata(userId, ebayId, {}, true);
 
     if (ebayResponse !== 0 /* StatusCodes.OK */) {
         console.error(`listing-created: failed to save — response=${ebayResponse}`);

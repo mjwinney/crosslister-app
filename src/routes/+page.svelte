@@ -1,5 +1,6 @@
 <script lang="ts">
     import { resolve } from '$app/paths';
+    import { openAuthModal } from '$lib/auth-modal';
 </script>
 
 <section class="hero-shell">
@@ -19,7 +20,7 @@
             <a href="#impact">Impact</a>
         </div>
         <a class="nav-cta" href={resolve('/auth/active-items')}>Open app</a>
-        <button class="nav-cta" type="button" data-bs-toggle="modal" data-bs-target="#signInModal">
+        <button class="nav-cta" type="button" onclick={() => openAuthModal('signin')}>
             Sign In
         </button>
     </nav>

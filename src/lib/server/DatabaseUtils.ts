@@ -227,6 +227,7 @@ export async function insertSoldEbayItems(itemId: string, startDate: Date) : Pro
 }
 
 export type MetaDataModel = {
+    itemId?: string,
     purchasePrice?: number,
     soldPrice?: number,
     purchaseDate?: string,
@@ -240,15 +241,14 @@ export type MetaDataModel = {
     addFeeGeneral?: number,
     finalShippingCost?: number,
     title?: string,
-    xlistedPoshmarkItemId?: string,
     originalListedAt?: Date | string | null,
     currentListedAt?: Date | string | null,
     relistEnabled?: boolean,
     relistAt?: Date | string | null,
-    relistIntervalDays?: number,
+    relistIntervalDays?: number | null,
     lastRelistAttemptAt?: Date | string | null,
     lastRelistResult?: string | null,
-    relistAttemptCount?: number
+    relistAttemptCount?: number | null
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -356,7 +356,7 @@ export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok:
                 currentListedAt: item.currentListedAt,
                 lastRelistAttemptAt: item.lastRelistAttemptAt,
                 lastRelistResult: item.lastRelistResult,
-                relistAttemptCount: item.relistAttemptCount
+                relistAttemptCount: item.relistAttemptCount ?? undefined
             }
         }))
     };
@@ -489,7 +489,6 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         soldTime: metaData?.soldTime || undefined,
         soldPrice: metaData?.soldPrice || undefined,
         finalShippingCost: metaData?.finalShippingCost || undefined,
-        xlistedPoshmarkItemId: metaData?.xlistedPoshmarkItemId || undefined,
         originalListedAt: metaData?.originalListedAt || undefined,
         currentListedAt: metaData?.currentListedAt || undefined,
         relistEnabled: metaData?.relistEnabled ?? undefined,

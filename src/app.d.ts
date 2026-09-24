@@ -17,4 +17,10 @@ declare global {
 	}
 }
 
+declare module 'vanillajs-datepicker' {
+	const Datepicker: any;
+	export { Datepicker };
+	export default Datepicker;
+}
+
 export {};

@@ -177,17 +177,20 @@ export async function refreshEbayToken(locals: App.Locals) {
 
         if (refreshResponse.ok) {
             const userId = locals?.session?.userId;
+            if (!userId) {
+                throw new Error('Missing userId while refreshing eBay token');
+            }
             console.log(`refreshEbayToken userId: ${userId}`);
             console.log(`New access token: ${data.access_token}`);
             console.log(`New refresh token: ${data.refresh_token}`);
             console.log(`New expires in: ${data.expires_in}`);
 
             // Update the token store and database
-            updateEbayToken({
+            await updateEbayToken({
                 userId,
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token,
-                expiresIn: data.expires_in
+                ...(data.access_token ? { accessToken: data.access_token } : {}),
+                ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
+                ...(data.expires_in ? { expiresIn: Number(data.expires_in) } : {})
             });
             // tokenStore.accessToken = data.access_token;
             // tokenStore.expiresAt = Date.now() + data.expires_in * 1000;

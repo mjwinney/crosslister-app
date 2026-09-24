@@ -33,11 +33,14 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
 
     console.log('Poshmark metadata API request successful, response.data:', JSON.stringify(response));
 
+    const safeDaysToGoBack = daysToGoBack.ok ? daysToGoBack.days ?? 90 : 90;
+    const safeResponseData = response.ok ? response.data : { itemCount: 0, totalItemCount: 0, items: [] };
+
     // const response = { data: [] };
     // console.log('Poshmark metadata API request successful, returning data...');
 
     return {
-        post: { daysToGoBack: daysToGoBack.days, data: response.data }
+        post: { daysToGoBack: safeDaysToGoBack, data: safeResponseData }
     };
 
     // // See if we need to gather some more sold

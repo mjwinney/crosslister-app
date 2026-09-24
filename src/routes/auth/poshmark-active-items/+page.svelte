@@ -294,11 +294,7 @@
 						<div class="col-field">
 							<label>Markets</label>
 							<div class="markets-images">
-								{#if item.metadata.xlistedPoshmarkItemId}
-									<a class="posh-thumb posh-link" href={`https://poshmark.com/listing/${item.metadata.xlistedPoshmarkItemId}`} target="_blank" rel="noopener noreferrer">
-										<img src={PoshLogo} alt={`Poshmark ${item.metadata.xlistedPoshmarkItemId}`} class="posh-logo" />
-									</a>
-								{/if}
+								<!-- Cross-reference IDs are intentionally not stored; itemId remains the canonical identifier. -->
 							</div>
 						</div>
 

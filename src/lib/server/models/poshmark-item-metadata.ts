@@ -12,7 +12,6 @@ const PoshmarkItemMetadataSchema = new mongoose.Schema({
     pictureURL: { type: String, required: false },
     soldTime: { type: Date, required: false }, // stored as iso string
     feePrice: { type: Number, required: false },
-    xlistedEbayItemId: { type: String, required: false },
     createdAt: { type: Date, default: Date.now },
 });
 

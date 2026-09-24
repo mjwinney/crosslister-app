@@ -1,23 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import 'bootstrap/dist/css/bootstrap.min.css';
+	import '../app.css';
 	import NavBar from '../components/NavBar.svelte';
 	import Register from '../components/Register.svelte';
 	import Signin from '../components/Signin.svelte';
-
-	onMount(async () => {
-		// Dynamically import the Bootstrap JS on the client side only
-		// console.log('\\src\\routes\\+layout.svelte Layout onMount');
-	    import('bootstrap/dist/js/bootstrap.bundle.min.js');
-  	});
+	import { closeAuthModal, openAuthModal } from '$lib/auth-modal';
 
 	let { children } = $props();
+
+	function handleAuthSwitch(event: CustomEvent<'signin' | 'register'>) {
+		openAuthModal(event.detail);
+	}
 </script>
 
 {#if page.url.pathname !== '/'}
 	<NavBar />
 {/if}
-<Signin />
-<Register />
+<Signin on:close={closeAuthModal} on:switch={handleAuthSwitch} />
+<Register on:close={closeAuthModal} on:switch={handleAuthSwitch} />
 {@render children()}
