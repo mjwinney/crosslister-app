@@ -153,10 +153,10 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
@@ -165,13 +165,13 @@
 	<p class="text-center mt-5">No Unsold items found.</p>
 {:else}
 	<div class="items-container">
-		<div class="d-flex justify-content-between align-items-center mb-3">
+		<div class="items-header mb-3">
 			<h2>Unsold Items ({totalItems})</h2>
-			<div class="text-muted">
+			<div class="auth-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
 		</div>
-		<table class="table table-light table-striped mb-4">
+		<table class="auth-table mb-4">
 			<tbody>
 					<!-- <tr>
 						<td>{JSON.stringify(dataItems)}</td>
@@ -180,7 +180,7 @@
 					<tr>
 						<!-- <td>{JSON.stringify(item)}</td> -->
 						<td>
-							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+							<div class="flex items-center justify-center p-3">
 								<img
 									src={item.PictureDetails.GalleryURL}
 									class="border item-image"
@@ -189,57 +189,35 @@
 							</div>
 						</td>
 						<td>
-							<p class="card-title fs-6 mb-0">{item.Title}</p>
-							<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-							<p class="mb-0 fs-6 text-success">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
-							<!-- <p class="mb-0 fs-5 text-success">${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p> -->
-							<!-- <p class="text-muted fs-6 mb-0">Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p> -->
-							<!-- <p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p> -->
+							<p class="item-title text-base m-0">{item.Title}</p>
+							<p class="auth-muted text-sm m-0">Item ID: {item.ItemID}</p>
+							<p class="auth-positive text-sm m-0">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
+							<!-- <p>Sold price: ${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p> -->
+							<!-- <p>Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p> -->
+							<!-- <p>Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p> -->
 						</td>
 						<!-- <td>
-							<p class="fs-6 mb-0">Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
-							<p class="fs-6 mb-0">Fee: <span class="text-danger fs-6 mb-0">${order.TransactionArray.Transaction.FinalValueFee}</span></p>
-							<p class="fs-6 mb-0">Profit: <span class="text-success fs-6 mb-0">${calculateProfit(order)}</span></p>
-							<p class="fs-6 mb-0">ROI: <span class="text-success fs-6 mb-0">{calculateROI(order)}</span></p>
-							<p class="fs-6 mb-0">Time To Sell: <span class="text fs-6 mb-0">{getDayDifference(order.StartTime, order.EndTime)}</span></p>
-							<p class="fs-6 mb-0">Location: <span class="text fs-6 mb-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span></p>
+							<p>Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
+							<p>Fee: ${order.TransactionArray.Transaction.FinalValueFee}</p>
+							<p>Profit: ${calculateProfit(order)}</p>
+							<p>ROI: {calculateROI(order)}</p>
+							<p>Time To Sell: {getDayDifference(order.StartTime, order.EndTime)}</p>
+							<p>Location: {order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</p>
 						</td> -->
 					</tr>
 				{/each}
 			</tbody>
 		</table>
 
-		<div class="my-3 d-flex justify-content-center">
+		<div class="my-3 flex justify-center">
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
 	</div>
 {/if}
 
 <style>
-    .busy-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999; /* ensure overlay is on top */
-        pointer-events: all;
-    }
-    .busy-overlay .text-light { color: #fff !important; }
-
-    .items-container {
-        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
-        overflow-y: auto;
-        padding: 1rem;
-        /* Optional: Add a subtle scrollbar style */
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
-    }
 	.item-image {
 		width: 100px;
 		height: 100px;
-		object-fit: contain;	
-		background-color: #f8f9fa;
 	}
 </style>

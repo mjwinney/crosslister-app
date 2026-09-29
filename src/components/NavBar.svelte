@@ -33,7 +33,7 @@
 		<div class="flex items-center gap-3">
 			<button
 				type="button"
-				class="theme-toggle inline-flex items-center justify-center rounded-full border border-slate-500/70 bg-slate-900/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-200 transition hover:border-cyan-400 hover:text-white"
+				class="theme-toggle inline-flex h-[50px] w-[100px] shrink-0 items-center justify-center rounded-full border border-slate-500/70 bg-slate-900/40 p-0 text-slate-200 transition hover:border-cyan-400 hover:text-white max-[420px]:w-[88px]"
 				onclick={toggleTheme}
 				aria-label="Toggle theme"
 			>
@@ -41,7 +41,7 @@
 			</button>
 			{#if $session?.data}
 				<button
-					class="nav-cta inline-flex items-center justify-center rounded-full border border-transparent px-4 py-2 text-sm font-bold text-white transition-transform duration-200 hover:-translate-y-0.5"
+					class="nav-cta nav-logout inline-flex shrink-0 items-center justify-center rounded-full border-0 font-bold text-white transition-transform duration-200 hover:-translate-y-0.5"
 					type="button"
 					onclick={handleLogout}
 				>
@@ -49,7 +49,7 @@
 				</button>
 			{:else}
 				<button
-					class="nav-cta inline-flex items-center justify-center rounded-full border border-transparent px-4 py-2 text-sm font-bold text-white transition-transform duration-200 hover:-translate-y-0.5"
+					class="nav-cta inline-flex h-[50px] w-[136px] shrink-0 items-center justify-center rounded-full border border-transparent p-0 font-bold text-white transition-transform duration-200 hover:-translate-y-0.5 max-[420px]:w-[116px]"
 					type="button"
 					onclick={() => openAuthModal('signin')}
 				>
@@ -69,6 +69,26 @@
 
 	.nav-shell button {
 		border-radius: 9999px;
+		font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+	}
+
+	.nav-shell .theme-toggle {
+		font-size: 1rem;
+		line-height: 1;
+		letter-spacing: 0.08em;
+		white-space: nowrap;
+	}
+
+	.nav-shell .nav-cta {
+		font-size: 1.125rem;
+		line-height: 1;
+		white-space: nowrap;
+	}
+
+	.nav-shell .nav-logout {
+		padding: 13.6px 22.4px;
+		font-size: 1rem;
+		line-height: 1.5;
 	}
 
 	:global(html[data-theme='light']) .nav-shell {

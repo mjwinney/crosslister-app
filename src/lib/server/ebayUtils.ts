@@ -33,7 +33,7 @@ function getItemIdFromTransaction(transaction: any): string | null {
     return null;
 }
 
-export async function buildEbayAuthURL(): Promise<Result<string>> {
+export async function buildEbayAuthURL(state?: string): Promise<Result<string>> {
     console.log('buildEbayAuthURL called');
 
     const EBAY_CLIENT_ID = env.EBAY_CLIENT_ID;
@@ -51,6 +51,10 @@ export async function buildEbayAuthURL(): Promise<Result<string>> {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory',
         prompt: 'login' // forces user to login each time for testing purposes
     });
+
+    if (state) {
+        qsParams.set('state', state);
+    }
 
     const endpoint = `${env.EBAY_AUTH_ENDPOINT}oauth2/authorize?${qsParams.toString()}`;
 

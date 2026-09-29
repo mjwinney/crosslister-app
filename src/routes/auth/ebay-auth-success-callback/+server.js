@@ -1,7 +1,7 @@
 import { StatusCodes, updateEbayToken } from '$lib/server/DatabaseUtils';
 import { getTokensFromEbayResponse, getUser } from '$lib/server/ebayUtils.js';
 
-export async function GET({ locals, url }) {
+export async function GET({ locals, url, cookies }) {
     console.log(`eBay Auth Success Callback: ${url}`);
     console.log(`eBay Auth Success Callback locals.session:`, locals.session);
     console.log(`eBay Auth Success Callback locals.user:`, locals.user);
@@ -12,6 +12,19 @@ export async function GET({ locals, url }) {
         console.error('eBay Auth Success Callback: No userId in session!');
         return new Response('Session lost. Please log in again and try the eBay authorization again.', {
             status: 401,
+            headers: { 'Content-Type': 'text/html' }
+        });
+    }
+
+    const expectedState = cookies.get('ebay_oauth_state');
+    const returnTo = cookies.get('ebay_oauth_return_to');
+    const receivedState = url.searchParams.get('state');
+    cookies.delete('ebay_oauth_state', { path: '/auth/ebay-auth-success-callback' });
+    cookies.delete('ebay_oauth_return_to', { path: '/auth/ebay-auth-success-callback' });
+
+    if (expectedState && receivedState !== expectedState) {
+        return new Response('Invalid eBay authorization state. Please try again.', {
+            status: 400,
             headers: { 'Content-Type': 'text/html' }
         });
     }
@@ -49,6 +62,7 @@ export async function GET({ locals, url }) {
         });
     }
 
-    console.log('eBay Auth Success Callback: Token saved successfully, redirecting to /auth/dashboard');
-    return new Response(null, { status: 302, headers: { Location: '/auth/dashboard' } });
+    const destination = returnTo?.startsWith('/auth/') ? returnTo : '/auth/dashboard';
+    console.log(`eBay Auth Success Callback: Token saved successfully, redirecting to ${destination}`);
+    return new Response(null, { status: 302, headers: { Location: destination } });
 }

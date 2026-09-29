@@ -226,27 +226,27 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
 
  <div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+	<div class="items-header mb-3 gap-3">
 		<h2 class="mb-0">Active Items ({totalItems})</h2>
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		<SearchBar placeholder="Search items..." onSearch={handleSearch} onClear={handleClearSearch} />
-		<div class="text-muted">
+		<div class="auth-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
 	<div class="items-list">
 		{#each editableItems as item}
-			<div class="item-row d-flex align-items-start p-2 border-bottom">
-				<div class="col-image me-3 d-flex align-items-center justify-content-center p-3">
+			<div class="item-row flex items-start border-b p-2">
+				<div class="col-image mr-3 flex items-center justify-center p-3">
 					<img
 						src={item.imageUrl}
 						class="border item-image"
@@ -254,42 +254,42 @@
 					/>
 				</div>
 
-				<div class="col-info me-3">
-					<p class="card-title fs-6 mb-0">{item.title}</p>
-					<p class="card-text text-muted fs-6 mb-0">Item ID: {item.itemId}</p>
-					<p class="mb-0 fs-6 text-success">${formatCurrency(item.price)}</p>
+				<div class="col-info mr-3">
+					<p class="item-title text-base m-0">{item.title}</p>
+					<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
+					<p class="auth-positive text-sm m-0">${formatCurrency(item.price)}</p>
 				</div>
 
-				<div class="col-right d-flex flex-column ms-auto">
-					<div class="row-fields d-flex">
-						<div class="col-field me-3" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
+				<div class="col-right flex-col ml-auto">
+					<div class="row-fields">
+						<div class="col-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
 							<label>Purchase Price</label>
 							<CurrencyInput
 								bind:value={item.metadata.purchasePrice}
 								currency="USD"
 								locale="en-US"
 								inputClasses={{
-									unformatted: "form-control",
-									formatted: "form-control",
-									formattedPositive: "form-control",
-									formattedNegative: "form-control",
+									unformatted: "auth-field",
+									formatted: "auth-field",
+									formattedPositive: "auth-field",
+									formattedNegative: "auth-field",
 								}}
 							/>
 						</div>
 
-						<div class="col-field me-3">
+						<div class="col-field">
 							<label>Purchase Date</label>
 							<DatePicker bind:selectedDate={item.metadata.purchaseDate} on:blur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
-						<div class="col-field me-3">
+						<div class="col-field">
 							<label>Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							<input type="text" class="auth-field" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
 						<div class="col-field">
 							<label>Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							<input type="text" class="auth-field" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 						<div class="col-field">
 							<label>Markets</label>
@@ -321,41 +321,19 @@
 		{/each}
 	</div>
 
-	<div class="my-3 d-flex justify-content-center">
+	<div class="my-3 flex justify-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 	</div>
 </div>
 
 <style>
-    .busy-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999;
-        pointer-events: all;
-    }
-    .busy-overlay .text-light { color: #fff !important; }
-
-    .items-container {
-        max-height: calc(100vh - 120px);
-        overflow-y: auto;
-        padding: 1rem;
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
-    }
 	.item-image {
 		width: 80px;
 		height: 80px;
-		object-fit: contain;
-		background-color: #f8f9fa;
 	}
 
 	.items-list { display: block; }
 	.item-row { gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; }
-	.item-row:hover { background-color: #e9ecef; }
 	.col-image { flex: 0 0 80px; }
 	.col-info { flex: 0 0 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
@@ -364,31 +342,21 @@
 	.col-right { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 	.row-fields { display: flex; gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: center; width: 100%; }
 	.row-fields .col-field { flex: 1 1 0; min-width: 0; }
-	.row-extra { width: 100%; }
-
-	.posh-thumb { display: flex; align-items: center; }
-	.posh-thumb img { width: 120px; height: 80px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
-
 	.markets-images {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
 		min-height: 38px;
 		padding: 0.375rem 0.5rem;
-		border: 1px solid #ced4da;
 		border-radius: 0.25rem;
-		background: #fff;
 		box-sizing: border-box;
 	}
-	.posh-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 80px; background:#f1f1f1; border:1px solid #ddd; border-radius:4px; font-size:0.95rem; color:#333; }
-	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 30px !important; max-height: 20px !important; }
-	.posh-link { text-decoration: none; color: inherit; }
 
 	.col-actions { flex: 0 0 48px; visibility: hidden; align-items: flex-start; justify-content: center; position: relative; }
 	.item-row:hover .col-actions { visibility: visible; }
 
 	.col-field label { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
-	.col-field .form-control,
+	.col-field .auth-field,
 	.col-field input,
 	.col-field .currency-input,
 	.col-field .svelte-currency-input { width: 100%; box-sizing: border-box; font-size: 1rem; }

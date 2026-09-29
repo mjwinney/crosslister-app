@@ -109,6 +109,13 @@
 
 <style>
     :global(.pagination) {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 0.25rem;
+        padding: 0;
+        list-style: none;
         margin: 0;
     }
 

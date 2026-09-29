@@ -259,10 +259,10 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
@@ -270,49 +270,49 @@
 {#if editableItems == null || editableItems.length === 0}
 	<div class="text-center mt-5">No sold items found.
 		{#if poshMarkTabLoggedIn}
-			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
 				Refresh
 			</button>
 		{:else if poshMarkTabOpenButNotLoggedIn}
-			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 				User not logged in
 			</button>
 		{:else}
-			<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 				Open POSHMARK tab
 			</button>
 		{/if}
 	</div>
 {:else}
 	<div class="items-container">
-		<div class="d-flex justify-content-between align-items-center mb-3">
-			<div class="d-flex align-items-center">
+		<div class="items-header mb-3">
+			<div class="flex items-center">
 				<h2 class="mb-0">Sold Items ({totalItems})</h2>
 				{#if poshMarkTabLoggedIn}
-					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
+					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
 						Refresh
 					</button>
 				{:else if poshMarkTabOpenButNotLoggedIn}
-					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 						User not logged in
 					</button>
 				{:else}
-					<button type="button" class="btn btn-primary btn-compact ms-3 mt-2" onclick={openPoshmarkTab}>
+					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 						Open POSHMARK tab
 					</button>
 				{/if}
 			</div>
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-			<div class="text-muted">
+			<div class="auth-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
 		</div>
-		<table class="table table-light table-striped mb-4">
+		<table class="auth-table mb-4">
 			<tbody>
 				{#each editableItems as order, index}
 					<tr>
 						<td>
-							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+							<div class="flex items-center justify-center p-3">
 								<img
 									src={order.pictureURL || '/placeholder-image.png'}
 									class="border item-image"
@@ -321,36 +321,35 @@
 							</div>
 						</td>
 						<td>
-							<p class="card-title fs-6 mb-0">{order.title}</p>
-							<p class="card-text text-muted fs-6 mb-0">Item ID: {order.itemId}</p>
-							<p class="mb-0 fs-5 text-success">${formatCurrency(order.soldPrice)}</p>
-								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
-							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
+							<p class="item-title text-base m-0">{order.title}</p>
+							<p class="auth-muted text-sm m-0">Item ID: {order.itemId}</p>
+							<p class="auth-positive text-lg m-0">${formatCurrency(order.soldPrice)}</p>
+									<p class="auth-muted text-sm m-0">Shipping: Paid by seller</p>
+							<p class="auth-muted text-sm m-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
 						</td>
 						<td bind:this={itemsElements[index]}>
-							<table class="table-sm">
+							<table class="auth-table auth-table-compact">
 								<tbody>
 									<tr>
-										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
-										<td class="fs-6 mb-0 py-0">${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.purchasePrice || 0))}
-											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+										<td>Purchase Price:</td>
+										<td>${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.purchasePrice || 0))}
+											<button class="icon-action ml-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
 										</td>
 									</tr>
 									<tr>
-										<td class="fs-6 mb-0 py-0">Fee:</td>
-										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.feePrice)}</td>
+										<td>Fee:</td>
+										<td class="auth-negative">${formatCurrency(order.feePrice)}</td>
 									</tr>
 									<tr>
-										<td class="fs-6 mb-0 py-0">Profit:</td>
-										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order)}</td>
+										<td>Profit:</td>
+										<td class="auth-positive">${calculateProfit(order)}</td>
 									</tr>
 									<tr>
-										<td class="fs-6 mb-0 py-0">ROI:</td>
-										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order)}</td>	
+										<td>ROI:</td>
+										<td class="auth-positive">{calculateROI(order)}</td>	
 									</tr>
 									<tr>
-										<td class="fs-6 mb-0 py-0">Location:</td>
-										<!-- <td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td> -->
+										<td>Location:</td>
 									</tr>
 								</tbody>
 							</table>
@@ -362,21 +361,21 @@
 
 		<!-- Slide-in dialog -->
 		{#if editingIndex !== -1}
-			<div class="side-dialog bg-light shadow p-3"
+			<div class="side-dialog shadow p-3"
 				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
 				transition:fly={{ x: 200, duration: 300 }}>
 				<h6>Edit Purchase Price</h6>
 				<!-- Temporary plain input to isolate reactivity of the CurrencyInput component -->
 				<input
 					type="text"
-					class="form-control"
+					class="auth-field"
 					bind:value={tempPurchasePrice}
 				/>
-				<div class="mt-3 d-flex justify-content-end gap-2">
-				<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
+				<div class="mt-3 flex justify-end gap-2">
+				<button class="auth-button auth-button-secondary" onclick={() => cancelEditing()}>
 					Cancel
 				</button>
-				<button class="btn btn-primary btn-sm" onclick={() => stopEditing()}>
+				<button class="auth-button auth-button-primary" onclick={() => stopEditing()}>
 					Save
 				</button>
 				</div>
@@ -385,50 +384,19 @@
 
 		<!-- Debug panel (temporary) -->
 		{#if editingIndex !== -1}
-			<div class="alert alert-secondary mt-2">editingIndex: {editingIndex} — temp: {tempPurchasePrice} — type: {typeof tempPurchasePrice}</div>
+			<div class="debug-panel mt-2">editingIndex: {editingIndex} — temp: {tempPurchasePrice} — type: {typeof tempPurchasePrice}</div>
 		{/if}
 
-		<div class="my-3 d-flex justify-content-center">
+		<div class="my-3 flex justify-center">
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
 	</div>
 {/if}
 
 <style>
-    .busy-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999; /* ensure overlay is on top */
-        pointer-events: all;
-    }
-    .busy-overlay .text-light { color: #fff !important; }
-
-    .items-container {
-        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
-        overflow-y: auto;
-        padding: 1rem;
-        /* Optional: Add a subtle scrollbar style */
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
-    }
 	.item-image {
 		width: 100px;
 		height: 100px;
-		object-fit: contain;	
-		background-color: #f8f9fa;
 	}
 
-	/* Compact button used for header controls */
-	.btn-compact {
-		padding: .18rem .45rem; /* reduce vertical/horizontal padding */
-		font-size: .85rem;
-		line-height: 1; /* avoid extra height from line-height */
-		height: 1.5rem; /* let padding control height */
-		display: inline-flex;
-		align-items: center; /* vertically center icon/text */
-	}
 </style>

@@ -66,7 +66,7 @@
 	</ul>
 	<div class="crosslist-footer">
 		<button
-			class="btn btn-primary btn-sm do-it-btn"
+			class="auth-button auth-button-primary do-it-btn"
 			disabled={selectedMarketplaces.length === 0}
 			onclick={handleDoIt}
 		>

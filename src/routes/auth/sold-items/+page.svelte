@@ -237,114 +237,104 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
 
 {#if dataItems == null || dataItems.length === 0}
-	<p class="text-center mt-5">No sold items found.</p>
+	<div class="items-container empty-state">
+		<p class="text-center mt-5">No sold items found.</p>
+	</div>
 {:else}
-	<!-- <p>{JSON.stringify(editableItems.length)}</p>
-	{#each editableItems as order}
-		<div class="items-container">
-			<div>{JSON.stringify(order.TransactionArray)} </div>
-		</div> <!-- for debugging -->
-	<!-- {/each} -->
 	<div class="items-container">
-		<div class="d-flex justify-content-between align-items-center mb-3">
-			<h2>Sold Items ({totalItems})</h2>
+		<div class="items-header mb-3 gap-3">
+			<h2 class="mb-0">Sold Items ({totalItems})</h2>
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-			<div class="text-muted">
+			<div class="auth-muted">
 				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
 		</div>
-		<table class="table table-light table-striped mb-4">
-			<tbody>
-				{#each editableItems as order, index}
-					{#each transactionsOf(order) as transaction}
-					<tr>
-						<td>
-							<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
-								<img
-									src={order.PictureURL}
-									class="border item-image"
-									alt={transaction.Item.Title}
-								/>
-							</div>
-						</td>
-						<td>
-							<p class="card-title fs-6 mb-0">{transaction.Item.Title}</p>
-							<p class="card-text text-muted fs-6 mb-0">Item ID: {transaction.Item.ItemID}</p>
-							<p class="mb-0 fs-5 text-success">${formatCurrency(transaction.TransactionPrice)}</p>
+		<div class="items-list">
+			{#each editableItems as order, index}
+				{#each transactionsOf(order) as transaction}
+					<div class="item-row flex items-start border-b p-2">
+						<div class="col-image mr-3 flex items-center justify-center p-3">
+							<img
+								src={order.PictureURL}
+								class="border item-image"
+								alt={transaction.Item.Title}
+							/>
+						</div>
+
+						<div class="col-info mr-3">
+							<p class="item-title text-base m-0">{transaction.Item.Title}</p>
+							<p class="auth-muted text-sm m-0">Item ID: {transaction.Item.ItemID}</p>
+							<p class="auth-positive text-sm m-0">${formatCurrency(transaction.TransactionPrice)}</p>
 							{#if transaction.ActualShippingCost > 0}
-								<p class="text-muted fs-6 mb-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order, transaction))}</p>
+								<p class="auth-muted text-sm m-0">Shipping: ${formatCurrencyFromNumber(getShippingCost(order, transaction))}</p>
 							{:else}
-								<p class="text-muted fs-6 mb-0">Shipping: Paid by seller</p>
+								<p class="auth-muted text-sm m-0">Shipping: Paid by seller</p>
 							{/if}
-							<p class="text-muted fs-6 mb-0">Sold: {formatIsoToMonDDYYYY(transaction.CreatedDate)}</p>
-						</td>
-						<td bind:this={itemsElements[index]}>
-							<table class="table-sm">
-								<tbody>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Purchase Price:</td>
-										<td class="fs-6 mb-0 py-0">${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.Metadata.purchasePrice || 0))}
-											<button class="btn p-0 ms-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
-										</td>
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Fee:</td>
-										<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.finalValueFee)}</td>
-									</tr>
-									<tr>
-										{#if calculateShipping(order, transaction) >= 0}
-											<td class="fs-6 mb-0 py-0">Shipping:</td>
-											<td class="text-success fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order, transaction))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order, transaction)}</span></td>
-										{:else}
-											<td class="fs-6 mb-0 py-0">Shipping:</td>
-											<td class="text-danger fs-6 mb-0 py-0">${formatCurrencyFromNumber(calculateShipping(order))}  <span class="text-muted fs-6 mb-0"> {formatShippingCalc(order)}</span></td>
-										{/if}
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Promo Fee:</td>
-										{#if order.addFeeGeneral > 0}
-											<td class="text-danger fs-6 mb-0 py-0">${formatCurrency(order.addFeeGeneral)}</td>
-										{:else}
-											<td class="text-muted fs-6 mb-0 py-0">---</td>
-										{/if}
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Profit:</td>
-										<td class="text-success fs-6 mb-0 py-0">${calculateProfit(order, transaction)}</td>
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">ROI:</td>
-										<td class="text-success fs-6 mb-0 py-0">{calculateROI(order, transaction)}</td>	
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Time To Sell:</td>
-										<td class="fs-6 mb-0 py-0">{getDayDifference(order.StartTime, order.EndTime)}</td>
-									</tr>
-									<tr>
-										<td class="fs-6 mb-0 py-0">Location:</td>
-										<td class="fs-6 mb-0 py-0">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</td>
-									</tr>
-								</tbody>
-							</table>
-						</td>
-					</tr>
+							<p class="auth-muted text-sm m-0">Sold: {formatIsoToMonDDYYYY(transaction.CreatedDate)}</p>
+						</div>
+
+						<div class="col-right sold-metrics" bind:this={itemsElements[index]}>
+							<div class="sold-metric purchase-price">
+								<span class="field-label">Purchase Price</span>
+								<div class="metric-value flex items-center">
+									<span>${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.Metadata.purchasePrice || 0))}</span>
+									<button class="icon-action ml-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+								</div>
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Fee</span>
+								<span class="metric-value auth-negative">${formatCurrency(order.finalValueFee)}</span>
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Shipping</span>
+								{#if calculateShipping(order, transaction) >= 0}
+									<span class="metric-value auth-positive">${formatCurrencyFromNumber(calculateShipping(order, transaction))} <span class="auth-muted">{formatShippingCalc(order, transaction)}</span></span>
+								{:else}
+									<span class="metric-value auth-negative">${formatCurrencyFromNumber(calculateShipping(order))} <span class="auth-muted">{formatShippingCalc(order, transaction)}</span></span>
+								{/if}
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Promo Fee</span>
+								{#if order.addFeeGeneral > 0}
+									<span class="metric-value auth-negative">${formatCurrency(order.addFeeGeneral)}</span>
+								{:else}
+									<span class="metric-value auth-muted">---</span>
+								{/if}
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Profit</span>
+								<span class="metric-value auth-positive">${calculateProfit(order, transaction)}</span>
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">ROI</span>
+								<span class="metric-value auth-positive">{calculateROI(order, transaction)}</span>
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Time To Sell</span>
+								<span class="metric-value">{getDayDifference(order.StartTime, order.EndTime)}</span>
+							</div>
+							<div class="sold-metric">
+								<span class="field-label">Location</span>
+								<span class="metric-value">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span>
+							</div>
+						</div>
+					</div>
 				{/each}
-				{/each}
-			</tbody>
-		</table>
+			{/each}
+		</div>
 
 		<!-- Slide-in dialog -->
 		{#if editingIndex !== -1}
-			<div class="side-dialog bg-light shadow p-3"
+			<div class="side-dialog shadow p-3"
 				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
 				transition:fly={{ x: 200, duration: 300 }}>
 				<h6>Edit Purchase Price</h6>
@@ -353,54 +343,78 @@
 				currency="USD"
 				locale="en-US"
 				inputClasses={{
-					unformatted: "form-control",
-					formatted: "form-control",
-					formattedPositive: "form-control",
-					formattedNegative: "form-control",
+					unformatted: "auth-field",
+					formatted: "auth-field",
+					formattedPositive: "auth-field",
+					formattedNegative: "auth-field",
 				}}
 				/>
-				<div class="mt-3 d-flex justify-content-end gap-2">
-				<button class="btn btn-secondary btn-sm" onclick={() => cancelEditing()}>
+				<div class="mt-3 flex justify-end gap-2">
+				<button class="auth-button auth-button-secondary" onclick={() => cancelEditing()}>
 					Cancel
 				</button>
-				<button class="btn btn-primary btn-sm" onclick={() => stopEditing()}>
+				<button class="auth-button auth-button-primary" onclick={() => stopEditing()}>
 					Save
 				</button>
 				</div>
 			</div>
 		{/if}
 
-		<div class="my-3 d-flex justify-content-center">
+		<div class="my-3 flex justify-center">
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
 	</div>
 {/if}
 
 <style>
-    .busy-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999; /* ensure overlay is on top */
-        pointer-events: all;
-    }
-    .busy-overlay .text-light { color: #fff !important; }
+	.items-container {
+		max-height: calc(100vh - 74px);
+		overflow: auto;
+		padding: clamp(1rem, 2vw, 2rem);
+		scrollbar-width: thin;
+	}
+	.items-container > * { position: relative; z-index: 1; }
+	.items-container > .items-header { flex-wrap: wrap; padding: 0.25rem 0 1rem; }
+	.items-container h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
 
-    .items-container {
-        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
-        overflow-y: auto;
-        padding: 1rem;
-        /* Optional: Add a subtle scrollbar style */
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
-    }
-	.item-image {
-		width: 100px;
-		height: 100px;
-		object-fit: contain;	
-		background-color: #f8f9fa;
+	.item-row {
+		gap: 0.75rem;
+		flex-wrap: nowrap;
+		min-width: 1040px;
+		overflow-x: hidden;
+		align-items: center;
+		border-radius: 10px;
+		transition: background-color 180ms ease, box-shadow 180ms ease;
+	}
+	.item-image { width: 80px; height: 80px; border-radius: 8px; }
+
+	.items-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.col-image { flex: 0 0 80px; }
+	.col-info { flex: 0 0 200px; min-width: 150px; }
+	.col-info p { font-size: 1rem; margin: 0; }
+	.col-info .item-title { font-weight: 700; }
+	.col-info .auth-muted { font-size: 0.85rem; }
+	.col-info .auth-positive { font-weight: 700; }
+	.col-right { flex: 1 1 auto; min-width: 0; }
+	.sold-metrics {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem;
+		align-items: start;
+	}
+	.sold-metric { display: flex; min-width: 0; flex-direction: column; }
+	.field-label { display: block; min-height: 2rem; margin-bottom: 0.3rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; text-transform: uppercase; }
+	.metric-value { min-height: 38px; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+	.purchase-price .metric-value { font-weight: 600; }
+	.purchase-price button { min-width: 24px; }
+
+	@media (max-width: 900px) {
+		.items-container { max-height: none; }
+		.items-container > .items-header { align-items: flex-start; }
+	}
+	@media (max-width: 576px) {
+		.items-container { padding: 1rem 0.75rem; }
+		.items-container > .items-header { gap: 0.75rem; }
+		.items-container h2 { width: 100%; }
 	}
 </style>

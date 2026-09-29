@@ -38,7 +38,8 @@ export async function handle({ event, resolve }) {
       
       if (ebayProtectedRoutes.includes(event.url.pathname)) {
         console.log("Missing eBay tokens on protected route, redirecting to /ebay-api/auth");
-        throw redirect(302, "/ebay-api/auth");
+        const returnTo = `${event.url.pathname}${event.url.search}`;
+        throw redirect(302, `/ebay-api/auth?returnTo=${encodeURIComponent(returnTo)}`);
       }
     }
     else if (status.status === 'success') {

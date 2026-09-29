@@ -79,7 +79,7 @@
 </script>
 
 <div class="dropdown" bind:this={dropdownRef}>
-	<button class="btn btn-link p-0 text-dark dropdown-trigger" type="button" onclick={toggle} bind:this={triggerRef} title="Actions">
+	<button class="dropdown-trigger" type="button" onclick={toggle} bind:this={triggerRef} title="Actions">
 		{trigger}
 	</button>
 	{#if isOpen}
@@ -118,9 +118,9 @@
 		max-width: unset !important;
 		padding: 0.5rem 0;
 		margin: 0;
-		background-color: var(--bs-body-bg, #fff);
+		background-color: var(--auth-surface-raised, #fff);
 		background-clip: padding-box;
-		border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.15));
+		border: 1px solid var(--auth-border, rgba(0, 0, 0, 0.15));
 		border-radius: 0.25rem;
 		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
 		z-index: 1000;
@@ -140,7 +140,7 @@
 		width: 100%;
 		padding: 0.5rem 1rem;
 		clear: both;
-		color: var(--bs-body-color, #212529);
+		color: var(--auth-text, #212529);
 		text-decoration: none;
 		background: none;
 		border: none;
@@ -150,8 +150,8 @@
 	}
 
 	:global(.dropdown-menu .dropdown-item:hover) {
-		background-color: var(--bs-secondary-bg, #f8f9fa);
-		color: var(--bs-emphasis-color, #16181b);
+		background-color: var(--auth-surface-hover, #f8f9fa);
+		color: var(--auth-heading, #16181b);
 	}
 
 	:global(.dropdown-menu .submenu-trigger) {
@@ -184,9 +184,9 @@
 		min-width: 140px !important;
 		width: max-content;
 		padding: 0.5rem 0;
-		background-color: var(--bs-body-bg, #fff);
+		background-color: var(--auth-surface-raised, #fff);
 		background-clip: padding-box;
-		border: 1px solid var(--bs-border-color, rgba(0, 0, 0, 0.15));
+		border: 1px solid var(--auth-border, rgba(0, 0, 0, 0.15));
 		border-radius: 0.25rem;
 		box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
 		z-index: 1001;

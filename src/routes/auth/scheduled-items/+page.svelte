@@ -84,27 +84,27 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
 
  <div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3">
+	<div class="items-header mb-3">
 		<h2>Active Items ({totalItems})</h2>
-		<div class="text-muted">
+		<div class="auth-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
-	<table class="table table-light table-striped mb-4">
+	<table class="auth-table mb-4">
 		<tbody>
 			{#each editableItems.Item as item}
 				<tr>
 					<td>
-						<div class="col-md-auto d-flex align-items-center justify-content-center p-3">
+						<div class="flex items-center justify-center p-3">
 							<img
 								src={item.PictureDetails.GalleryURL}
 								class="border item-image"
@@ -113,12 +113,12 @@
 						</div>
 					</td>
 					<td>
-						<p class="card-title fs-6 mb-0">{item.Title}</p>
-						<p class="card-text text-muted fs-6 mb-0">Item ID: {item.ItemID}</p>
-						<p class="mb-0 fs-6 text-success">${item.SellingStatus.CurrentPrice}</p>
+						<p class="item-title text-base m-0">{item.Title}</p>
+						<p class="auth-muted text-sm m-0">Item ID: {item.ItemID}</p>
+						<p class="auth-positive text-sm m-0">${item.SellingStatus.CurrentPrice}</p>
 					</td>
 					<td>
-						<div class="form-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
+						<div class="field-group" onfocusout={() => handleOnblur(item.ItemID, item.Metadata)}>
 							<label for="originalPrice">Purchase Price</label>
 							<CurrencyInput
 								bind:value={item.Metadata.purchasePrice}
@@ -126,31 +126,31 @@
 								locale="en-US"
 								inputClasses={
 									{
-										unformatted: "form-control",
-										formatted: "form-control",
-										formattedPositive: "form-control",
-										formattedNegative: "form-control",
+										unformatted: "auth-field",
+										formatted: "auth-field",
+										formattedPositive: "auth-field",
+										formattedNegative: "auth-field",
 									}
 								}
 						/>
 						</div>
 					</td>
 					<td>
-						<div class="form-group">
+						<div class="field-group">
 							<label for="originalPrice">Purchase Date</label>
 							<DatePicker bind:selectedDate={item.Metadata.purchaseDate} on:blur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
 					</td>
 					<td>
-						<div class="form-group">
+						<div class="field-group">
 							<label for="purchaseLocation">Purchase Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="auth-field" bind:value={item.Metadata.purchaseLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
 					</td>
 					<td>
-						<div class="form-group">
+						<div class="field-group">
 							<label for="storageLocation">Storage Location</label>
-							<input type="text" class="form-control" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
+							<input type="text" class="auth-field" bind:value={item.Metadata.storageLocation} onblur={() => handleOnblur(item.ItemID, item.Metadata)} />
 						</div>
 					</td>
 				</tr>
@@ -158,36 +158,14 @@
 		</tbody>
 	</table>
 
-	<div class="my-3 d-flex justify-content-center">
+	<div class="my-3 flex justify-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 	</div>
 </div>
 
 <style>
-    .busy-overlay {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9999; /* ensure overlay is on top */
-        pointer-events: all;
-    }
-    .busy-overlay .text-light { color: #fff !important; }
-
-    .items-container {
-        max-height: calc(100vh - 120px); /* Adjust 150px based on your header/footer size */
-        overflow-y: auto;
-        padding: 1rem;
-        /* Optional: Add a subtle scrollbar style */
-        scrollbar-width: thin;
-        scrollbar-color: #888 #f1f1f1;
-    }
 	.item-image {
 		width: 75px;
 		height: 75px;
-		object-fit: contain;	
-		background-color: #f8f9fa;
 	}
 </style>

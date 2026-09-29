@@ -2,8 +2,8 @@
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { authClient } from '$lib/auth-client';
-	import { onDestroy, onMount, tick } from 'svelte';
-    import CurrencyInput from '@canutin/svelte-currency-input';
+	import { getContext, onDestroy, onMount, tick } from 'svelte';
+	import CurrencyInput from '@canutin/svelte-currency-input';
 	import Dropdown from '$lib/components/Dropdown.svelte';
 	import CrosslistMenu from '$lib/components/CrosslistMenu.svelte';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
@@ -16,6 +16,7 @@
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
+	const routeReady = getContext<() => void>('auth-route-ready');
 	let poshMarkTabLoggedIn = $derived($poshmarkTabOpen && $poshmarkTabLoggedInUid !== "");
 	let initialized = false;
 	let searchResults = $state<any>(null);
@@ -34,6 +35,7 @@
 	});
 
 	onMount(() => {
+		routeReady();
 		if (initialized) return;
 		initialized = true;
 
@@ -248,27 +250,27 @@
 {#if isLoading}
     <div class="busy-overlay" aria-hidden={!isLoading}>
         <div class="text-center">
-            <div class="spinner-border text-light" role="status" style="width:3rem; height:3rem;">
-                <span class="visually-hidden">Loading...</span>
+			<div class="auth-spinner" role="status">
+				<span class="sr-only">Loading...</span>
             </div>
-            <div class="mt-2 text-light">Loading…</div>
+			<div class="mt-2 overlay-label">Loading…</div>
         </div>
     </div>
 {/if}
 
  <div class="items-container">
-	<div class="d-flex justify-content-between align-items-center mb-3 gap-3">
+	<div class="items-header mb-3 gap-3">
 		<h2 class="mb-0">Active Items ({totalItems})</h2>
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		<SearchBar placeholder="Search items..." onSearch={handleSearch} onClear={handleClearSearch} />
-		<div class="text-muted">
+		<div class="auth-muted">
 			Showing {currentPage} of {totalNumberOfPages} pages
 		</div>
 	</div>
 	<div class="items-list">
 		{#each editableItems as item (item.itemId)}
-			<div class="item-row d-flex align-items-start p-2 border-bottom">
-				<div class="col-image me-3 d-flex align-items-center justify-content-center p-3">
+			<div class="item-row flex items-start border-b p-2">
+				<div class="col-image mr-3 flex items-center justify-center p-3">
 					<img
 						src={item.imageUrl}
 						class="border item-image"
@@ -276,42 +278,42 @@
 					/>
 				</div>
 
-				<div class="col-info me-3">
-					<p class="card-title fs-6 mb-0">{item.title}</p>
-					<p class="card-text text-muted fs-6 mb-0">Item ID: {item.itemId}</p>
-					<p class="mb-0 fs-6 text-success">${formatCurrency(item.price)}</p>
+				<div class="col-info mr-3">
+					<p class="item-title text-base m-0">{item.title}</p>
+					<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
+					<p class="auth-positive text-sm m-0">${formatCurrency(item.price)}</p>
 				</div>
 
-				<div class="col-right d-flex flex-column ms-auto">
-					<div class="row-fields d-flex">
-						<div class="col-field me-3" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
+				<div class="col-right flex-col ml-auto">
+					<div class="row-fields">
+						<div class="col-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
 							<span class="field-label">Purchase Price</span>
 							<CurrencyInput
 								bind:value={item.metadata.purchasePrice}
 								currency="USD"
 								locale="en-US"
 								inputClasses={{
-									unformatted: "form-control",
-									formatted: "form-control",
-									formattedPositive: "form-control",
-									formattedNegative: "form-control",
+									unformatted: "auth-field",
+									formatted: "auth-field",
+									formattedPositive: "auth-field",
+									formattedNegative: "auth-field",
 								}}
 							/>
 						</div>
 
-						<div class="col-field me-3">
+						<div class="col-field">
 							<span class="field-label">Purchase Date</span>
 							<DatePicker bind:selectedDate={item.metadata.purchaseDate} on:blur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
-						<div class="col-field me-3">
+						<div class="col-field">
 							<span class="field-label">Purchase Location</span>
-							<input type="text" class="form-control" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							<input type="text" class="auth-field" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 
 						<div class="col-field">
 							<span class="field-label">Storage Location</span>
-							<input type="text" class="form-control" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							<input type="text" class="auth-field" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
 						<div class="col-field">
 							<span class="field-label">Markets</span>
@@ -332,10 +334,9 @@
 									<button class="dropdown-item submenu-trigger" type="button">Relist</button>
 									<ul class="dropdown-menu submenu-content relist-submenu">
 										<li class="dropdown-item relist-option">
-											<label class="form-check d-flex align-items-center gap-2 mb-0">
+											<label class="flex items-center gap-2 m-0">
 												<input
 													type="checkbox"
-													class="form-check-input"
 													checked={!!item.metadata?.relistEnabled}
 													onchange={(event) => handleRelistToggle(item, event.currentTarget.checked)}
 												/>
@@ -353,57 +354,22 @@
 		{/each}
 	</div>
 
-	<div class="my-3 d-flex justify-content-center">
+	<div class="my-3 flex justify-center">
 		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 	</div>
 </div>
 
 <style>
-	:global(body) {
-		margin: 0;
-		background: #07111f;
-		font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
-		color: #edf6ff;
-	}
-
-	.busy-overlay {
-		position: fixed;
-		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(4, 11, 20, 0.82);
-		backdrop-filter: blur(5px);
-		z-index: 9999;
-		pointer-events: all;
-	}
-	.busy-overlay .text-light { color: #edf6ff !important; }
-
 	.items-container {
 		position: relative;
 		max-height: calc(100vh - 74px);
 		overflow: auto;
 		padding: clamp(1rem, 2vw, 2rem);
-		background:
-			radial-gradient(circle at 8% 0%, rgba(124, 58, 237, 0.2), transparent 28rem),
-			radial-gradient(circle at 92% 100%, rgba(34, 211, 238, 0.1), transparent 24rem),
-			linear-gradient(135deg, #040b14 0%, #0a1628 48%, #07111f 100%);
 		scrollbar-width: thin;
-		scrollbar-color: rgba(124, 58, 237, 0.7) rgba(15, 23, 42, 0.75);
-	}
-	.items-container::before {
-		position: fixed;
-		inset: 0;
-		background-image: linear-gradient(rgba(148, 163, 184, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.055) 1px, transparent 1px);
-		background-size: 32px 32px;
-		mask-image: radial-gradient(circle at center, black 30%, transparent 100%);
-		content: '';
-		pointer-events: none;
 	}
 	.items-container > * { position: relative; z-index: 1; }
-	.items-container > .d-flex:first-child { flex-wrap: wrap; padding: 0.25rem 0 1rem; }
-	.items-container h2 { color: #f8fbff; font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
-	.items-container .text-muted { color: #94a9c0 !important; }
+	.items-container > .items-header { flex-wrap: wrap; padding: 0.25rem 0 1rem; }
+	.items-container h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
 
 	.item-row {
 		gap: 0.75rem;
@@ -411,74 +377,43 @@
 		min-width: 1040px;
 		overflow-x: hidden;
 		align-items: center;
-		background: rgba(18, 35, 59, 0.9);
-		border: 1px solid rgba(148, 163, 184, 0.2) !important;
-		border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
 		border-radius: 10px;
-		box-shadow: 0 5px 14px rgba(4, 11, 20, 0.2);
 		transition: background-color 180ms ease, box-shadow 180ms ease;
 	}
-	.item-row:hover { background: rgba(30, 48, 76, 0.96); box-shadow: inset 3px 0 #7c3aed, 0 8px 20px rgba(4, 11, 20, 0.28); }
-	.item-image { width: 80px; height: 80px; object-fit: contain; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.22) !important; border-radius: 8px; }
+	.item-image { width: 80px; height: 80px; border-radius: 8px; }
 
 	.items-list { display: flex; flex-direction: column; gap: 0.75rem; }
 	.col-image { flex: 0 0 80px; }
 	.col-info { flex: 0 0 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
-	.col-info .card-title { color: #f8fbff; font-weight: 700; }
-	.col-info .text-muted { color: #8da3ba !important; font-size: 0.85rem; }
-	.col-info .text-success { color: #67e8f9 !important; font-weight: 700; }
+	.col-info .item-title { font-weight: 700; }
+	.col-info .auth-muted { font-size: 0.85rem; }
+	.col-info .auth-positive { font-weight: 700; }
 	.col-field { flex: 0 0 140px; min-width: 0; }
 	.col-right { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 	.row-fields { display: flex; gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: flex-start; width: 100%; }
 	.row-fields .col-field { display: flex; flex: 1 1 0; flex-direction: column; min-width: 0; }
-	.field-label { display: block; height: 2rem; margin-bottom: 0.3rem; color: #8da3ba; font-size: 0.72rem; font-weight: 700; line-height: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
-	.col-field .form-control,
-	.col-field input { width: 100%; box-sizing: border-box; min-height: 38px; font-size: 0.86rem; color: #edf6ff; background: rgba(15, 23, 42, 0.72); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; }
-	.col-field .form-control:focus,
-	.col-field input:focus { color: #fff; background: rgba(15, 23, 42, 0.92); border-color: #22d3ee; box-shadow: 0 0 0 0.18rem rgba(34, 211, 238, 0.14); }
-	.col-field input::placeholder { color: #64748b; }
-	:global(.col-field .form-control),
-	:global(.col-field .datepicker-input) { color: #edf6ff !important; background: rgba(15, 23, 42, 0.72) !important; border-color: rgba(148, 163, 184, 0.25) !important; }
-	:global(.col-field .form-control:focus),
-	:global(.col-field .datepicker-input:focus) { color: #fff !important; background: rgba(15, 23, 42, 0.92) !important; border-color: #22d3ee !important; box-shadow: 0 0 0 0.18rem rgba(34, 211, 238, 0.14) !important; }
+	.field-label { display: block; height: 2rem; margin-bottom: 0.3rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
+	.col-field .auth-field,
+	.col-field input { width: 100%; box-sizing: border-box; min-height: 38px; font-size: 0.86rem; border-radius: 6px; }
 
-	.posh-thumb { display: flex; align-items: center; }
-	.posh-thumb img { width: 120px; height: 80px; object-fit: cover; border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; }
-	.markets-images { display: flex; gap: 0.5rem; align-items: center; min-height: 38px; padding: 0.375rem 0.5rem; border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 6px; background: rgba(15, 23, 42, 0.72); box-sizing: border-box; }
-	.posh-logo { width: 120px; height: 80px; object-fit: cover; display: block; max-width: 30px !important; max-height: 20px !important; }
-	.posh-link { text-decoration: none; color: inherit; }
+	.markets-images { display: flex; gap: 0.5rem; align-items: center; min-height: 38px; padding: 0.375rem 0.5rem; border-radius: 6px; box-sizing: border-box; }
 
 	.col-actions { flex: 0 0 48px; visibility: visible; align-items: flex-start; justify-content: center; position: relative; margin-top: 2.3rem; }
 	.item-row:hover .col-actions, .col-actions:focus-within { visibility: visible; }
-	.col-actions :global(.dropdown-trigger) { display: inline-flex; width: 35px; height: 35px; align-items: center; justify-content: center; padding: 0; color: #edf6ff !important; font-size: 1.35rem; line-height: 1; background: rgba(15, 36, 62, 0.82) !important; border: 0 !important; border-radius: 7px; box-shadow: none; text-decoration: none !important; }
-	.col-actions :global(.dropdown-trigger:hover), .col-actions :global(.dropdown-trigger:focus-visible) { color: #fff !important; background: rgba(124, 58, 237, 0.42) !important; box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2); text-decoration: none !important; }
+	.col-actions :global(.dropdown-trigger) { display: inline-flex; width: 35px; height: 35px; align-items: center; justify-content: center; padding: 0; font-size: 1.35rem; line-height: 1; border: 0 !important; border-radius: 7px; box-shadow: none; text-decoration: none !important; }
+	.col-actions :global(.dropdown-trigger:hover), .col-actions :global(.dropdown-trigger:focus-visible) { box-shadow: 0 0 0 2px color-mix(in srgb, var(--auth-accent) 20%, transparent); text-decoration: none !important; }
 	.relist-submenu { min-width: 210px; padding: 0.5rem 0.75rem; }
 	.relist-option { padding: 0.25rem 0; }
-	.relist-option label { width: 100%; color: #dbeafe; font-size: 0.9rem; cursor: pointer; }
-
-	:global(.pagination) { gap: 0.25rem; }
-	:global(.page-link) { color: #dbeafe; background: rgba(15, 36, 62, 0.82); border: 0; border-radius: 999px !important; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.18); }
-	:global(.page-link:hover), :global(.page-link:focus-visible) { color: #fff; background: rgba(124, 58, 237, 0.42); box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.14), 0 8px 24px rgba(124, 58, 237, 0.24); }
-	:global(.page-item.active .page-link) { color: #fff; background: linear-gradient(135deg, #7c3aed, #22d3ee); border-color: transparent; box-shadow: 0 8px 24px rgba(124, 58, 237, 0.32); }
-	:global(.page-item.disabled .page-link) { color: #7890aa; background: rgba(15, 36, 62, 0.5); border: 0; opacity: 0.6; box-shadow: none; }
-
-	:global(.dropdown-menu) { color: #dbeafe !important; background: #0d1a2d !important; border: 1px solid rgba(124, 58, 237, 0.42) !important; border-radius: 7px !important; box-shadow: 0 16px 36px rgba(4, 11, 20, 0.5), 0 0 24px rgba(124, 58, 237, 0.16) !important; }
-	:global(.dropdown-menu .dropdown-item) { color: #dbeafe !important; }
-	:global(.dropdown-menu .dropdown-item:hover), :global(.dropdown-menu .dropdown-item:focus) { color: #fff !important; background: rgba(124, 58, 237, 0.35) !important; }
-	:global(.dropdown-menu a), :global(.dropdown-menu a:hover), :global(.dropdown-menu a:focus), :global(.dropdown-menu .dropdown-item), :global(.dropdown-menu .dropdown-item:hover), :global(.dropdown-menu .dropdown-item:focus), :global(.dropdown-menu .submenu-trigger), :global(.dropdown-menu .submenu-trigger:hover), :global(.dropdown-menu .submenu-trigger:focus) { text-decoration: none !important; }
-	:global(.dropdown-menu .form-check-input) { background-color: #17263d; border-color: #64748b; }
-	:global(.dropdown-menu .form-check-input:checked) { background-color: #7c3aed; border-color: #7c3aed; }
-	:global(.dropdown-trigger) { color: #a5b4fc !important; }
-	:global(.dropdown-trigger:hover) { color: #67e8f9 !important; }
+	.relist-option label { width: 100%; font-size: 0.9rem; cursor: pointer; }
 
 	@media (max-width: 900px) {
 		.items-container { max-height: none; }
-		.items-container > .d-flex:first-child { align-items: flex-start !important; }
+		.items-container > .items-header { align-items: flex-start; }
 	}
 	@media (max-width: 576px) {
 		.items-container { padding: 1rem 0.75rem; }
-		.items-container > .d-flex:first-child { gap: 0.75rem !important; }
+		.items-container > .items-header { gap: 0.75rem; }
 		.items-container h2 { width: 100%; }
 	}
 </style>

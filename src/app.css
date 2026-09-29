@@ -25,6 +25,10 @@
 	font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
 }
 
+:global(button) {
+	font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif !important;
+}
+
 :global(.auth-app) {
 	background: radial-gradient(circle at 8% 0%, rgba(124, 58, 237, 0.14), transparent 26rem),
 		linear-gradient(135deg, #040b14 0%, #0a1628 48%, #07111f 100%);

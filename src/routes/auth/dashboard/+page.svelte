@@ -1,17 +1,18 @@
 <script lang="ts">
-	import { goto, invalidate } from "$app/navigation";
+  import { goto } from "$app/navigation";
+  import { resolve } from "$app/paths";
   import { authClient } from "$lib/auth-client";
-	import { onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
+
+  const routeReady = getContext<() => void>('auth-route-ready');
 
   onMount( async () => {
+      routeReady();
       const session = await authClient.getSession();
       // console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
       if (!session || !session?.data) {
-          goto('/');
+          goto(resolve('/'));
       }
-
-      // force reload whenever you enter the page
-      invalidate('app:dashboard');
   });
 
   function formatCurrency(amount: string | number): string {
@@ -83,15 +84,15 @@
 
 <h1>Dashboard</h1>
 
-<div class="container">
-  <div class="d-flex flex-wrap justify-content-left gap-4">
-    <div class="card mb-4 rounded-3 shadow-sm" style="max-width: 24rem;">
-        <div class="card-header py-3">
-            <h4 class="my-0 fw-normal">Weekly Sales Overview</h4>
+<div class="mx-auto w-full max-w-6xl px-4 py-4">
+  <div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="dashboard-card-header">
+            <h4>Weekly Sales Overview</h4>
         </div>
-      <div class="card-body">
-        <h4 class="card-title">Sales Metrics</h4>
-        <table class="table table-sm table-bordered text-white">
+      <div class="dashboard-card-body">
+        <h4>Sales Metrics</h4>
+        <table class="auth-table">
           <thead>
             <tr>
               <th>Metric</th>
@@ -107,36 +108,36 @@
             </tr>
             <tr>
               <td>Gross Sales</td>
-              <td class="text-success">${formatCurrency(weekStats.grossSales ?? 0)}</td>
-              <td class="text-success">${formatCurrency(previousWeekStats.grossSales ?? 0)}</td>
+              <td class="auth-positive">${formatCurrency(weekStats.grossSales ?? 0)}</td>
+              <td class="auth-positive">${formatCurrency(previousWeekStats.grossSales ?? 0)}</td>
             </tr>
             <tr>
               <td>Total Fees</td>
-              <td class="text-danger">${formatCurrency(weekStats.totalFees ?? 0)}</td>
-              <td class="text-danger">${formatCurrency(previousWeekStats.totalFees ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(weekStats.totalFees ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(previousWeekStats.totalFees ?? 0)}</td>
             </tr>
             <tr>
               <td>Shipping</td>
               {#if (weekStats.finalShippingCost ?? 0) > 0}
-                <td class="text-success">${formatCurrency(weekStats.finalShippingCost ?? 0)}</td>
+                <td class="auth-positive">${formatCurrency(weekStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(weekStats.finalShippingCost ?? 0).toFixed(2))}</td>
+                <td class="auth-negative">${formatCurrency(Math.abs(weekStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
               {#if (previousWeekStats.finalShippingCost ?? 0) > 0}
-                <td class="text-success">${formatCurrency(previousWeekStats.finalShippingCost ?? 0)}</td>
+                <td class="auth-positive">${formatCurrency(previousWeekStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(previousWeekStats.finalShippingCost ?? 0).toFixed(2))}</td>
+                <td class="auth-negative">${formatCurrency(Math.abs(previousWeekStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
             </tr>
             <tr>
               <td>COG</td>
-              <td class="text-danger">${formatCurrency(weekStats.totalPurchasePrice ?? 0)}</td>
-              <td class="text-danger">${formatCurrency(previousWeekStats.totalPurchasePrice ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(weekStats.totalPurchasePrice ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(previousWeekStats.totalPurchasePrice ?? 0)}</td>
             </tr>
             <tr>
               <td>Net Sales</td>
-              <td class="text-success">${formatCurrency(totalWeekProfit)}</td>
-              <td class="text-success">${formatCurrency(totalPrevWeekProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalWeekProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalPrevWeekProfit)}</td>
             </tr>
             <tr>
               <td>ROI</td>
@@ -147,13 +148,13 @@
         </table>
       </div>
     </div>
-    <div class="card mb-4 rounded-3 shadow-sm" style="max-width: 24rem;">
-        <div class="card-header py-3">
-            <h4 class="my-0 fw-normal">Monthly Sales Overview</h4>
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h4>Monthly Sales Overview</h4>
         </div>
-      <div class="card-body">
-        <h4 class="card-title">Sales Metrics</h4>
-        <table class="table table-sm table-bordered text-white">
+      <div class="dashboard-card-body">
+      <h4>Sales Metrics</h4>
+      <table class="auth-table">
           <thead>
             <tr>
               <th>Metric</th>
@@ -169,36 +170,36 @@
             </tr>
             <tr>
               <td>Gross Sales</td>
-              <td class="text-success">${formatCurrency(totalPreviousMonthProfit)}</td>
-              <td class="text-success">${formatCurrency(totalLast6MonthProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalPreviousMonthProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalLast6MonthProfit)}</td>
             </tr>
             <tr>
               <td>Total Fees</td>
-              <td class="text-danger">${formatCurrency(previousMonthStats.totalFees ?? 0)}</td>
-              <td class="text-danger">${formatCurrency(last6MonthStats.totalFees ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(previousMonthStats.totalFees ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(last6MonthStats.totalFees ?? 0)}</td>
             </tr>
             <tr>
               <td>Shipping</td>
               {#if (previousMonthStats.finalShippingCost ?? 0) > 0}
-                <td class="text-success">${formatCurrency(previousMonthStats.finalShippingCost ?? 0)}</td>
+                <td class="auth-positive">${formatCurrency(previousMonthStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(previousMonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
+                <td class="auth-negative">${formatCurrency(Math.abs(previousMonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
               {#if (last6MonthStats.finalShippingCost ?? 0) > 0}
-                <td class="text-success">${formatCurrency(last6MonthStats.finalShippingCost ?? 0)}</td>
+                <td class="auth-positive">${formatCurrency(last6MonthStats.finalShippingCost ?? 0)}</td>
               {:else}
-                <td class="text-danger">${formatCurrency(Math.abs(last6MonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
+                <td class="auth-negative">${formatCurrency(Math.abs(last6MonthStats.finalShippingCost ?? 0).toFixed(2))}</td>
               {/if}
             </tr>
             <tr>
               <td>COG</td>
-              <td class="text-danger">${formatCurrency(previousMonthStats.totalPurchasePrice ?? 0)}</td>
-              <td class="text-danger">${formatCurrency(last6MonthStats.totalPurchasePrice ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(previousMonthStats.totalPurchasePrice ?? 0)}</td>
+              <td class="auth-negative">${formatCurrency(last6MonthStats.totalPurchasePrice ?? 0)}</td>
             </tr>
             <tr>
               <td>Net Sales</td>
-              <td class="text-success">${formatCurrency(totalPreviousMonthProfit)}</td>
-              <td class="text-success">${formatCurrency(totalLast6MonthProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalPreviousMonthProfit)}</td>
+              <td class="auth-positive">${formatCurrency(totalLast6MonthProfit)}</td>
             </tr>
             <tr>
               <td>ROI</td>

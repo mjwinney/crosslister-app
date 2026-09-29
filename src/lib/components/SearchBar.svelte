@@ -43,11 +43,11 @@
 	let isSearchDisabled = $derived(disabled || searchQuery.trim().length < 3);
 </script>
 
-<div class="search-bar-container d-flex gap-2">
+<div class="search-bar-container flex gap-2">
 	<div class="search-input-wrapper flex-grow-1" style="position:relative;">
 		<input
 			type="text"
-			class="form-control"
+			class="search-input"
 			{placeholder}
 			bind:value={searchQuery}
 			onkeydown={handleKeyDown}
@@ -67,7 +67,7 @@
 	</div>
 
 	<button
-		class="btn btn-primary d-flex align-items-center justify-content-center ms-2 search-cta"
+		class="search-cta ml-2 inline-flex items-center justify-center"
 		onclick={handleSearch}
 		disabled={isSearchDisabled}
 		aria-label="Search"
@@ -79,7 +79,7 @@
 			height="18"
 			fill="currentColor"
 			viewBox="0 0 16 16"
-			class="me-1"
+			class="mr-1"
 		>
 			<path
 				d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.364.362.738.71l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.007-.007ZM12.5 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0Z"
@@ -96,20 +96,20 @@
 
 	.search-input-wrapper { position: relative; }
 
-	.search-input-wrapper .form-control {
+	.search-input-wrapper .search-input {
 		color: #edf6ff !important;
 		background: rgba(15, 23, 42, 0.72) !important;
 		border-color: rgba(148, 163, 184, 0.25);
 	}
 
-	.search-input-wrapper .form-control:focus {
+	.search-input-wrapper .search-input:focus {
 		color: #fff !important;
 		background: rgba(15, 23, 42, 0.92) !important;
 		border-color: #22d3ee;
 		box-shadow: 0 0 0 0.18rem rgba(34, 211, 238, 0.14);
 	}
 
-	.search-input-wrapper .form-control::placeholder {
+	.search-input-wrapper .search-input::placeholder {
 		color: #7890aa;
 		opacity: 1;
 	}

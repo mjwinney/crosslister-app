@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	let { children } = $props();
+	import type { Snippet } from 'svelte';
 
 	let openSections = $state({
 		dashboard: true,
@@ -37,12 +36,15 @@
 		}
 	] as const;
 
+	type NavigationPath = (typeof navSections)[number]['items'][number]['href'];
+	type Props = {
+		children: Snippet;
+		navigateTo: (path: NavigationPath) => Promise<void>;
+	};
+	let { children, navigateTo }: Props = $props();
+
 	function toggleSection(id: keyof typeof openSections) {
 		openSections[id] = !openSections[id];
-	}
-
-	function gotoRoute(path: string) {
-		goto(path);
 	}
 </script>
 
@@ -51,7 +53,7 @@
 		<div class="grid gap-4 xl:grid-cols-[188px_minmax(0,1fr)]">
 			<aside class="sidebar-panel sticky top-4 overflow-hidden rounded-xl border border-slate-700/20 bg-slate-950/70 shadow-[0_12px_32px_rgba(4,11,20,0.22)]">
 				<div class="space-y-2 p-3">
-					{#each navSections as section}
+					{#each navSections as section (section.id)}
 						<div class="overflow-hidden rounded-lg border border-slate-700/20 bg-slate-900/40">
 							<button
 								type="button"
@@ -75,12 +77,12 @@
 							{#if openSections[section.id]}
 								<div class="border-t border-slate-700/20 px-2 py-2">
 									<ul class="space-y-1">
-										{#each section.items as item}
+										{#each section.items as item (item.href)}
 											<li>
 												<button
 													type="button"
 													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-violet-500/15 hover:text-white"
-													onclick={() => gotoRoute(item.href)}
+													onclick={() => navigateTo(item.href)}
 												>
 													{item.label}
 												</button>
@@ -100,15 +102,7 @@
 		</div>
 	</div>
 </main>
-
 <style>
-	.sidebar-panel {
-		background-image: linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
-			linear-gradient(145deg, rgba(7, 17, 31, 0.98), rgba(4, 11, 20, 0.96));
-		background-size: 28px 28px, 28px 28px, auto;
-	}
-
 	@media (max-width: 767.98px) {
 		.sidebar-panel {
 			position: static;
