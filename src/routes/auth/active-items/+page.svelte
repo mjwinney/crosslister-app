@@ -11,7 +11,6 @@
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
-	import PoshLogo from '$lib/assets/Poshmark-Logo-Emblem-Color.png';
 	import { poshmarkTabOpen, poshmarkTabLoggedInUid } from '$lib/stores/poshmark';
 
 	// show overlay while a client-side navigation / load is in progress
@@ -286,7 +285,7 @@
 
 				<div class="col-right flex-col ml-auto">
 					<div class="row-fields">
-						<div class="col-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
+						<div class="col-field purchase-price-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
 							<span class="field-label">Purchase Price</span>
 							<CurrencyInput
 								bind:value={item.metadata.purchasePrice}
@@ -315,13 +314,6 @@
 							<span class="field-label">Storage Location</span>
 							<input type="text" class="auth-field" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
 						</div>
-						<div class="col-field">
-							<span class="field-label">Markets</span>
-							<div class="markets-images">
-								<!-- Cross-reference IDs are intentionally not stored; itemId remains the canonical identifier. -->
-							</div>
-						</div>
-
 						<div class="col-actions">
 							<Dropdown>
 								<li>
@@ -393,11 +385,12 @@
 	.col-right { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 	.row-fields { display: flex; gap: 0.75rem; flex-wrap: nowrap; overflow-x: hidden; align-items: flex-start; width: 100%; }
 	.row-fields .col-field { display: flex; flex: 1 1 0; flex-direction: column; min-width: 0; }
+	.row-fields .purchase-price-field { flex: 0 1 120px; width: 120px; max-width: 120px; }
 	.field-label { display: block; height: 2rem; margin-bottom: 0.3rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
 	.col-field .auth-field,
 	.col-field input { width: 100%; box-sizing: border-box; min-height: 38px; font-size: 0.86rem; border-radius: 6px; }
-
-	.markets-images { display: flex; gap: 0.5rem; align-items: center; min-height: 38px; padding: 0.375rem 0.5rem; border-radius: 6px; box-sizing: border-box; }
+	.row-fields .purchase-price-field :global(.currencyInput),
+	.row-fields .purchase-price-field :global(.currencyInput input) { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
 
 	.col-actions { flex: 0 0 48px; visibility: visible; align-items: flex-start; justify-content: center; position: relative; margin-top: 2.3rem; }
 	.item-row:hover .col-actions, .col-actions:focus-within { visibility: visible; }

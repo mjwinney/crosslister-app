@@ -166,7 +166,6 @@
 .auth-app .field-group { min-width: 10rem; }
 .auth-app .field-group label { display: block; margin-bottom: 0.35rem; color: var(--auth-muted); font-size: 0.85rem; }
 .auth-app .markets-images { color: var(--auth-text); background: var(--auth-input-bg); border-color: var(--auth-border); }
-.auth-app .posh-placeholder { color: var(--auth-muted); background: var(--auth-surface-raised); border-color: var(--auth-border); }
 
 .auth-app .auth-field,
 .auth-app input:not([type='checkbox']):not([type='radio']),

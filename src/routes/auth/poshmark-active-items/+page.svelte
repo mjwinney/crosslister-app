@@ -10,7 +10,6 @@
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
-	import PoshLogo from '$lib/assets/Poshmark-Logo-Emblem-Color.png';
 	import { poshmarkTabOpen, poshmarkTabLoggedInUid } from '$lib/stores/poshmark';
 
 	// show overlay while a client-side navigation / load is in progress
