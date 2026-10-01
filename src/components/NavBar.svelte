@@ -69,7 +69,6 @@
 
 	.nav-shell button {
 		border-radius: 9999px;
-		font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
 	}
 
 	.nav-shell .theme-toggle {

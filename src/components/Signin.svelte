@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { createEventDispatcher } from 'svelte';
 	import { authClient } from '$lib/auth-client';
 	import { authModal, closeAuthModal, openAuthModal } from '$lib/auth-modal';
 
-	const dispatch = createEventDispatcher<{ close: void; switch: 'signin' | 'register' }>();
+	const dispatch = createEventDispatcher<{ close: void; switch: 'signin' | 'register'; loading: boolean }>();
 
 	let email = $state('');
 	let password = $state('');
@@ -49,30 +51,39 @@
 			return;
 		}
 
-		const { error } = await authClient.signIn.email(
-			{
-				email: email.toString() || '',
-				password: password.toString() || '',
-				rememberMe: false,
-				callbackURL: '/auth/dashboard'
-			},
-			{
-				onRequest: () => {
-					console.log('onRequest call to authClient.signIn.email:');
+		try {
+			const { error } = await authClient.signIn.email(
+				{
+					email: email.toString() || '',
+					password: password.toString() || '',
+					rememberMe: false
 				},
-				onSuccess: () => {
-					console.log('onSuccess call to authClient.signIn.email:');
-					handleClose();
-				},
-				onError: (ctx) => {
-					console.log('onError call to authClient.signIn.email:');
-					alert(ctx.error.message);
+				{
+					onRequest: () => {
+						dispatch('loading', true);
+					},
+					onSuccess: async () => {
+						handleClose();
+						try {
+							await goto(resolve('/auth/dashboard'));
+						} finally {
+							dispatch('loading', false);
+						}
+					},
+					onError: (ctx) => {
+						dispatch('loading', false);
+						userError = ctx.error.message;
+					}
 				}
-			}
-		);
+			);
 
-		if (error) {
-			userError = error?.message ?? 'Sign in failed. Please try again.';
+			if (error) {
+				dispatch('loading', false);
+				userError = error.message ?? 'Sign in failed. Please try again.';
+			}
+		} catch (error) {
+			dispatch('loading', false);
+			userError = error instanceof Error ? error.message : 'Sign in failed. Please try again.';
 		}
 	}
 </script>
