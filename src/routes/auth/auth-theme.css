@@ -147,7 +147,7 @@
 }
 @keyframes auth-spin { to { transform: rotate(360deg); } }
 .auth-app .dashboard-grid { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 1rem; }
-.auth-app .dashboard-card { max-width: 24rem; margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--auth-border); border-radius: 0.5rem; box-shadow: 0 4px 14px rgba(4, 11, 20, 0.18); }
+.auth-app .dashboard-card { max-width: 32rem; margin-bottom: 1rem; overflow: hidden; border: 1px solid var(--auth-border); border-radius: 0.5rem; box-shadow: 0 4px 14px rgba(4, 11, 20, 0.18); }
 .auth-app .dashboard-card-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--auth-border); }
 .auth-app .dashboard-card-body { padding: 1rem; overflow-x: auto; }
 .auth-app .dashboard-card-header h4 { margin: 0; font-weight: 500; }

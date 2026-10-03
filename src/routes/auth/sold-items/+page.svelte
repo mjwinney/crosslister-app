@@ -185,9 +185,11 @@
 		isLoading = false;  // Loading spinner removed
     }
 
-	function startEditing(order: any, index: number) {
-		const rect = itemsElements[index].getBoundingClientRect();
-		dialogPos = { top: rect.top + window.scrollY, left: rect.left };
+	function startEditing(order: any, index: number, event: MouseEvent) {
+		// Anchor the fixed-position dialog to the clicked purchase price cell (viewport coords)
+		const anchor = (event.currentTarget as HTMLElement).closest('.sold-metric') ?? itemsElements[index];
+		const rect = anchor.getBoundingClientRect();
+		dialogPos = { top: rect.top, left: rect.left };
 
 		tempPurchasePrice = order.Metadata.purchasePrice || '0';
 		editingIndex = index;
@@ -287,7 +289,7 @@
 								<span class="field-label">Purchase Price</span>
 								<div class="metric-value flex items-center">
 									<span>${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.Metadata.purchasePrice || 0))}</span>
-									<button class="icon-action ml-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+									<button class="icon-action ml-2" onclick={(e) => startEditing(order, index, e)} title="Edit purchase price">✏️</button>
 								</div>
 							</div>
 							<div class="sold-metric">
@@ -335,7 +337,7 @@
 		<!-- Slide-in dialog -->
 		{#if editingIndex !== -1}
 			<div class="side-dialog shadow p-3"
-				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
+				style="position:fixed; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
 				transition:fly={{ x: 200, duration: 300 }}>
 				<h6>Edit Purchase Price</h6>
 				<CurrencyInput
@@ -403,8 +405,8 @@
 		align-items: start;
 	}
 	.sold-metric { display: flex; min-width: 0; flex-direction: column; }
-	.field-label { display: block; min-height: 2rem; margin-bottom: 0.3rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; text-transform: uppercase; }
-	.metric-value { min-height: 38px; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
+	.field-label { display: block; margin-bottom: 0.15rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; text-transform: uppercase; }
+	.metric-value { min-height: 1.5rem; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
 	.purchase-price .metric-value { font-weight: 600; }
 	.purchase-price button { min-width: 24px; }
 

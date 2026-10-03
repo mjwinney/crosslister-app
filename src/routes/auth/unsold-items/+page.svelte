@@ -136,88 +136,115 @@
 
 	let { data } = $props();
 
-	let dataItems = $state(data.post.GetMyeBaySellingResponse.UnsoldList?.ItemArray);
-	// let editableItems = $state(dataItems); // Local writable copy for editing
+	const unsoldList = $derived(data.post?.GetMyeBaySellingResponse?.UnsoldList);
 
-	// $effect(() => {
-  	// 	editableItems = dataItems; // keep in sync when derived changes
-	// });
+	// The XML parser returns a single object (not an array) when there is only one item
+	const dataItems = $derived.by(() => {
+		const raw = unsoldList?.ItemArray?.Item;
+		if (!raw) return [];
+		return Array.isArray(raw) ? raw : [raw];
+	});
 
 	let currentPage = $state(parseInt(page.url.searchParams.get('page') || '1', 10));
-	let totalItems = $derived(data.post.GetMyeBaySellingResponse.UnsoldList?.PaginationResult?.TotalNumberOfEntries);
-	let totalNumberOfPages = $derived(data.post.GetMyeBaySellingResponse.UnsoldList?.PaginationResult?.TotalNumberOfPages);
+	let totalItems = $derived(unsoldList?.PaginationResult?.TotalNumberOfEntries ?? 0);
+	let totalNumberOfPages = $derived(unsoldList?.PaginationResult?.TotalNumberOfPages ?? 1);
 
 </script>
 
-<!-- full-screen busy overlay shown during client-side navigation to active-items -->
+<!-- full-screen busy overlay shown during client-side navigation -->
 {#if isLoading}
-    <div class="busy-overlay" aria-hidden={!isLoading}>
-        <div class="text-center">
+	<div class="busy-overlay" aria-hidden={!isLoading}>
+		<div class="text-center">
 			<div class="auth-spinner" role="status">
 				<span class="sr-only">Loading...</span>
-            </div>
-			<div class="mt-2 overlay-label">Loadingâ€¦</div>
-        </div>
-    </div>
-{/if}
-
-{#if dataItems == null || dataItems.length === 0}
-	<p class="text-center mt-5">No Unsold items found.</p>
-{:else}
-	<div class="items-container">
-		<div class="items-header mb-3">
-			<h2>Unsold Items ({totalItems})</h2>
-			<div class="auth-muted">
-				Showing {currentPage} of {totalNumberOfPages} pages
 			</div>
-		</div>
-		<table class="auth-table mb-4">
-			<tbody>
-					<!-- <tr>
-						<td>{JSON.stringify(dataItems)}</td>
-					</tr> -->
-				{#each dataItems.Item as item}
-					<tr>
-						<!-- <td>{JSON.stringify(item)}</td> -->
-						<td>
-							<div class="flex items-center justify-center p-3">
-								<img
-									src={item.PictureDetails.GalleryURL}
-									class="border item-image"
-									alt={item.Title}
-								/>
-							</div>
-						</td>
-						<td>
-							<p class="item-title text-base m-0">{item.Title}</p>
-							<p class="auth-muted text-sm m-0">Item ID: {item.ItemID}</p>
-							<p class="auth-positive text-sm m-0">${formatCurrency(item.SellingStatus.CurrentPrice)}</p>
-							<!-- <p>Sold price: ${formatCurrency(order.TransactionArray.Transaction.TransactionPrice)}</p> -->
-							<!-- <p>Shipping: ${formatCurrency(order.TransactionArray.Transaction.ActualShippingCost)}</p> -->
-							<!-- <p>Sold: {formatIsoToMonDDYYYY(order.TransactionArray.Transaction.CreatedDate)}</p> -->
-						</td>
-						<!-- <td>
-							<p>Purchase Price: ${formatCurrency(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0')}</p>
-							<p>Fee: ${order.TransactionArray.Transaction.FinalValueFee}</p>
-							<p>Profit: ${calculateProfit(order)}</p>
-							<p>ROI: {calculateROI(order)}</p>
-							<p>Time To Sell: {getDayDifference(order.StartTime, order.EndTime)}</p>
-							<p>Location: {order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</p>
-						</td> -->
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-
-		<div class="my-3 flex justify-center">
-			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+			<div class="mt-2 overlay-label">Loading…</div>
 		</div>
 	</div>
 {/if}
 
+<div class="items-container">
+	<div class="items-header mb-3 gap-3">
+		<h2 class="mb-0">Unsold Items ({totalItems})</h2>
+		{#if dataItems.length > 0}
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+			<div class="auth-muted">
+				Showing {currentPage} of {totalNumberOfPages} pages
+			</div>
+		{/if}
+	</div>
+
+	{#if dataItems.length === 0}
+		<div class="empty-state">
+			<p class="auth-muted">No items found</p>
+		</div>
+	{:else}
+		<div class="items-list">
+			{#each dataItems as item (item.ItemID)}
+				<div class="item-row flex items-start border-b p-2">
+					<div class="col-image mr-3 flex items-center justify-center p-3">
+						<img src={item.PictureDetails?.GalleryURL} class="border item-image" alt={item.Title} />
+					</div>
+
+					<div class="col-info mr-3">
+						<p class="item-title text-base m-0">{item.Title}</p>
+						<p class="auth-muted text-sm m-0">Item ID: {item.ItemID}</p>
+						<p class="auth-positive text-sm m-0">${formatCurrency(item.SellingStatus?.CurrentPrice)}</p>
+					</div>
+				</div>
+			{/each}
+		</div>
+
+		<div class="my-3 flex justify-center">
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+		</div>
+	{/if}
+</div>
+
 <style>
-	.item-image {
-		width: 100px;
-		height: 100px;
+	.items-container {
+		position: relative;
+		max-height: calc(100vh - 74px);
+		overflow: auto;
+		padding: clamp(1rem, 2vw, 2rem);
+		scrollbar-width: thin;
+	}
+	.items-container > * { position: relative; z-index: 1; }
+	.items-container > .items-header { flex-wrap: wrap; padding: 0.25rem 0 1rem; }
+	.items-container h2 { font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
+
+	.empty-state {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 50vh;
+		font-size: 1.25rem;
+	}
+
+	.item-row {
+		gap: 0.75rem;
+		flex-wrap: nowrap;
+		align-items: center;
+		border-radius: 10px;
+		transition: background-color 180ms ease, box-shadow 180ms ease;
+	}
+	.item-image { width: 80px; height: 80px; border-radius: 8px; }
+
+	.items-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.col-image { flex: 0 0 80px; }
+	.col-info { flex: 1 1 auto; min-width: 150px; }
+	.col-info p { font-size: 1rem; margin: 0; }
+	.col-info .item-title { font-weight: 700; }
+	.col-info .auth-muted { font-size: 0.85rem; }
+	.col-info .auth-positive { font-weight: 700; }
+
+	@media (max-width: 900px) {
+		.items-container { max-height: none; }
+		.items-container > .items-header { align-items: flex-start; }
+	}
+	@media (max-width: 576px) {
+		.items-container { padding: 1rem 0.75rem; }
+		.items-container > .items-header { gap: 0.75rem; }
+		.items-container h2 { width: 100%; }
 	}
 </style>

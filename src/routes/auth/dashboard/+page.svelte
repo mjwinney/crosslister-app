@@ -82,11 +82,14 @@
 
 </script>
 
-<h1>Dashboard</h1>
+<div class="items-container">
+  <div class="items-header mb-3 gap-3">
+    <h2 class="mb-0">Dashboard</h2>
+  </div>
 
-<div class="mx-auto w-full max-w-6xl px-4 py-4">
-  <div class="dashboard-grid">
-    <div class="dashboard-card">
+  <div class="mx-auto w-full max-w-6xl px-4 py-4">
+    <div class="dashboard-grid">
+      <div class="dashboard-card">
         <div class="dashboard-card-header">
             <h4>Weekly Sales Overview</h4>
         </div>
@@ -147,8 +150,8 @@
           </tbody>
         </table>
       </div>
-    </div>
-    <div class="dashboard-card">
+      </div>
+      <div class="dashboard-card">
       <div class="dashboard-card-header">
         <h4>Monthly Sales Overview</h4>
         </div>
@@ -208,6 +211,7 @@
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   </div>

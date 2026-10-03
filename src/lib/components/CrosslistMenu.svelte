@@ -101,11 +101,11 @@
 		padding: 0.5rem 1rem;
 		cursor: pointer;
 		font-size: 1rem;
-		color: #212529;
+		color: var(--auth-text, #212529);
 	}
 
 	.marketplace-item:hover {
-		background-color: #f8f9fa;
+		background-color: color-mix(in srgb, var(--auth-accent, #6c757d) 30%, transparent);
 	}
 
 	.marketplace-item input[type='checkbox']:disabled {
