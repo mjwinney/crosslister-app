@@ -179,7 +179,7 @@
 		display: none;
 		position: absolute;
 		top: -0.5rem;
-		left: calc(100% + 4px);
+		left: calc(100% - 1px);
 		right: auto;
 		min-width: 140px !important;
 		width: max-content;
@@ -199,6 +199,6 @@
 
 	:global(.dropdown-menu.caret-left .submenu-content) {
 		left: auto;
-		right: calc(100% + 4px);
+		right: calc(100% - 1px);
 	}
 </style>
