@@ -52,7 +52,15 @@ export async function handle({ event, resolve }) {
       // Refresh Sell API token if expired
       if (status.data.refreshTokenStatus === 'expired') {
         console.log("Refresh token is expired or about to expire, refreshing Sell API token");
-        await refreshEbayToken(event.locals);
+        const refreshed = await refreshEbayToken(event.locals);
+        if (!refreshed) {
+          // Refresh token is invalid (e.g. invalid_grant); user must re-authorize with eBay
+          const reauthRoutes = ["/auth/active-items", "/auth/sold-items", "/auth/unsold-items", "/auth/dashboard"];
+          if (reauthRoutes.includes(event.url.pathname)) {
+            const returnTo = `${event.url.pathname}${event.url.search}`;
+            throw redirect(302, `/ebay-api/auth?returnTo=${encodeURIComponent(returnTo)}`);
+          }
+        }
       }
       
       // Refresh Browse token if expired or undefined

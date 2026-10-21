@@ -1,6 +1,6 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
-import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords } from '$lib/server/ebayUtils';
-import { fail } from '@sveltejs/kit';
+import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
+import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
@@ -112,10 +112,7 @@ export const load: PageServerLoad = async ({ request, locals }) => {
         console.log('load: searchParam:', searchParam);
         const searchResponse = await findItemsByKeywords(locals, searchParam, pageNumber, 'newlyListed');
         if (searchResponse.status !== 200 || !('data' in searchResponse)) {
-            return new Response('Failed to retrieve eBay inventory items', {
-                status: 500,
-                headers: { 'Content-Type': 'text/html' }
-            });
+            throw error(500, 'Failed to retrieve eBay inventory items');
         }
         console.log('eBay API search successful, searchResponse.data:', JSON.stringify(searchResponse.data));
         const { normalizedItems, totalItems, totalNumberOfPages } = normalizeSearchData(searchResponse.data);
@@ -135,11 +132,13 @@ export const load: PageServerLoad = async ({ request, locals }) => {
     // If no search term, load active items
     const response = await getMyEbaySellingActive(locals, pageNumber);
 
+    if (response.status === 401) {
+        // Token is invalid/expired and could not be refreshed; user must re-authorize
+        throw redirect(302, `/ebay-api/auth?returnTo=${encodeURIComponent('/auth/active-items')}`);
+    }
+
     if (response.status !== 200 || !('data' in response)) {
-        return new Response('Failed to retrieve eBay inventory items', {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' }
-        });
+        throw error(500, 'Failed to retrieve eBay inventory items');
     }
 
     console.log('eBay API request successful, response.data:', JSON.stringify(response.data));
@@ -241,4 +240,21 @@ export const actions: Actions = {
             //     : 0
         };
     },
+    relistEbayItemsWithPriceChange: async ({ request, locals }) => {
+        console.log('page.server.ts: relistEbayItemsWithPriceChange: ENTER');
+        const formData = await request.formData();
+        const itemId = formData.get('itemId') as string;
+
+        console.log('page.server.ts: relistEbayItemsWithPriceChange: itemID:', itemId);
+
+        const response = await relistEbayItemsWithPriceChange(locals, itemId, -10);
+
+        if (response.status !== 200) {
+            console.log('page.server.ts: relistEbayItemsWithPriceChange: failed');
+            return fail(500, { message: "Failed to relist eBay item with price change" });
+        }
+
+        console.log('page.server.ts: relistEbayItemsWithPriceChange: successful');
+        return { success: true, message: 'Operation complete!' };
+    }
 };

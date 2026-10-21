@@ -146,7 +146,7 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
     }
 }
 
-export async function refreshEbayToken(locals: App.Locals) {
+export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
     console.log(`refreshEbayToken called`);
     // Prepare token request
     const clientId = env.EBAY_CLIENT_ID;
@@ -174,7 +174,8 @@ export async function refreshEbayToken(locals: App.Locals) {
         const data = await refreshResponse.json();
 
         if (!refreshResponse.ok) {
-            return json({ error: data }, { status: refreshResponse.status });
+            console.error('eBay token refresh failed:', JSON.stringify(data));
+            return false;
         }
 
         console.log(`refreshEbayToken Callback data: ${JSON.stringify(data)}`);
@@ -196,8 +197,10 @@ export async function refreshEbayToken(locals: App.Locals) {
                 ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
                 ...(data.expires_in ? { expiresIn: Number(data.expires_in) } : {})
             });
-            // tokenStore.accessToken = data.access_token;
-            // tokenStore.expiresAt = Date.now() + data.expires_in * 1000;
+            // Use the fresh tokens for the remainder of this request
+            if (data.access_token) locals.ebayAccessToken = data.access_token;
+            if (data.refresh_token) locals.ebayRefreshToken = data.refresh_token;
+            return true;
         } else {
             // Handle error, e.g., if the refresh token is also expired or revoked
             // In this case, you must re-authenticate the user.
@@ -442,8 +445,18 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
             // console.log(`getMyEbaySellingActive data: ${JSON.stringify(jsonData)}`);
             // console.log(`getMyEbaySellingActive response.status: ${JSON.stringify(response.status)}`);
 
+            // The Trading API returns HTTP 200 even on failure (e.g. expired token)
+            const ack = jsonData.GetMyeBaySellingResponse?.Ack;
+            if (ack === 'Failure') {
+                console.error('getMyEbaySellingActive eBay error:', JSON.stringify(jsonData.GetMyeBaySellingResponse?.Errors));
+                return {
+                    status: 401,
+                    message: JSON.stringify(jsonData.GetMyeBaySellingResponse?.Errors)
+                };
+            }
+
             // See if any active items were returned
-            if (!jsonData.GetMyeBaySellingResponse?.ActiveList) {
+            if (!jsonData.GetMyeBaySellingResponse?.ActiveList?.ItemArray?.Item) {
                 console.log('No active items found in the response.');
                 return {
                     status: response.status,
@@ -452,6 +465,12 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
             }
 
             const userId = locals?.session?.userId || '';
+
+            // A single listing is parsed as an object rather than an array
+            const activeItems = jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item;
+            if (!Array.isArray(activeItems)) {
+                jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item = [activeItems];
+            }
 
             // Update: Store active items in the database
             for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
@@ -1667,6 +1686,181 @@ export async function getMyEbayOrderTransactions(locals: App.Locals, ItemID: str
             data: {}
         };
     }
+}
+
+export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`ebayUtils: addEbayItem called, using access token: ${locals.ebayAccessToken}, ItemData: ${JSON.stringify(itemData)}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'AddItem',
+    };
+
+    console.log('ebayUtils: addEbayItem headers:', JSON.stringify(headers));
+
+    // const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    // <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+    //     <RequesterCredentials>
+    //         <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+    //     </RequesterCredentials>
+    //     <Item>
+    //         <Title>${itemData.title}</Title>
+    //     </Item>
+    //     <ItemID>${itemId}</ItemID>
+    // </AddItemRequest>`;
+
+    // console.log('ebayUtils: addEbayItem xmlBody:', xmlBody);
+
+    return {
+        status: 500,
+        data: {}
+    };
+}
+
+export async function delistEbayItem(locals: App.Locals, itemId: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`ebayUtils: delistEbayItem called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}`);
+
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'EndItem',
+    };
+
+    console.log('ebayUtils: delistEbayItem headers:', JSON.stringify(headers));
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <EndItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <ItemID>${itemId}</ItemID>
+        <EndingReason>Incorrect</EndingReason>
+    </EndItemRequest>`;
+
+    console.log('ebayUtils: delistEbayItem xmlBody:', xmlBody);
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
+
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`ebayUtils: delistEbayItem data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            if (!jsonData.EndItemResponse?.Ack) {
+                console.log('No items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`ebayUtils: delistEbayItem data: ${JSON.stringify(data)}`);
+            // console.log(`ebayUtils: delistEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error delistEbayItem:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+}
+
+export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, priceChange: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`ebayUtils: relistEbayItemsWithPriceChange called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}, PriceChange: ${priceChange}`);
+
+    // The price change is a percentage either positive (increase) or negative (decrease) and cannot be greater than
+    // or less than 50% for safety reasons
+    if (priceChange > 50 || priceChange < -50) {
+        return {
+            status: 400,
+            message: 'Invalid price change, must be between -50% and 50%'
+        };
+    }
+
+    // Get the current information for the item from eBay before attempting to relist it with a price change
+    const itemData = await getMyEbayItem(locals, itemId, ['Description', 
+      'ConditionDescription',
+      'ConditionID',
+      'Title',
+      'PictureDetails',
+      'PrimaryCategory',
+      'SellingStatus'
+    ]);
+
+    if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
+        console.error('Failed to fetch item details from eBay API');
+        return {
+            status: 400,
+            message: 'Failed to fetch item details from eBay API'
+        };
+    }
+
+    const ebayItem = itemData.data.GetItemResponse.Item;
+    console.log(`relistEbayItemsWithPriceChange: ebayItem=${JSON.stringify(ebayItem)}`);
+
+    const currentPrice = ebayItem.SellingStatus.CurrentPrice;
+    console.log(`relistEbayItemsWithPriceChange: currentPrice=${currentPrice}`);
+
+    // The priceChange is a percentage, so calculate the new price accordingly.
+    // Make sure it is rounded to 2 decimal places
+    const newPrice = Math.round(currentPrice * (1 + priceChange / 100) * 100) / 100;
+    console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice}`);
+
+    // Now delist the item from eBay before relisting it with the new price.
+    // const delistResult = await delistEbayItem(locals, itemId);
+
+    // if (delistResult.status !== 200) {
+    //     console.error('Failed to delist item from eBay API');
+    //     return {
+    //         status: 400,
+    //         message: 'Failed to delist item from eBay API'
+    //     };
+    // }
+
+    // console.log(`relistEbayItemsWithPriceChange: delistResult=${JSON.stringify(delistResult)}`);
+
+    // // Look at the Ack to make sure it says success
+    // if (!('data' in delistResult) || delistResult.data?.Ack !== 'Success') {
+    //     console.error('relistEbayItemsWithPriceChange: Delist item did not return success from eBay API');
+    //     return {
+    //         status: 400,
+    //         message: 'Delist item did not return success from eBay API'
+    //     };
+    // }
+
+    // Hold onto the ebay item data because we are going to delist and then re add it with the new price.
+
+    return {
+        status: 200,
+        message: 'OK'
+    };
 }
 
 export async function getUser(locals: App.Locals): Promise<Result<string>> {

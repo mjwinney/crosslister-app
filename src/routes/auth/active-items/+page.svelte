@@ -154,6 +154,25 @@
 		initialized = false;
 	});
 
+	async function handleTestRelistWithPriceChange(itemID: string) {
+		console.log('handleTestRelistWithPriceChange called with itemID:', itemID);
+		// We need to call the relistEbayItemsWithPriceChange function from the server-side utility
+		try {
+			const formData = new FormData();
+			formData.append('itemId', itemID);
+
+			const response = await fetch('/auth/active-items?/relistEbayItemsWithPriceChange', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = await response.json();
+			console.log('handleTestRelistWithPriceChange result:', result);
+		} catch (error) {
+			console.error('Error testing relist with price change:', error);
+		}
+	}
+
 	async function handleSearch(query: string) {
 		console.log('handleSearch called with query:', query);
 		searchQuery = query;
@@ -260,95 +279,104 @@
  <div class="items-container">
 	<div class="items-header mb-3 gap-3">
 		<h2 class="mb-0">Active Items ({totalItems})</h2>
-		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-		<SearchBar placeholder="Search items..." onSearch={handleSearch} onClear={handleClearSearch} />
-		<div class="auth-muted">
-			Showing {currentPage} of {totalNumberOfPages} pages
-		</div>
+		{#if editableItems.length !== 0}
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+			<SearchBar placeholder="Search items..." onSearch={handleSearch} onClear={handleClearSearch} />
+			<div class="auth-muted">
+				Showing {currentPage} of {totalNumberOfPages} pages
+			</div>
+		{/if}
 	</div>
-	<div class="items-list">
-		{#each editableItems as item (item.itemId)}
-			<div class="item-row flex items-start border-b p-2">
-				<div class="col-image mr-3 flex items-center justify-center p-3">
-					<img
-						src={item.imageUrl}
-						class="border item-image"
-						alt={item.title}
-					/>
-				</div>
+	{#if editableItems.length === 0}
+		<div class="empty-state">
+			<p class="auth-muted">No items found</p>
+		</div>
+	{:else}
+		<div class="items-list">
+			{#each editableItems as item (item.itemId)}
+				<div class="item-row flex items-start border-b p-2">
+					<div class="col-image mr-3 flex items-center justify-center p-3">
+<!-- <input type="button" onclick={() => handleTestRelistWithPriceChange(item.itemId)} value="Relist" /> -->
+						<img
+							src={item.imageUrl}
+							class="border item-image"
+							alt={item.title}
+						/>
+					</div>
 
-				<div class="col-info mr-3">
-					<p class="item-title text-base m-0">{item.title}</p>
-					<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
-					<p class="auth-positive text-sm m-0">${formatCurrency(item.price)}</p>
-				</div>
+					<div class="col-info mr-3">
+						<p class="item-title text-base m-0">{item.title}</p>
+						<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
+						<p class="auth-positive text-sm m-0">${formatCurrency(item.price)}</p>
+					</div>
 
-				<div class="col-right flex-col ml-auto">
-					<div class="row-fields">
-						<div class="col-field purchase-price-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
-							<span class="field-label">Purchase Price</span>
-							<CurrencyInput
-								bind:value={item.metadata.purchasePrice}
-								currency="USD"
-								locale="en-US"
-								inputClasses={{
-									unformatted: "auth-field",
-									formatted: "auth-field",
-									formattedPositive: "auth-field",
-									formattedNegative: "auth-field",
-								}}
-							/>
-						</div>
+					<div class="col-right flex-col ml-auto">
+						<div class="row-fields">
+							<div class="col-field purchase-price-field" onfocusout={() => handleOnblur(item.itemId, item.metadata)}>
+								<span class="field-label">Purchase Price</span>
+								<CurrencyInput
+									bind:value={item.metadata.purchasePrice}
+									currency="USD"
+									locale="en-US"
+									inputClasses={{
+										unformatted: "auth-field",
+										formatted: "auth-field",
+										formattedPositive: "auth-field",
+										formattedNegative: "auth-field",
+									}}
+								/>
+							</div>
 
-						<div class="col-field">
-							<span class="field-label">Purchase Date</span>
-							<DatePicker bind:selectedDate={item.metadata.purchaseDate} on:blur={() => handleOnblur(item.itemId, item.metadata)} />
-						</div>
+							<div class="col-field">
+								<span class="field-label">Purchase Date</span>
+								<DatePicker bind:selectedDate={item.metadata.purchaseDate} on:blur={() => handleOnblur(item.itemId, item.metadata)} />
+							</div>
 
-						<div class="col-field">
-							<span class="field-label">Purchase Location</span>
-							<input type="text" class="auth-field" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
-						</div>
+							<div class="col-field">
+								<span class="field-label">Purchase Location</span>
+								<input type="text" class="auth-field" bind:value={item.metadata.purchaseLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							</div>
 
-						<div class="col-field">
-							<span class="field-label">Storage Location</span>
-							<input type="text" class="auth-field" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
-						</div>
-						<div class="col-actions">
-							<Dropdown>
-								<li>
-									<button class="dropdown-item submenu-trigger" type="button">Crosslist</button>
-									<ul class="dropdown-menu submenu-content">
-										<CrosslistMenu itemId={item.itemId} onCrosslist={crosslistTo} {marketplaces} item={item} />
-									</ul>
-								</li>
-								<li>
-									<button class="dropdown-item submenu-trigger" type="button">Relist</button>
-									<ul class="dropdown-menu submenu-content relist-submenu">
-										<li class="dropdown-item relist-option">
-											<label class="flex items-center gap-2 m-0">
-												<input
-													type="checkbox"
-													checked={!!item.metadata?.relistEnabled}
-													onchange={(event) => handleRelistToggle(item, event.currentTarget.checked)}
-												/>
-												<span>Relist every 30 days</span>
-											</label>
-										</li>
-									</ul>
-								</li>
+							<div class="col-field">
+								<span class="field-label">Storage Location</span>
+								<input type="text" class="auth-field" bind:value={item.metadata.storageLocation} onblur={() => handleOnblur(item.itemId, item.metadata)} />
+							</div>
+							<div class="col-actions">
+								<Dropdown>
+									<li>
+										<button class="dropdown-item submenu-trigger" type="button">Crosslist</button>
+										<ul class="dropdown-menu submenu-content">
+											<CrosslistMenu itemId={item.itemId} onCrosslist={crosslistTo} {marketplaces} item={item} />
+										</ul>
+									</li>
+									<li>
+										<button class="dropdown-item submenu-trigger" type="button">Relist</button>
+										<ul class="dropdown-menu submenu-content relist-submenu">
+											<li class="dropdown-item relist-option">
+												<label class="flex items-center gap-2 m-0">
+													<input
+														type="checkbox"
+														checked={!!item.metadata?.relistEnabled}
+														onchange={(event) => handleRelistToggle(item, event.currentTarget.checked)}
+													/>
+													<span>Relist every 30 days</span>
+												</label>
+											</li>
+										</ul>
+									</li>
 
-							</Dropdown>
+								</Dropdown>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-		{/each}
-	</div>
+			{/each}
+		</div>
 
-	<div class="my-3 flex justify-center">
-		<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
-	</div>
+		<div class="my-3 flex justify-center">
+			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
+		</div>
+	{/if}
 </div>
 
 <style>
