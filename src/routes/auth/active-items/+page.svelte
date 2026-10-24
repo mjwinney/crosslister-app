@@ -296,7 +296,7 @@
 			{#each editableItems as item (item.itemId)}
 				<div class="item-row flex items-start border-b p-2">
 					<div class="col-image mr-3 flex items-center justify-center p-3">
-<!-- <input type="button" onclick={() => handleTestRelistWithPriceChange(item.itemId)} value="Relist" /> -->
+<input type="button" onclick={() => handleTestRelistWithPriceChange(item.itemId)} value="Relist" />
 						<img
 							src={item.imageUrl}
 							class="border item-image"

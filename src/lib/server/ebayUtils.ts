@@ -23,6 +23,47 @@ interface EbayTokens {
 // Combine them into a discriminated union
 type Result<T> = Success<T> | Failure;
 
+
+export function escapeXml(value: any): string {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function xmlNode(name: string, value: any): string {
+    if (
+        value === undefined ||
+        value === null ||
+        value === ''
+    ) {
+        return '';
+    }
+
+    return `<${name}>${escapeXml(value)}</${name}>`;
+}
+
+function xmlAmountNode(
+    name: string,
+    value: any,
+    currency = 'USD'
+): string {
+    if (
+        value === undefined ||
+        value === null
+    ) {
+        return '';
+    }
+
+    return `<${name} currencyID="${currency}">${value}</${name}>`;
+}
+
 // Helper to safely get ItemID whether Transaction is an object or array
 function getItemIdFromTransaction(transaction: any): string | null {
     if (!transaction) return null;
@@ -1407,6 +1448,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
             <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
         </RequesterCredentials>
         <ItemID>${ItemID}</ItemID>
+        <IncludeItemSpecifics>true</IncludeItemSpecifics>
         <DetailLevel>ReturnAll</DetailLevel>
         ${outputSelectorString}
     </GetItemRequest>`;
@@ -1688,8 +1730,763 @@ export async function getMyEbayOrderTransactions(locals: App.Locals, ItemID: str
     }
 }
 
+export function mapGetItemToAddItem(source: any) {
+    const item: any = {};
+
+    // Core
+    item.Title = source.Title;
+    item.Description = source.Description;
+
+    item.AutoPay = source.AutoPay;
+    item.BuyerResponsibleForShipping =
+        source.BuyerResponsibleForShipping;
+
+    item.ConditionID = source.ConditionID;
+
+    if (source.ConditionDescription) {
+        item.ConditionDescription =
+            source.ConditionDescription;
+    }
+
+    item.Country = source.Country;
+    item.Currency = source.Currency;
+
+    item.DispatchTimeMax =
+        source.DispatchTimeMax;
+
+    item.ListingDuration =
+        source.ListingDuration;
+
+    item.ListingType =
+        source.ListingType;
+
+    item.Location =
+        source.Location;
+
+    item.PostalCode =
+        source.PostalCode;
+
+    item.PrivateListing =
+        source.PrivateListing;
+
+    item.Quantity =
+        source.Quantity;
+
+    item.Site =
+        source.Site;
+
+    item.StartPrice =
+        source.StartPrice;
+
+    // Category
+
+    if (source.PrimaryCategory) {
+        item.PrimaryCategory = {
+            CategoryID:
+                source.PrimaryCategory.CategoryID
+        };
+    }
+
+    if (source.SecondaryCategory) {
+        item.SecondaryCategory = {
+            CategoryID:
+                source.SecondaryCategory.CategoryID
+        };
+    }
+
+    // Best Offer
+
+    if (source.BestOfferDetails) {
+        item.BestOfferDetails = {
+            BestOfferEnabled:
+                source.BestOfferDetails.BestOfferEnabled
+        };
+    }
+
+    // Product Details
+
+    if (source.ProductListingDetails) {
+        item.ProductListingDetails = {
+            ...source.ProductListingDetails
+        };
+    }
+
+    // Store Categories
+
+    if (source.Storefront) {
+        item.Storefront = {
+            ...source.Storefront
+        };
+    }
+
+    // Seller Profiles (VERY IMPORTANT)
+
+    if (source.SellerProfiles) {
+        item.SellerProfiles = {
+            ...source.SellerProfiles
+        };
+    }
+
+    // Return Policy
+
+    if (source.ReturnPolicy) {
+        item.ReturnPolicy = {
+            ...source.ReturnPolicy
+        };
+    }
+
+    // Shipping
+
+    if (source.ShippingDetails) {
+        item.ShippingDetails = {
+            ...source.ShippingDetails
+        };
+    }
+
+    if (source.ShippingPackageDetails) {
+        item.ShippingPackageDetails = {
+            ...source.ShippingPackageDetails
+        };
+    }
+
+    if (source.ShipToLocations) {
+        item.ShipToLocations =
+            source.ShipToLocations;
+    }
+
+    // Pictures
+
+    if (source.PictureDetails) {
+        item.PictureDetails = {
+            GalleryType:
+                source.PictureDetails.GalleryType,
+            PictureURL:
+                source.PictureDetails.PictureURL
+        };
+    }
+
+    // Item Specifics
+
+    if (
+        source.ItemSpecifics &&
+        source.ItemSpecifics.NameValueList
+    ) {
+        item.ItemSpecifics = {
+            NameValueList:
+                source.ItemSpecifics.NameValueList
+        };
+    }
+
+    // Compatibility
+
+    if (source.ItemCompatibilityList) {
+        item.ItemCompatibilityList =
+            source.ItemCompatibilityList;
+    }
+
+    // SKU
+
+    if (source.SKU) {
+        item.SKU = source.SKU;
+    }
+
+    // Subtitle
+
+    if (source.SubTitle) {
+        item.SubTitle =
+            source.SubTitle;
+    }
+
+    // Payment Methods (legacy)
+
+    if (source.PaymentMethods) {
+        item.PaymentMethods =
+            Array.isArray(source.PaymentMethods)
+                ? source.PaymentMethods
+                : [source.PaymentMethods];
+    }
+
+    if (source.PayPalEmailAddress) {
+        item.PayPalEmailAddress =
+            source.PayPalEmailAddress;
+    }
+
+    // Listing Details
+
+    if (source.ListingDetails) {
+
+        const listingDetails: any = {};
+
+        if (
+            source.ListingDetails
+                .BestOfferAutoAcceptPrice
+        ) {
+            listingDetails
+                .BestOfferAutoAcceptPrice =
+                source.ListingDetails
+                    .BestOfferAutoAcceptPrice;
+        }
+
+        if (
+            source.ListingDetails
+                .MinimumBestOfferPrice
+        ) {
+            listingDetails
+                .MinimumBestOfferPrice =
+                source.ListingDetails
+                    .MinimumBestOfferPrice;
+        }
+
+        if (
+            Object.keys(listingDetails)
+                .length > 0
+        ) {
+            item.ListingDetails =
+                listingDetails;
+        }
+    }
+
+    // Quantity Restrictions
+
+    if (
+        source.QuantityRestrictionPerBuyer
+    ) {
+        item.QuantityRestrictionPerBuyer =
+            source.QuantityRestrictionPerBuyer;
+    }
+
+    // VAT
+
+    if (source.VATDetails) {
+        item.VATDetails = {
+            ...source.VATDetails
+        };
+    }
+
+    // Charity
+
+    if (source.Charity) {
+        item.Charity = {
+            ...source.Charity
+        };
+    }
+
+    // Regulatory
+
+    if (source.Regulatory) {
+        item.Regulatory = {
+            ...source.Regulatory
+        };
+    }
+
+    // Video
+
+    if (source.VideoDetails) {
+        item.VideoDetails = {
+            ...source.VideoDetails
+        };
+    }
+
+    // Vehicle Listings
+
+    if (source.VIN) {
+        item.VIN = source.VIN;
+    }
+
+    if (source.VRM) {
+        item.VRM = source.VRM;
+    }
+
+    // Variations
+
+    if (source.Variations) {
+        item.Variations = {
+            ...source.Variations
+        };
+    }
+
+    return item;
+}
+
+function buildCategory(name: string, category: any): string {
+
+    if (!category?.CategoryID) {
+        return '';
+    }
+
+    return `
+<${name}>
+    <CategoryID>
+        ${category.CategoryID}
+    </CategoryID>
+</${name}>
+`;
+}
+
+function buildProductListingDetails(details: any): string {
+
+    if (!details) {
+        return '';
+    }
+
+    return `
+<ProductListingDetails>
+
+    ${
+        details.BrandMPN
+            ? `
+    <BrandMPN>
+        ${xmlNode(
+            'Brand',
+            details.BrandMPN.Brand
+        )}
+
+        ${xmlNode(
+            'MPN',
+            details.BrandMPN.MPN
+        )}
+    </BrandMPN>
+    `
+            : ''
+    }
+
+    ${xmlNode('UPC', details.UPC)}
+    ${xmlNode('EAN', details.EAN)}
+    ${xmlNode('ISBN', details.ISBN)}
+
+</ProductListingDetails>
+`;
+}
+
+function buildPictureDetails(pictureDetails: any): string {
+
+    if (!pictureDetails) {
+        return '';
+    }
+
+    const urls =
+        pictureDetails.PictureURL || [];
+
+    return `
+<PictureDetails>
+
+    ${xmlNode(
+        'GalleryType',
+        pictureDetails.GalleryType
+    )}
+
+    ${urls
+        .map(
+            (url: string) =>
+                `<PictureURL>${escapeXml(
+                    url
+                )}</PictureURL>`
+        )
+        .join('')}
+
+</PictureDetails>
+`;
+}
+
+function buildItemSpecifics(itemSpecifics: any): string {
+
+    const specifics =
+        itemSpecifics?.NameValueList;
+
+    if (!specifics?.length) {
+        return '';
+    }
+
+    return `
+<ItemSpecifics>
+${specifics.map((specific: any) => {
+
+    const values = Array.isArray(
+        specific.Value
+    )
+        ? specific.Value
+        : [specific.Value];
+
+    return `
+<NameValueList>
+    <Name>${escapeXml(specific.Name)}</Name>
+
+    ${values
+        .map(
+            (value: string) =>
+                `<Value>${escapeXml(
+                    value
+                )}</Value>`
+        )
+        .join('')}
+
+</NameValueList>
+`;
+
+}).join('')}
+</ItemSpecifics>`;
+}
+
+function buildReturnPolicy(policy: any): string {
+
+    if (!policy) {
+        return '';
+    }
+
+    return `
+<ReturnPolicy>
+
+    ${xmlNode(
+        'RefundOption',
+        policy.RefundOption
+    )}
+
+    ${xmlNode(
+        'ReturnsAcceptedOption',
+        policy.ReturnsAcceptedOption
+    )}
+
+    ${xmlNode(
+        'ReturnsWithinOption',
+        policy.ReturnsWithinOption
+    )}
+
+    ${xmlNode(
+        'ShippingCostPaidByOption',
+        policy.ShippingCostPaidByOption
+    )}
+
+    ${xmlNode(
+        'InternationalRefundOption',
+        policy.InternationalRefundOption
+    )}
+
+    ${xmlNode(
+        'InternationalReturnsAcceptedOption',
+        policy.InternationalReturnsAcceptedOption
+    )}
+
+    ${xmlNode(
+        'InternationalReturnsWithinOption',
+        policy.InternationalReturnsWithinOption
+    )}
+
+    ${xmlNode(
+        'InternationalShippingCostPaidByOption',
+        policy.InternationalShippingCostPaidByOption
+    )}
+
+</ReturnPolicy>
+`;
+}
+
+function buildShippingDetails(shipping: any, currency = 'USD'): string {
+
+    if (!shipping) {
+        return '';
+    }
+
+    return `
+<ShippingDetails>
+
+    ${xmlNode(
+        'ShippingType',
+        shipping.ShippingType
+    )}
+
+    ${xmlNode(
+        'GlobalShipping',
+        shipping.GlobalShipping
+    )}
+
+    ${xmlNode(
+        'PromotionalShippingDiscount',
+        shipping.PromotionalShippingDiscount
+    )}
+
+    ${
+        shipping.ShippingServiceOptions
+            ?.map(
+                (service: any) => `
+<ShippingServiceOptions>
+
+    ${xmlNode(
+        'ShippingService',
+        service.ShippingService
+    )}
+
+    ${xmlNode(
+        'ShippingServicePriority',
+        service.ShippingServicePriority
+    )}
+
+    ${xmlNode(
+        'FreeShipping',
+        service.FreeShipping
+    )}
+
+    ${xmlAmountNode(
+        'ShippingServiceCost',
+        service.ShippingServiceCost,
+        currency
+    )}
+
+    ${xmlAmountNode(
+        'ShippingServiceAdditionalCost',
+        service.ShippingServiceAdditionalCost,
+        currency
+    )}
+
+</ShippingServiceOptions>
+`
+            )
+            .join('') || ''
+    }
+
+    ${
+        shipping.InternationalShippingServiceOption
+            ?.map(
+                (service: any) => `
+<InternationalShippingServiceOption>
+
+    ${xmlNode(
+        'ShippingService',
+        service.ShippingService
+    )}
+
+    ${xmlNode(
+        'ShippingServicePriority',
+        service.ShippingServicePriority
+    )}
+
+    ${xmlAmountNode(
+        'ShippingServiceCost',
+        service.ShippingServiceCost,
+        currency
+    )}
+
+</InternationalShippingServiceOption>
+`
+            )
+            .join('') || ''
+    }
+
+</ShippingDetails>
+`;
+}
+
+function buildShippingPackageDetails(details: any): string {
+
+    if (!details) {
+        return '';
+    }
+
+    return `
+<ShippingPackageDetails>
+
+    ${xmlNode(
+        'PackageDepth',
+        details.PackageDepth
+    )}
+
+    ${xmlNode(
+        'PackageLength',
+        details.PackageLength
+    )}
+
+    ${xmlNode(
+        'PackageWidth',
+        details.PackageWidth
+    )}
+
+    ${xmlNode(
+        'ShippingIrregular',
+        details.ShippingIrregular
+    )}
+
+    ${xmlNode(
+        'ShippingPackage',
+        details.ShippingPackage
+    )}
+
+    ${xmlNode(
+        'WeightMajor',
+        details.WeightMajor
+    )}
+
+    ${xmlNode(
+        'WeightMinor',
+        details.WeightMinor
+    )}
+
+</ShippingPackageDetails>
+`;
+}
+
+function buildSellerProfiles(profiles: any): string {
+
+    if (!profiles) {
+        return '';
+    }
+
+    return `
+<SellerProfiles>
+
+    ${
+        profiles.SellerPaymentProfile
+            ? `
+<SellerPaymentProfile>
+    ${xmlNode(
+        'PaymentProfileID',
+        profiles
+            .SellerPaymentProfile
+            .PaymentProfileID
+    )}
+</SellerPaymentProfile>
+`
+            : ''
+    }
+
+    ${
+        profiles.SellerReturnProfile
+            ? `
+<SellerReturnProfile>
+    ${xmlNode(
+        'ReturnProfileID',
+        profiles
+            .SellerReturnProfile
+            .ReturnProfileID
+    )}
+</SellerReturnProfile>
+`
+            : ''
+    }
+
+    ${
+        profiles.SellerShippingProfile
+            ? `
+<SellerShippingProfile>
+    ${xmlNode(
+        'ShippingProfileID',
+        profiles
+            .SellerShippingProfile
+            .ShippingProfileID
+    )}
+</SellerShippingProfile>
+`
+            : ''
+    }
+
+</SellerProfiles>
+`;
+}
+
+export function buildAddItemXml(ebayAuthToken: string, item: any): string {
+
+    const currency =
+        item.Currency || 'USD';
+
+    return `<?xml version="1.0" encoding="utf-8"?>
+<AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+
+    <RequesterCredentials>
+        <eBayAuthToken>${escapeXml(ebayAuthToken)}</eBayAuthToken>
+    </RequesterCredentials>
+
+    <ErrorLanguage>en_US</ErrorLanguage>
+    <WarningLevel>High</WarningLevel>
+
+    <Item>
+        ${xmlNode('Title', item.Title)}
+        ${xmlNode('Description', item.Description)}
+        ${xmlNode('AutoPay', item.AutoPay)}
+        ${xmlNode('ConditionID', item.ConditionID)}
+        ${xmlNode('ConditionDescription', item.ConditionDescription)}
+        ${xmlNode('Country', item.Country)}
+        ${xmlNode('Currency', currency)}
+        ${xmlNode('DispatchTimeMax', item.DispatchTimeMax)}
+        ${xmlNode('ListingDuration', item.ListingDuration)}
+        ${xmlNode('ListingType', item.ListingType)}
+        ${xmlNode('Location', item.Location)}
+        ${xmlNode('PostalCode', item.PostalCode)}
+        ${xmlNode('PrivateListing', item.PrivateListing)}
+        ${xmlNode('Quantity',item.Quantity)}
+        ${xmlNode('Site', item.Site)}
+        ${xmlAmountNode('StartPrice', item.StartPrice, currency)}
+        ${xmlNode('SKU', item.SKU)}
+        ${xmlNode('SubTitle', item.SubTitle)}
+        ${buildCategory('PrimaryCategory', item.PrimaryCategory)}
+        ${buildCategory('SecondaryCategory', item.SecondaryCategory)}
+        ${
+            item.BestOfferDetails
+                ?.BestOfferEnabled
+                ? `
+<BestOfferDetails>
+    <BestOfferEnabled>true</BestOfferEnabled>
+</BestOfferDetails>
+`
+                : ''
+        }
+        ${buildProductListingDetails(item.ProductListingDetails)}
+        ${buildPictureDetails(item.PictureDetails)}
+        ${buildItemSpecifics(item.ItemSpecifics)}
+        ${buildReturnPolicy(item.ReturnPolicy)}
+        ${buildShippingDetails(item.ShippingDetails, currency)}
+        ${buildShippingPackageDetails(item.ShippingPackageDetails)}
+        ${buildSellerProfiles(item.SellerProfiles)}
+    </Item>
+</AddItemRequest>`;
+}
+
+// export async function buildAddItemRequestXmlBody(locals: App.Locals, itemData: any) {
+//     console.log(`buildAddItemRequestXmlBody called, using access token: ${locals.ebayAccessToken}, itemData: ${JSON.stringify(itemData)}`);
+
+//     const xmlBody = `
+// <?xml version="1.0" encoding="utf-8"?>
+// <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+//   <RequesterCredentials>
+//     <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+//   </RequesterCredentials>
+
+//   <Item>
+//     <Title>${escapeXml(itemData.Title)}</Title>
+//     <Description>${escapeXml(itemData.Description)}</Description>
+
+//     <PrimaryCategory>
+//       <CategoryID>${itemData.PrimaryCategory.CategoryID}</CategoryID>
+//       <CategoryName>${itemData.PrimaryCategory.CategoryName}</CategoryName>
+//     </PrimaryCategory>
+
+//     <StartPrice>${itemData.StartPrice}</StartPrice>
+//     <Quantity>${itemData.Quantity}</Quantity>
+
+//     <ConditionID>${itemData.ConditionID}</ConditionID>
+
+//     <ListingType>${itemData.ListingType || 'FixedPriceItem'}</ListingType>
+//     <ListingDuration>${itemData.ListingDuration || 'GTC'}</ListingDuration>
+
+//     <Location>${escapeXml(itemData.Location || 'USA')}</Location>
+
+//     ${buildPaymentMethods(itemData.PaymentMethods)}
+//     ${buildReturnPolicy(itemData.ReturnPolicy)}
+//     ${buildShippingDetails(itemData.ShippingPackageDetails)}
+//     ${buildPictureDetails(itemData.PictureUrls)}
+//     ${buildItemSpecifics(itemData.ItemSpecifics)}
+//     ${buildVariations(itemData.Variations)}
+//   </Item>
+// </AddItemRequest>
+// `;
+
+//     console.log('AddItem XML:', xmlBody);
+
+//     return {
+//         status: 200,
+//         data: { xmlBody }
+//     };
+// }
+
 export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`ebayUtils: addEbayItem called, using access token: ${locals.ebayAccessToken}, ItemData: ${JSON.stringify(itemData)}`);
+    console.log(`addEbayItem called, using access token: ${locals.ebayAccessToken}`);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -1700,26 +2497,48 @@ export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ 
         'X-EBAY-API-CALL-NAME': 'AddItem',
     };
 
-    console.log('ebayUtils: addEbayItem headers:', JSON.stringify(headers));
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>`;
 
-    // const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
-    // <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-    //     <RequesterCredentials>
-    //         <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
-    //     </RequesterCredentials>
-    //     <Item>
-    //         <Title>${itemData.title}</Title>
-    //     </Item>
-    //     <ItemID>${itemId}</ItemID>
-    // </AddItemRequest>`;
-
-    // console.log('ebayUtils: addEbayItem xmlBody:', xmlBody);
+    console.log('AddItem XML:', xmlBody);
 
     return {
-        status: 500,
-        data: {}
+        status: 200,
+        data: { xmlBody }
     };
 }
+
+// export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+//     console.log(`ebayUtils: addEbayItem called, using access token: ${locals.ebayAccessToken}, ItemData: ${JSON.stringify(itemData)}`);
+
+//     const headers = {
+//         'Content-Type': 'text/xml',
+//         'Connection': 'Keep-Alive',
+//         'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+//         'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+//         'X-EBAY-API-SITEID': '0',
+//         'X-EBAY-API-CALL-NAME': 'AddItem',
+//     };
+
+//     console.log('ebayUtils: addEbayItem headers:', JSON.stringify(headers));
+
+//     // const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+//     // <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+//     //     <RequesterCredentials>
+//     //         <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+//     //     </RequesterCredentials>
+//     //     <Item>
+//     //         <Title>${itemData.title}</Title>
+//     //     </Item>
+//     //     <ItemID>${itemId}</ItemID>
+//     // </AddItemRequest>`;
+
+//     // console.log('ebayUtils: addEbayItem xmlBody:', xmlBody);
+
+//     return {
+//         status: 500,
+//         data: {}
+//     };
+// }
 
 export async function delistEbayItem(locals: App.Locals, itemId: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`ebayUtils: delistEbayItem called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}`);
@@ -1805,14 +2624,8 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     }
 
     // Get the current information for the item from eBay before attempting to relist it with a price change
-    const itemData = await getMyEbayItem(locals, itemId, ['Description', 
-      'ConditionDescription',
-      'ConditionID',
-      'Title',
-      'PictureDetails',
-      'PrimaryCategory',
-      'SellingStatus'
-    ]);
+    // Pass blank output selector so it does not limit what is returned
+    const itemData = await getMyEbayItem(locals, itemId, []);
 
     if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
         console.error('Failed to fetch item details from eBay API');
@@ -1832,6 +2645,15 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     // Make sure it is rounded to 2 decimal places
     const newPrice = Math.round(currentPrice * (1 + priceChange / 100) * 100) / 100;
     console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice}`);
+
+    const clonedItem = mapGetItemToAddItem(ebayItem);
+
+    clonedItem.StartPrice = newPrice;
+    clonedItem.Title += ' 🔥';
+
+    // Build the request body for relisting the item with the new price.
+    const addItemRequest = buildAddItemXml(locals.ebayAccessToken as string, clonedItem);
+    console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
     // Now delist the item from eBay before relisting it with the new price.
     // const delistResult = await delistEbayItem(locals, itemId);
