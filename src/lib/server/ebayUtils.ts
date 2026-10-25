@@ -2014,13 +2014,7 @@ function buildCategory(name: string, category: any): string {
         return '';
     }
 
-    return `
-<${name}>
-    <CategoryID>
-        ${category.CategoryID}
-    </CategoryID>
-</${name}>
-`;
+    return `<${name}><CategoryID>${category.CategoryID}</CategoryID></${name}>`;
 }
 
 function buildProductListingDetails(details: any): string {
@@ -2031,31 +2025,11 @@ function buildProductListingDetails(details: any): string {
 
     return `
 <ProductListingDetails>
-
-    ${
-        details.BrandMPN
-            ? `
-    <BrandMPN>
-        ${xmlNode(
-            'Brand',
-            details.BrandMPN.Brand
-        )}
-
-        ${xmlNode(
-            'MPN',
-            details.BrandMPN.MPN
-        )}
-    </BrandMPN>
-    `
-            : ''
-    }
-
+    ${details.BrandMPN? `<BrandMPN>${xmlNode('Brand', details.BrandMPN.Brand)}${xmlNode('MPN', details.BrandMPN.MPN)}</BrandMPN>`: ''}
     ${xmlNode('UPC', details.UPC)}
     ${xmlNode('EAN', details.EAN)}
     ${xmlNode('ISBN', details.ISBN)}
-
-</ProductListingDetails>
-`;
+</ProductListingDetails>`;
 }
 
 function buildPictureDetails(pictureDetails: any): string {
@@ -2064,34 +2038,22 @@ function buildPictureDetails(pictureDetails: any): string {
         return '';
     }
 
-    const urls =
-        pictureDetails.PictureURL || [];
+    const urls = pictureDetails.PictureURL || [];
 
     return `
 <PictureDetails>
-
-    ${xmlNode(
-        'GalleryType',
-        pictureDetails.GalleryType
-    )}
-
+    ${xmlNode('GalleryType',pictureDetails.GalleryType)}
     ${urls
         .map(
             (url: string) =>
-                `<PictureURL>${escapeXml(
-                    url
-                )}</PictureURL>`
-        )
-        .join('')}
-
-</PictureDetails>
-`;
+                `<PictureURL>${escapeXml(url)}</PictureURL>`
+        ).join('')}
+</PictureDetails>`;
 }
 
 function buildItemSpecifics(itemSpecifics: any): string {
 
-    const specifics =
-        itemSpecifics?.NameValueList;
+    const specifics = itemSpecifics?.NameValueList;
 
     if (!specifics?.length) {
         return '';
@@ -2099,31 +2061,19 @@ function buildItemSpecifics(itemSpecifics: any): string {
 
     return `
 <ItemSpecifics>
-${specifics.map((specific: any) => {
+    ${specifics.map((specific: any) => {
+        const values = Array.isArray(specific.Value) ? specific.Value : [specific.Value];
 
-    const values = Array.isArray(
-        specific.Value
-    )
-        ? specific.Value
-        : [specific.Value];
-
-    return `
-<NameValueList>
-    <Name>${escapeXml(specific.Name)}</Name>
-
-    ${values
-        .map(
-            (value: string) =>
-                `<Value>${escapeXml(
-                    value
-                )}</Value>`
-        )
-        .join('')}
-
-</NameValueList>
-`;
-
-}).join('')}
+        return `
+    <NameValueList>
+        <Name>${escapeXml(specific.Name)}</Name>
+        ${values
+            .map(
+                (value: string) =>
+                    `<Value>${escapeXml(value)}</Value>`
+            ).join('')}
+    </NameValueList>`;
+    }).join('')}
 </ItemSpecifics>`;
 }
 
@@ -2135,49 +2085,15 @@ function buildReturnPolicy(policy: any): string {
 
     return `
 <ReturnPolicy>
-
-    ${xmlNode(
-        'RefundOption',
-        policy.RefundOption
-    )}
-
-    ${xmlNode(
-        'ReturnsAcceptedOption',
-        policy.ReturnsAcceptedOption
-    )}
-
-    ${xmlNode(
-        'ReturnsWithinOption',
-        policy.ReturnsWithinOption
-    )}
-
-    ${xmlNode(
-        'ShippingCostPaidByOption',
-        policy.ShippingCostPaidByOption
-    )}
-
-    ${xmlNode(
-        'InternationalRefundOption',
-        policy.InternationalRefundOption
-    )}
-
-    ${xmlNode(
-        'InternationalReturnsAcceptedOption',
-        policy.InternationalReturnsAcceptedOption
-    )}
-
-    ${xmlNode(
-        'InternationalReturnsWithinOption',
-        policy.InternationalReturnsWithinOption
-    )}
-
-    ${xmlNode(
-        'InternationalShippingCostPaidByOption',
-        policy.InternationalShippingCostPaidByOption
-    )}
-
-</ReturnPolicy>
-`;
+    ${xmlNode('RefundOption', policy.RefundOption)}
+    ${xmlNode('ReturnsAcceptedOption', policy.ReturnsAcceptedOption)}
+    ${xmlNode('ReturnsWithinOption', policy.ReturnsWithinOption)}
+    ${xmlNode('ShippingCostPaidByOption', policy.ShippingCostPaidByOption)}
+    ${xmlNode('InternationalRefundOption', policy.InternationalRefundOption)}
+    ${xmlNode('InternationalReturnsAcceptedOption', policy.InternationalReturnsAcceptedOption)}
+    ${xmlNode('InternationalReturnsWithinOption', policy.InternationalReturnsWithinOption)}
+    ${xmlNode('InternationalShippingCostPaidByOption', policy.InternationalShippingCostPaidByOption)}
+</ReturnPolicy>`;
 }
 
 function buildShippingDetails(shipping: any, currency = 'USD'): string {
@@ -2188,91 +2104,31 @@ function buildShippingDetails(shipping: any, currency = 'USD'): string {
 
     return `
 <ShippingDetails>
+    ${xmlNode('ShippingType', shipping.ShippingType)}
+    ${xmlNode('GlobalShipping', shipping.GlobalShipping)}
+    ${xmlNode('PromotionalShippingDiscount', shipping.PromotionalShippingDiscount)}
 
-    ${xmlNode(
-        'ShippingType',
-        shipping.ShippingType
-    )}
-
-    ${xmlNode(
-        'GlobalShipping',
-        shipping.GlobalShipping
-    )}
-
-    ${xmlNode(
-        'PromotionalShippingDiscount',
-        shipping.PromotionalShippingDiscount
-    )}
-
-    ${
-        shipping.ShippingServiceOptions
+    ${shipping.ShippingServiceOptions
             ?.map(
                 (service: any) => `
 <ShippingServiceOptions>
-
-    ${xmlNode(
-        'ShippingService',
-        service.ShippingService
-    )}
-
-    ${xmlNode(
-        'ShippingServicePriority',
-        service.ShippingServicePriority
-    )}
-
-    ${xmlNode(
-        'FreeShipping',
-        service.FreeShipping
-    )}
-
-    ${xmlAmountNode(
-        'ShippingServiceCost',
-        service.ShippingServiceCost,
-        currency
-    )}
-
-    ${xmlAmountNode(
-        'ShippingServiceAdditionalCost',
-        service.ShippingServiceAdditionalCost,
-        currency
-    )}
-
-</ShippingServiceOptions>
-`
-            )
-            .join('') || ''
+    ${xmlNode('ShippingService', service.ShippingService)}
+    ${xmlNode('ShippingServicePriority', service.ShippingServicePriority)}
+    ${xmlNode('FreeShipping', service.FreeShipping)}
+    ${xmlAmountNode('ShippingServiceCost', service.ShippingServiceCost, currency)}
+    ${xmlAmountNode('ShippingServiceAdditionalCost', service.ShippingServiceAdditionalCost, currency)}
+</ShippingServiceOptions>`).join('') || ''
     }
-
-    ${
-        shipping.InternationalShippingServiceOption
-            ?.map(
-                (service: any) => `
+    ${shipping.InternationalShippingServiceOption
+        ?.map(
+            (service: any) => `
 <InternationalShippingServiceOption>
-
-    ${xmlNode(
-        'ShippingService',
-        service.ShippingService
-    )}
-
-    ${xmlNode(
-        'ShippingServicePriority',
-        service.ShippingServicePriority
-    )}
-
-    ${xmlAmountNode(
-        'ShippingServiceCost',
-        service.ShippingServiceCost,
-        currency
-    )}
-
-</InternationalShippingServiceOption>
-`
-            )
-            .join('') || ''
+    ${xmlNode('ShippingService', service.ShippingService)}
+    ${xmlNode('ShippingServicePriority', service.ShippingServicePriority)}
+    ${xmlAmountNode('ShippingServiceCost', service.ShippingServiceCost, currency)}
+</InternationalShippingServiceOption>`).join('') || ''
     }
-
-</ShippingDetails>
-`;
+</ShippingDetails>`;
 }
 
 function buildShippingPackageDetails(details: any): string {
@@ -2283,44 +2139,14 @@ function buildShippingPackageDetails(details: any): string {
 
     return `
 <ShippingPackageDetails>
-
-    ${xmlNode(
-        'PackageDepth',
-        details.PackageDepth
-    )}
-
-    ${xmlNode(
-        'PackageLength',
-        details.PackageLength
-    )}
-
-    ${xmlNode(
-        'PackageWidth',
-        details.PackageWidth
-    )}
-
-    ${xmlNode(
-        'ShippingIrregular',
-        details.ShippingIrregular
-    )}
-
-    ${xmlNode(
-        'ShippingPackage',
-        details.ShippingPackage
-    )}
-
-    ${xmlNode(
-        'WeightMajor',
-        details.WeightMajor
-    )}
-
-    ${xmlNode(
-        'WeightMinor',
-        details.WeightMinor
-    )}
-
-</ShippingPackageDetails>
-`;
+    ${xmlNode('PackageDepth', details.PackageDepth)}
+    ${xmlNode('PackageLength', details.PackageLength)}
+    ${xmlNode('PackageWidth', details.PackageWidth)}
+    ${xmlNode('ShippingIrregular', details.ShippingIrregular)}
+    ${xmlNode('ShippingPackage', details.ShippingPackage)}
+    ${xmlNode('WeightMajor', details.WeightMajor)}
+    ${xmlNode('WeightMinor', details.WeightMinor)}
+</ShippingPackageDetails>`;
 }
 
 function buildSellerProfiles(profiles: any): string {
@@ -2331,54 +2157,31 @@ function buildSellerProfiles(profiles: any): string {
 
     return `
 <SellerProfiles>
-
     ${
-        profiles.SellerPaymentProfile
-            ? `
+        profiles.SellerPaymentProfile? `
 <SellerPaymentProfile>
-    ${xmlNode(
-        'PaymentProfileID',
-        profiles
-            .SellerPaymentProfile
-            .PaymentProfileID
-    )}
+    ${xmlNode('PaymentProfileID', profiles.SellerPaymentProfile.PaymentProfileID)}
 </SellerPaymentProfile>
 `
-            : ''
+        : ''
     }
-
     ${
-        profiles.SellerReturnProfile
-            ? `
+        profiles.SellerReturnProfile? `
 <SellerReturnProfile>
-    ${xmlNode(
-        'ReturnProfileID',
-        profiles
-            .SellerReturnProfile
-            .ReturnProfileID
-    )}
+    ${xmlNode('ReturnProfileID', profiles.SellerReturnProfile.ReturnProfileID)}
 </SellerReturnProfile>
 `
             : ''
     }
-
     ${
-        profiles.SellerShippingProfile
-            ? `
+        profiles.SellerShippingProfile? `
 <SellerShippingProfile>
-    ${xmlNode(
-        'ShippingProfileID',
-        profiles
-            .SellerShippingProfile
-            .ShippingProfileID
-    )}
+    ${xmlNode('ShippingProfileID', profiles.SellerShippingProfile.ShippingProfileID)}
 </SellerShippingProfile>
 `
             : ''
     }
-
-</SellerProfiles>
-`;
+</SellerProfiles>`;
 }
 
 export function buildAddItemXml(ebayAuthToken: string, item: any): string {
@@ -2392,10 +2195,8 @@ export function buildAddItemXml(ebayAuthToken: string, item: any): string {
     <RequesterCredentials>
         <eBayAuthToken>${escapeXml(ebayAuthToken)}</eBayAuthToken>
     </RequesterCredentials>
-
     <ErrorLanguage>en_US</ErrorLanguage>
     <WarningLevel>High</WarningLevel>
-
     <Item>
         ${xmlNode('Title', item.Title)}
         ${xmlNode('Description', item.Description)}
@@ -2417,16 +2218,7 @@ export function buildAddItemXml(ebayAuthToken: string, item: any): string {
         ${xmlNode('SubTitle', item.SubTitle)}
         ${buildCategory('PrimaryCategory', item.PrimaryCategory)}
         ${buildCategory('SecondaryCategory', item.SecondaryCategory)}
-        ${
-            item.BestOfferDetails
-                ?.BestOfferEnabled
-                ? `
-<BestOfferDetails>
-    <BestOfferEnabled>true</BestOfferEnabled>
-</BestOfferDetails>
-`
-                : ''
-        }
+        ${item.BestOfferDetails?.BestOfferEnabled? `<BestOfferDetails><BestOfferEnabled>true</BestOfferEnabled></BestOfferDetails>` : ''}
         ${buildProductListingDetails(item.ProductListingDetails)}
         ${buildPictureDetails(item.PictureDetails)}
         ${buildItemSpecifics(item.ItemSpecifics)}
@@ -2438,55 +2230,10 @@ export function buildAddItemXml(ebayAuthToken: string, item: any): string {
 </AddItemRequest>`;
 }
 
-// export async function buildAddItemRequestXmlBody(locals: App.Locals, itemData: any) {
-//     console.log(`buildAddItemRequestXmlBody called, using access token: ${locals.ebayAccessToken}, itemData: ${JSON.stringify(itemData)}`);
+export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`addEbayItem: called, using access token: ${locals.ebayAccessToken}`);
 
-//     const xmlBody = `
-// <?xml version="1.0" encoding="utf-8"?>
-// <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-//   <RequesterCredentials>
-//     <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
-//   </RequesterCredentials>
-
-//   <Item>
-//     <Title>${escapeXml(itemData.Title)}</Title>
-//     <Description>${escapeXml(itemData.Description)}</Description>
-
-//     <PrimaryCategory>
-//       <CategoryID>${itemData.PrimaryCategory.CategoryID}</CategoryID>
-//       <CategoryName>${itemData.PrimaryCategory.CategoryName}</CategoryName>
-//     </PrimaryCategory>
-
-//     <StartPrice>${itemData.StartPrice}</StartPrice>
-//     <Quantity>${itemData.Quantity}</Quantity>
-
-//     <ConditionID>${itemData.ConditionID}</ConditionID>
-
-//     <ListingType>${itemData.ListingType || 'FixedPriceItem'}</ListingType>
-//     <ListingDuration>${itemData.ListingDuration || 'GTC'}</ListingDuration>
-
-//     <Location>${escapeXml(itemData.Location || 'USA')}</Location>
-
-//     ${buildPaymentMethods(itemData.PaymentMethods)}
-//     ${buildReturnPolicy(itemData.ReturnPolicy)}
-//     ${buildShippingDetails(itemData.ShippingPackageDetails)}
-//     ${buildPictureDetails(itemData.PictureUrls)}
-//     ${buildItemSpecifics(itemData.ItemSpecifics)}
-//     ${buildVariations(itemData.Variations)}
-//   </Item>
-// </AddItemRequest>
-// `;
-
-//     console.log('AddItem XML:', xmlBody);
-
-//     return {
-//         status: 200,
-//         data: { xmlBody }
-//     };
-// }
-
-export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`addEbayItem called, using access token: ${locals.ebayAccessToken}`);
+    console.log('addEbayItem: AddItem XML:', xmlBody);
 
     const headers = {
         'Content-Type': 'text/xml',
@@ -2497,48 +2244,59 @@ export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ 
         'X-EBAY-API-CALL-NAME': 'AddItem',
     };
 
-    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>`;
+    console.log('ebayUtils: addEbayItem headers:', JSON.stringify(headers));
+    
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, {
+            method: 'POST',
+            headers: headers,
+            body: xmlBody
+        });
 
-    console.log('AddItem XML:', xmlBody);
+        const data = await response.text();
+
+        if (response.ok) {
+            // Initialize the parser
+            const parser = new XMLParser();
+            const jsonData = parser.parse(data);
+            console.log(`addEbayItem: AddItem data: ${JSON.stringify(jsonData)}`);
+            // console.log(`getMyEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            if (!jsonData.AddItemResponse?.Ack) {
+                console.log('No items found in the response.');
+                return {
+                    status: response.status,
+                    data: {}
+                };
+            }
+
+            return {
+                status: response.status,
+                data: jsonData
+            };
+        } else {
+            console.log(`ebayUtils: addEbayItem data: ${JSON.stringify(data)}`);
+            // console.log(`ebayUtils: addEbayItem response.status: ${JSON.stringify(response.status)}`);
+
+            return {
+                status: response.status,
+                message: JSON.stringify(data)
+            };
+        }
+    } catch (error) {
+        console.error('Error addEbayItem:', error);
+        return {
+            status: 500,
+            data: {}
+        };
+    }
+
 
     return {
         status: 200,
         data: { xmlBody }
     };
 }
-
-// export async function addEbayItem(locals: App.Locals, itemData: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-//     console.log(`ebayUtils: addEbayItem called, using access token: ${locals.ebayAccessToken}, ItemData: ${JSON.stringify(itemData)}`);
-
-//     const headers = {
-//         'Content-Type': 'text/xml',
-//         'Connection': 'Keep-Alive',
-//         'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
-//         'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
-//         'X-EBAY-API-SITEID': '0',
-//         'X-EBAY-API-CALL-NAME': 'AddItem',
-//     };
-
-//     console.log('ebayUtils: addEbayItem headers:', JSON.stringify(headers));
-
-//     // const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
-//     // <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-//     //     <RequesterCredentials>
-//     //         <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
-//     //     </RequesterCredentials>
-//     //     <Item>
-//     //         <Title>${itemData.title}</Title>
-//     //     </Item>
-//     //     <ItemID>${itemId}</ItemID>
-//     // </AddItemRequest>`;
-
-//     // console.log('ebayUtils: addEbayItem xmlBody:', xmlBody);
-
-//     return {
-//         status: 500,
-//         data: {}
-//     };
-// }
 
 export async function delistEbayItem(locals: App.Locals, itemId: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`ebayUtils: delistEbayItem called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}`);
@@ -2655,6 +2413,18 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     const addItemRequest = buildAddItemXml(locals.ebayAccessToken as string, clonedItem);
     console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
+    // Attempt to use the new additem request to relist the item with the updated price.
+    const addItemResult = await addEbayItem(locals, addItemRequest);
+
+    if (addItemResult.status !== 200) {
+        console.error('Failed to add item to eBay API');
+        return {
+            status: 400,
+            message: 'Failed to add item to eBay API'
+        };
+    }
+
+    console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
     // Now delist the item from eBay before relisting it with the new price.
     // const delistResult = await delistEbayItem(locals, itemId);
 
