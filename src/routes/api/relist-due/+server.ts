@@ -1,0 +1,96 @@
+import { json } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+import {
+    getEbayTokensFromDB,
+    getItemsDueForRelist,
+    updateEbayMetadata
+} from '$lib/server/DatabaseUtils';
+import { refreshEbayToken, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
+import type { RequestHandler } from '../register/$types';
+
+const BATCH_LIMIT = 50;
+const DEFAULT_INTERVAL_DAYS = 30;
+
+// Invoked by Vercel Cron, which sends `Authorization: Bearer ${CRON_SECRET}`
+export const GET: RequestHandler = async ({ request }) => {
+    if (!env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${env.CRON_SECRET}`) {
+        return json({ message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const now = new Date();
+    const due = await getItemsDueForRelist(now, BATCH_LIMIT);
+    if (!due.ok) {
+        return json({ message: 'Database unavailable' }, { status: 500 });
+    }
+
+    console.log(`relist-due: ${due.data.length} item(s) due`);
+
+    // const localsByUser = new Map<string, App.Locals | null>();
+    // let succeeded = 0;
+    // let failed = 0;
+
+    // for (const { itemId, userId, metadata } of due.data) {
+    //     let result = 'unknown error';
+    //     let ok = false;
+
+    //     try {
+    //         if (!localsByUser.has(userId)) {
+    //             localsByUser.set(userId, await buildLocals(userId));
+    //         }
+    //         const locals = localsByUser.get(userId);
+
+    //         if (!locals) {
+    //             result = 'missing or unrefreshable eBay tokens';
+    //         } else {
+    //             const response = await relistEbayItemsWithPriceChange(locals, itemId, 0);
+    //             ok = response.status === 200;
+    //             result = ok ? 'success' : `failed: ${'message' in response ? response.message : response.status}`;
+    //         }
+    //     } catch (error) {
+    //         result = `error: ${error instanceof Error ? error.message : String(error)}`;
+    //     }
+
+    //     const attemptTime = new Date();
+    //     const intervalDays = metadata.relistIntervalDays ?? DEFAULT_INTERVAL_DAYS;
+
+    //     await updateEbayMetadata(userId, itemId, {
+    //         lastRelistAttemptAt: attemptTime,
+    //         lastRelistResult: result,
+    //         relistAttemptCount: ok ? 0 : (metadata.relistAttemptCount ?? 0) + 1,
+    //         ...(ok
+    //             ? {
+    //                   currentListedAt: attemptTime,
+    //                   relistAt: new Date(attemptTime.getTime() + intervalDays * 24 * 60 * 60 * 1000)
+    //               }
+    //             : {})
+    //     });
+
+    //     if (ok) succeeded++;
+    //     else {
+    //         failed++;
+    //         console.error(`relist-due: item ${itemId} user ${userId} ${result}`);
+    //     }
+    // }
+
+    return json({ processed: due.data.length, succeeded: 0, failed: 0 });
+    // return json({ processed: due.data.length, succeeded, failed });
+};
+
+async function buildLocals(userId: string): Promise<App.Locals | null> {
+    const tokens = await getEbayTokensFromDB(userId);
+    if (tokens.status !== 'success') return null;
+
+    const locals = {
+        session: { userId },
+        ebayAccessToken: tokens.data.accessToken,
+        ebayRefreshToken: tokens.data.refreshToken,
+        ebaySellerUsername: tokens.data.sellerUsername
+    } as unknown as App.Locals;
+
+    if (tokens.data.refreshTokenStatus === 'expired') {
+        const refreshed = await refreshEbayToken(locals).catch(() => false);
+        if (!refreshed) return null;
+    }
+
+    return locals;
+}
