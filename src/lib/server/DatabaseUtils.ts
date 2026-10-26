@@ -345,6 +345,8 @@ export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok:
     .lean()
     .exec();
 
+    console.log(`getItemsDueForRelist: fetched ${items.length} item(s) due for relist`);
+
     return {
         ok: true,
         data: items.map((item) => ({
