@@ -6,7 +6,7 @@ import {
     updateEbayMetadata
 } from '$lib/server/DatabaseUtils';
 import { refreshEbayToken, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
-import type { RequestHandler } from '../register/$types';
+import type { RequestHandler } from './$types';
 
 const BATCH_LIMIT = 50;
 const DEFAULT_INTERVAL_DAYS = 30;
@@ -14,21 +14,23 @@ const DEFAULT_INTERVAL_DAYS = 30;
 // Invoked by Vercel Cron, which sends `Authorization: Bearer ${CRON_SECRET}`
 export const GET: RequestHandler = async ({ request }) => {
     console.log(`relist-due: RequestHandler ENTER`);
+    console.log(`relist-due: CRON_SECRET configured=${!!env.CRON_SECRET}, authorization header present=${request.headers.has('authorization')}, user-agent=${request.headers.get('user-agent')}`);
     if (!env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${env.CRON_SECRET}`) {
         console.log(`relist-due: RequestHandler Unauthorized`);
         return json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log(`relist-due: RequestHandler 2`);
+    console.log(`relist-due: authorized, querying items due at ${new Date().toISOString()}`);
 
     const now = new Date();
     const due = await getItemsDueForRelist(now, BATCH_LIMIT);
-    console.log(`relist-due: fetched items due for relist`);
+    console.log(`relist-due: getItemsDueForRelist ok=${due.ok}`);
     if (!due.ok) {
+        console.error(`relist-due: database unavailable, code=${due.code}`);
         return json({ message: 'Database unavailable' }, { status: 500 });
     }
 
-    console.log(`relist-due: ${due.data.length} item(s) due`);
+    console.log(`relist-due: ${due.data.length} item(s) due: ${JSON.stringify(due.data.map((d) => ({ itemId: d.itemId, userId: d.userId, relistAt: d.metadata.relistAt })))}`);
 
     // const localsByUser = new Map<string, App.Locals | null>();
     // let succeeded = 0;
@@ -82,8 +84,13 @@ export const GET: RequestHandler = async ({ request }) => {
 };
 
 async function buildLocals(userId: string): Promise<App.Locals | null> {
+    console.log(`relist-due: buildLocals for user ${userId}`);
     const tokens = await getEbayTokensFromDB(userId);
-    if (tokens.status !== 'success') return null;
+    if (tokens.status !== 'success') {
+        console.error(`relist-due: no eBay tokens for user ${userId}: ${tokens.message}`);
+        return null;
+    }
+    console.log(`relist-due: user ${userId} refreshTokenStatus=${tokens.data.refreshTokenStatus}`);
 
     const locals = {
         session: { userId },
@@ -94,6 +101,7 @@ async function buildLocals(userId: string): Promise<App.Locals | null> {
 
     if (tokens.data.refreshTokenStatus === 'expired') {
         const refreshed = await refreshEbayToken(locals).catch(() => false);
+        console.log(`relist-due: token refresh for user ${userId} succeeded=${refreshed}`);
         if (!refreshed) return null;
     }
 
