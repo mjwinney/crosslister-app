@@ -15,6 +15,7 @@ const DEFAULT_INTERVAL_DAYS = 30;
 export const GET: RequestHandler = async ({ request }) => {
     console.log(`relist-due: RequestHandler ENTER`);
     if (!env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${env.CRON_SECRET}`) {
+        console.log(`relist-due: RequestHandler Unauthorized`);
         return json({ message: 'Unauthorized' }, { status: 401 });
     }
 
