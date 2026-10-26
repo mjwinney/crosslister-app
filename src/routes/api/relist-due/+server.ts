@@ -18,6 +18,8 @@ export const GET: RequestHandler = async ({ request }) => {
         return json({ message: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log(`relist-due: RequestHandler 2`);
+
     const now = new Date();
     const due = await getItemsDueForRelist(now, BATCH_LIMIT);
     console.log(`relist-due: fetched items due for relist`);
