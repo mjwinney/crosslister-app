@@ -13,6 +13,7 @@ const DEFAULT_INTERVAL_DAYS = 30;
 
 // Invoked by Vercel Cron, which sends `Authorization: Bearer ${CRON_SECRET}`
 export const GET: RequestHandler = async ({ request }) => {
+    console.log(`relist-due: RequestHandler ENTER`);
     if (!env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${env.CRON_SECRET}`) {
         return json({ message: 'Unauthorized' }, { status: 401 });
     }
