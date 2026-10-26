@@ -329,6 +329,8 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
 
 export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok: true; data: Array<{ itemId: string; userId: string; metadata: MetaDataModel }> } | { ok: false; code: StatusCodes }>
 {
+    console.log(`getItemsDueForRelist: ENTER with now=${now.toISOString()}`);
+
     await connectToDatabase();
 
     if (!cachedDb) {

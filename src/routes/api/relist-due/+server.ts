@@ -19,6 +19,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
     const now = new Date();
     const due = await getItemsDueForRelist(now, BATCH_LIMIT);
+    console.log(`relist-due: fetched items due for relist`);
     if (!due.ok) {
         return json({ message: 'Database unavailable' }, { status: 500 });
     }
