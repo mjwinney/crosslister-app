@@ -18,17 +18,16 @@ export const GET: RequestHandler = async ({ request }) => {
         return json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log(`relist-due: authorized, querying items due at ${new Date().toISOString()}`);
+    // console.log(`relist-due: authorized, querying items due at ${new Date().toISOString()}`);
 
     const now = new Date();
     const due = await getItemsDueForRelist(now, BATCH_LIMIT);
-    console.log(`relist-due: getItemsDueForRelist ok=${due.ok}`);
     if (!due.ok) {
-        console.error(`relist-due: database unavailable, code=${due.code}`);
+        // console.error(`relist-due: database unavailable, code=${due.code}`);
         return json({ message: 'Database unavailable' }, { status: 500 });
     }
 
-    console.log(`relist-due: ${due.data.length} item(s) due: ${JSON.stringify(due.data.map((d) => ({ itemId: d.itemId, userId: d.userId, relistAt: d.metadata.relistAt })))}`);
+    console.log(`relist-due: ${due.data.length} item(s) due for relist`);
 
     // const localsByUser = new Map<string, App.Locals | null>();
     // let succeeded = 0;
