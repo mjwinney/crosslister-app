@@ -2399,9 +2399,12 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     const currentPrice = ebayItem.SellingStatus.CurrentPrice;
     console.log(`relistEbayItemsWithPriceChange: currentPrice=${currentPrice}`);
 
+    let newPrice = currentPrice; // Default to current price if no change is specified
+    if (priceChange !== 0) {
+        newPrice = Math.round(currentPrice * (1 + priceChange / 100) * 100) / 100;
+    }
     // The priceChange is a percentage, so calculate the new price accordingly.
     // Make sure it is rounded to 2 decimal places
-    const newPrice = Math.round(currentPrice * (1 + priceChange / 100) * 100) / 100;
     console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice}`);
 
     const clonedItem = mapGetItemToAddItem(ebayItem);
@@ -2414,18 +2417,20 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
     // Attempt to use the new additem request to relist the item with the updated price.
-    const addItemResult = await addEbayItem(locals, addItemRequest);
+    // const addItemResult = await addEbayItem(locals, addItemRequest);
 
-    if (addItemResult.status !== 200) {
-        console.error('Failed to add item to eBay API');
-        return {
-            status: 400,
-            message: 'Failed to add item to eBay API'
-        };
-    }
+    // if (addItemResult.status !== 200) {
+    //     console.error('Failed to add item to eBay API');
+    //     return {
+    //         status: 400,
+    //         message: 'Failed to add item to eBay API'
+    //     };
+    // }
 
-    console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
-    // Now delist the item from eBay before relisting it with the new price.
+    // console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
+
+    // We only get here if the addItem call was successful, so we can 
+    // safely delist the original item.
     // const delistResult = await delistEbayItem(locals, itemId);
 
     // if (delistResult.status !== 200) {
@@ -2435,19 +2440,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     //         message: 'Failed to delist item from eBay API'
     //     };
     // }
-
     // console.log(`relistEbayItemsWithPriceChange: delistResult=${JSON.stringify(delistResult)}`);
-
-    // // Look at the Ack to make sure it says success
-    // if (!('data' in delistResult) || delistResult.data?.Ack !== 'Success') {
-    //     console.error('relistEbayItemsWithPriceChange: Delist item did not return success from eBay API');
-    //     return {
-    //         status: 400,
-    //         message: 'Delist item did not return success from eBay API'
-    //     };
-    // }
-
-    // Hold onto the ebay item data because we are going to delist and then re add it with the new price.
 
     return {
         status: 200,

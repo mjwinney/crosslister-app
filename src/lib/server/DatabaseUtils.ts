@@ -327,6 +327,62 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
     }, true);
 }
 
+export type DueRelistGroup = { userId: string; items: Array<{ itemId: string; metadata: MetaDataModel }> };
+
+// Returns up to `userLimit` users (oldest overdue first), each with up to `itemsPerUser` due items.
+export async function getDueRelistGroupsByUser(
+    now: Date,
+    userLimit: number,
+    itemsPerUser: number,
+    excludeUserIds: string[] = []
+): Promise<{ ok: true; data: DueRelistGroup[] } | { ok: false; code: StatusCodes }>
+{
+    console.log(`getDueRelistGroupsByUser: ENTER with now=${now.toISOString()}`);
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.error('getDueRelistGroupsByUser: No database connection');
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const groups = await EbayItemMetadata.aggregate<{ _id: string; items: Array<Record<string, any>> }>([
+        {
+            $match: {
+                relistEnabled: true,
+                relistAt: { $ne: null, $lte: now },
+                ...(excludeUserIds.length ? { userId: { $nin: excludeUserIds } } : {})
+            }
+        },
+        { $sort: { relistAt: 1 } },
+        { $group: { _id: '$userId', oldest: { $min: '$relistAt' }, items: { $push: '$$ROOT' } } },
+        { $sort: { oldest: 1 } },
+        { $limit: userLimit },
+        { $project: { items: { $slice: ['$items', itemsPerUser] } } }
+    ]).exec();
+
+    console.log(`getDueRelistGroupsByUser: fetched ${groups.length} user group(s)`);
+
+    return {
+        ok: true,
+        data: groups.map((group) => ({
+            userId: group._id,
+            items: group.items.map((item) => ({
+                itemId: item.itemId,
+                metadata: {
+                    relistEnabled: item.relistEnabled,
+                    relistAt: item.relistAt,
+                    relistIntervalDays: item.relistIntervalDays,
+                    originalListedAt: item.originalListedAt,
+                    currentListedAt: item.currentListedAt,
+                    lastRelistAttemptAt: item.lastRelistAttemptAt,
+                    lastRelistResult: item.lastRelistResult,
+                    relistAttemptCount: item.relistAttemptCount ?? undefined
+                }
+            }))
+        }))
+    };
+}
+
 export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok: true; data: Array<{ itemId: string; userId: string; metadata: MetaDataModel }> } | { ok: false; code: StatusCodes }>
 {
     console.log(`getItemsDueForRelist: ENTER with now=${now.toISOString()}`);

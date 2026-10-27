@@ -30,5 +30,6 @@ const EbayItemMetadataSchema = new mongoose.Schema({
 
 // enforce uniqueness per user+item
 EbayItemMetadataSchema.index({ itemId: 1, userId: 1 }, { unique: true });
+EbayItemMetadataSchema.index({ relistEnabled: 1, relistAt: 1, userId: 1 });
 
 export const EbayItemMetadata = mongoose.model('EbayItemMetadata', EbayItemMetadataSchema);
