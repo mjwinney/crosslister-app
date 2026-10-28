@@ -2008,6 +2008,12 @@ export function mapGetItemToAddItem(source: any) {
     return item;
 }
 
+// fast-xml-parser returns a lone child element as an object, not an array
+function toArray<T>(value: T | T[] | undefined | null): T[] {
+    if (value === undefined || value === null) return [];
+    return Array.isArray(value) ? value : [value];
+}
+
 function buildCategory(name: string, category: any): string {
 
     if (!category?.CategoryID) {
@@ -2038,7 +2044,7 @@ function buildPictureDetails(pictureDetails: any): string {
         return '';
     }
 
-    const urls = pictureDetails.PictureURL || [];
+    const urls = toArray<string>(pictureDetails.PictureURL);
 
     return `
 <PictureDetails>
@@ -2053,9 +2059,9 @@ function buildPictureDetails(pictureDetails: any): string {
 
 function buildItemSpecifics(itemSpecifics: any): string {
 
-    const specifics = itemSpecifics?.NameValueList;
+    const specifics = toArray<any>(itemSpecifics?.NameValueList);
 
-    if (!specifics?.length) {
+    if (!specifics.length) {
         return '';
     }
 
@@ -2108,8 +2114,8 @@ function buildShippingDetails(shipping: any, currency = 'USD'): string {
     ${xmlNode('GlobalShipping', shipping.GlobalShipping)}
     ${xmlNode('PromotionalShippingDiscount', shipping.PromotionalShippingDiscount)}
 
-    ${shipping.ShippingServiceOptions
-            ?.map(
+    ${toArray<any>(shipping.ShippingServiceOptions)
+            .map(
                 (service: any) => `
 <ShippingServiceOptions>
     ${xmlNode('ShippingService', service.ShippingService)}
@@ -2119,8 +2125,8 @@ function buildShippingDetails(shipping: any, currency = 'USD'): string {
     ${xmlAmountNode('ShippingServiceAdditionalCost', service.ShippingServiceAdditionalCost, currency)}
 </ShippingServiceOptions>`).join('') || ''
     }
-    ${shipping.InternationalShippingServiceOption
-        ?.map(
+    ${toArray<any>(shipping.InternationalShippingServiceOption)
+        .map(
             (service: any) => `
 <InternationalShippingServiceOption>
     ${xmlNode('ShippingService', service.ShippingService)}
