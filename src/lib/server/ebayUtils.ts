@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { type MetaDataModel, getEbayMetadata,  StatusCodes, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { type MetaDataModel, getEbayMetadata,  StatusCodes, replaceEbayItemId, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 import { da } from "date-fns/locale";
 
@@ -2410,41 +2410,61 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     const clonedItem = mapGetItemToAddItem(ebayItem);
 
     clonedItem.StartPrice = newPrice;
-    clonedItem.Title += ' 🔥';
+    if (!clonedItem.Title.includes('🔥')) {
+        clonedItem.Title += ' 🔥';
+    }
 
     // Build the request body for relisting the item with the new price.
     const addItemRequest = buildAddItemXml(locals.ebayAccessToken as string, clonedItem);
     console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
     // Attempt to use the new additem request to relist the item with the updated price.
-    // const addItemResult = await addEbayItem(locals, addItemRequest);
+    const addItemResult = await addEbayItem(locals, addItemRequest);
 
-    // if (addItemResult.status !== 200) {
-    //     console.error('Failed to add item to eBay API');
-    //     return {
-    //         status: 400,
-    //         message: 'Failed to add item to eBay API'
-    //     };
-    // }
+    if (addItemResult.status !== 200 || !('data' in addItemResult)) {
+        console.error('Failed to add item to eBay API');
+        return {
+            status: 400,
+            message: 'Failed to add item to eBay API'
+        };
+    }
 
-    // console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
+    const addItemResponse = addItemResult.data?.AddItemResponse;
+    const newItemId = addItemResponse?.ItemID ? String(addItemResponse.ItemID) : '';
+    if (!['Success', 'Warning'].includes(addItemResponse?.Ack) || !newItemId) {
+        console.error(`relistEbayItemsWithPriceChange: AddItem failed, Ack=${addItemResponse?.Ack} Errors=${JSON.stringify(addItemResponse?.Errors)}`);
+        return {
+            status: 400,
+            message: 'Failed to add item to eBay API'
+        };
+    }
+    const startTime = addItemResponse.StartTime ? new Date(addItemResponse.StartTime) : undefined;
 
-    // We only get here if the addItem call was successful, so we can 
-    // safely delist the original item.
-    // const delistResult = await delistEbayItem(locals, itemId);
+    // Move the DB records to the new id before ending the old listing so a crash cannot leave them pointing at the old one.
+    let replaceStatus = await replaceEbayItemId(locals.session?.userId as string, itemId, newItemId, startTime);
+    if (replaceStatus !== StatusCodes.OK) {
+        console.error(`relistEbayItemsWithPriceChange: failed to replace itemId ${itemId} with ${newItemId}, retrying once`);
+        replaceStatus = await replaceEbayItemId(locals.session?.userId as string, itemId, newItemId, startTime);
+    }
+    const idSwapped = replaceStatus === StatusCodes.OK;
+    if (!idSwapped) {
+        console.error(`relistEbayItemsWithPriceChange: itemId swap ${itemId} -> ${newItemId} failed after retry`);
+    }
 
-    // if (delistResult.status !== 200) {
-    //     console.error('Failed to delist item from eBay API');
-    //     return {
-    //         status: 400,
-    //         message: 'Failed to delist item from eBay API'
-    //     };
-    // }
-    // console.log(`relistEbayItemsWithPriceChange: delistResult=${JSON.stringify(delistResult)}`);
+    console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
+
+    // The new listing is live, so a failed EndItem is reported but not treated as a failed relist.
+    const delistResult = await delistEbayItem(locals, itemId);
+    const delistAck = 'data' in delistResult ? delistResult.data?.EndItemResponse?.Ack : undefined;
+    const oldListingEnded = delistResult.status === 200 && ['Success', 'Warning'].includes(delistAck);
+    if (!oldListingEnded) {
+        console.error(`relistEbayItemsWithPriceChange: failed to end old item ${itemId}, new item ${newItemId} is live`);
+    }
+    console.log(`relistEbayItemsWithPriceChange: delistResult=${JSON.stringify(delistResult)}`);
 
     return {
         status: 200,
-        message: 'OK'
+        data: { newItemId, startTime, oldListingEnded, idSwapped }
     };
 }
 

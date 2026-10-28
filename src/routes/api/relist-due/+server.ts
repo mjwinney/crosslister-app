@@ -67,6 +67,8 @@ export const GET: RequestHandler = async ({ request }) => {
                 console.log(`relist-due: relisting item ${itemId} for user ${userId} (relistAt=${metadata.relistAt?.toString()}, attempts=${metadata.relistAttemptCount ?? 0})`);
                 let result = 'unknown error';
                 let ok = false;
+                // Relisting creates a new eBay item id; metadata must be updated under it.
+                let currentItemId = itemId;
 
                 if (!locals) {
                     result = 'missing or unrefreshable eBay tokens';
@@ -74,7 +76,20 @@ export const GET: RequestHandler = async ({ request }) => {
                     try {
                         const response = await relistEbayItemsWithPriceChange(locals, itemId, 0);
                         ok = response.status === 200;
-                        result = ok ? 'success' : `failed: ${'message' in response ? response.message : response.status}`;
+                        if (ok && 'data' in response && response.data?.newItemId) {
+                            const { newItemId, oldListingEnded, idSwapped } = response.data;
+                            console.log(`relist-due: item ${itemId} relisted as ${newItemId}, oldListingEnded=${oldListingEnded}, idSwapped=${idSwapped}`);
+                            if (idSwapped) {
+                                currentItemId = newItemId;
+                                result = 'success';
+                            } else {
+                                // Row still has the old id; update it so relistAt moves forward and the item is not relisted again.
+                                result = `relisted as ${newItemId} but DB itemId swap failed`;
+                                console.error(`relist-due: item ${itemId} ${result}`);
+                            }
+                        } else {
+                            result = ok ? 'success' : `failed: ${'message' in response ? response.message : response.status}`;
+                        }
                     } catch (error) {
                         result = `error: ${error instanceof Error ? error.message : String(error)}`;
                     }
@@ -84,7 +99,7 @@ export const GET: RequestHandler = async ({ request }) => {
                 const intervalDays = metadata.relistIntervalDays ?? DEFAULT_INTERVAL_DAYS;
                 console.log(`relist-due: item ${itemId} user ${userId} ok=${ok} result=${result}; updating metadata`);
 
-                const updateStatus = await updateEbayMetadata(userId, itemId, {
+                const updateStatus = await updateEbayMetadata(userId, currentItemId, {
                     lastRelistAttemptAt: attemptTime,
                     lastRelistResult: result,
                     relistAttemptCount: ok ? 0 : (metadata.relistAttemptCount ?? 0) + 1,

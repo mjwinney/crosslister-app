@@ -327,6 +327,34 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
     }, true);
 }
 
+// A relist creates a new eBay listing, so the item id must move in both collections.
+export async function replaceEbayItemId(userId: string, oldItemId: string, newItemId: string, startTime?: Date): Promise<StatusCodes>
+{
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        const metadataResult = await EbayItemMetadata.updateOne(
+            { userId, itemId: oldItemId },
+            { $set: { itemId: newItemId, ...(startTime ? { currentListedAt: startTime } : {}) } }
+        ).exec();
+
+        await EbayActiveItems.updateOne(
+            { userId, itemId: oldItemId },
+            { $set: { itemId: newItemId, ...(startTime ? { StartTime: startTime } : {}) } }
+        ).exec();
+
+        console.log(`replaceEbayItemId: ${oldItemId} -> ${newItemId} user ${userId}, metadata matched=${metadataResult.matchedCount}`);
+        return StatusCodes.OK;
+    } catch (error) {
+        console.error(`Error replacing eBay itemId ${oldItemId} -> ${newItemId} for user ${userId}`, error);
+        return StatusCodes.InsertFailed;
+    }
+}
+
 export type DueRelistGroup = { userId: string; items: Array<{ itemId: string; metadata: MetaDataModel }> };
 
 // Returns up to `userLimit` users (oldest overdue first), each with up to `itemsPerUser` due items.
