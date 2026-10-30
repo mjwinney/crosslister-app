@@ -248,7 +248,12 @@ export type MetaDataModel = {
     relistIntervalDays?: number | null,
     lastRelistAttemptAt?: Date | string | null,
     lastRelistResult?: string | null,
-    relistAttemptCount?: number | null
+    relistAttemptCount?: number | null,
+    relistDiscountEnabled?: boolean,
+    relistDiscountPercent?: number,
+    relistDiscountMaxPercent?: number,
+    relistDiscountBasePrice?: number | null,
+    relistDiscountLastPrice?: number | null
 }
 
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
@@ -323,7 +328,12 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
         currentListedAt: relistData.currentListedAt,
         lastRelistAttemptAt: relistData.lastRelistAttemptAt,
         lastRelistResult: relistData.lastRelistResult,
-        relistAttemptCount: relistData.relistAttemptCount
+        relistAttemptCount: relistData.relistAttemptCount,
+        relistDiscountEnabled: relistData.relistDiscountEnabled,
+        relistDiscountPercent: relistData.relistDiscountPercent,
+        relistDiscountMaxPercent: relistData.relistDiscountMaxPercent,
+        relistDiscountBasePrice: relistData.relistDiscountBasePrice,
+        relistDiscountLastPrice: relistData.relistDiscountLastPrice
     }, true);
 }
 
@@ -404,7 +414,12 @@ export async function getDueRelistGroupsByUser(
                     currentListedAt: item.currentListedAt,
                     lastRelistAttemptAt: item.lastRelistAttemptAt,
                     lastRelistResult: item.lastRelistResult,
-                    relistAttemptCount: item.relistAttemptCount ?? undefined
+                    relistAttemptCount: item.relistAttemptCount ?? undefined,
+                    relistDiscountEnabled: item.relistDiscountEnabled,
+                    relistDiscountPercent: item.relistDiscountPercent,
+                    relistDiscountMaxPercent: item.relistDiscountMaxPercent,
+                    relistDiscountBasePrice: item.relistDiscountBasePrice,
+                    relistDiscountLastPrice: item.relistDiscountLastPrice
                 }
             }))
         }))
@@ -444,7 +459,12 @@ export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok:
                 currentListedAt: item.currentListedAt,
                 lastRelistAttemptAt: item.lastRelistAttemptAt,
                 lastRelistResult: item.lastRelistResult,
-                relistAttemptCount: item.relistAttemptCount ?? undefined
+                relistAttemptCount: item.relistAttemptCount ?? undefined,
+                relistDiscountEnabled: item.relistDiscountEnabled,
+                relistDiscountPercent: item.relistDiscountPercent,
+                relistDiscountMaxPercent: item.relistDiscountMaxPercent,
+                relistDiscountBasePrice: item.relistDiscountBasePrice,
+                relistDiscountLastPrice: item.relistDiscountLastPrice
             }
         }))
     };
@@ -581,7 +601,12 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         currentListedAt: metaData?.currentListedAt || undefined,
         relistEnabled: metaData?.relistEnabled ?? undefined,
         relistAt: metaData?.relistAt || undefined,
-        relistIntervalDays: metaData?.relistIntervalDays ?? undefined
+        relistIntervalDays: metaData?.relistIntervalDays ?? undefined,
+        relistDiscountEnabled: metaData?.relistDiscountEnabled ?? undefined,
+        relistDiscountPercent: metaData?.relistDiscountPercent ?? undefined,
+        relistDiscountMaxPercent: metaData?.relistDiscountMaxPercent ?? undefined,
+        relistDiscountBasePrice: metaData?.relistDiscountBasePrice ?? undefined,
+        relistDiscountLastPrice: metaData?.relistDiscountLastPrice ?? undefined
     }};
 }
 

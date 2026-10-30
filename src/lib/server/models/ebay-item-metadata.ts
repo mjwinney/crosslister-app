@@ -24,6 +24,11 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     lastRelistAttemptAt: { type: Date, required: false },
     lastRelistResult: { type: String, required: false },
     relistAttemptCount: { type: Number, required: false, default: 0 },
+    relistDiscountEnabled: { type: Boolean, default: false },
+    relistDiscountPercent: { type: Number, required: false, default: 5 },
+    relistDiscountMaxPercent: { type: Number, required: false, default: 20 },
+    relistDiscountBasePrice: { type: Number, required: false, default: null },
+    relistDiscountLastPrice: { type: Number, required: false, default: null },
     // Add other relevant fields like creation date, user ID, etc.
     createdAt: { type: Date, default: Date.now },
 });

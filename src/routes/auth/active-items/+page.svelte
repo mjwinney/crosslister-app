@@ -12,6 +12,13 @@
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { poshmarkTabOpen, poshmarkTabLoggedInUid } from '$lib/stores/poshmark';
+	import {
+		DEFAULT_DISCOUNT_PERCENT,
+		DEFAULT_MAX_DISCOUNT_PERCENT,
+		MAX_DISCOUNT_PERCENT,
+		getRelistDiscountFieldErrors,
+		type RelistDiscountFieldErrors
+	} from '$lib/relistDiscount';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -134,6 +141,77 @@
 			await postMetaData(String(item.itemId), updatedMetaData);
 		} catch (error) {
 			console.error('Failed to save relist setting:', error);
+		}
+	}
+
+	// Text drafts per item so the user can clear/retype a field before it is validated.
+	let discountDrafts = $state<Record<string, { percent?: string; max?: string }>>({});
+	let discountErrors = $state<Record<string, RelistDiscountFieldErrors>>({});
+
+	function discountPercentText(item: any): string {
+		return discountDrafts[item.itemId]?.percent ?? String(item.metadata?.relistDiscountPercent ?? DEFAULT_DISCOUNT_PERCENT);
+	}
+
+	function discountMaxText(item: any): string {
+		return discountDrafts[item.itemId]?.max ?? String(item.metadata?.relistDiscountMaxPercent ?? DEFAULT_MAX_DISCOUNT_PERCENT);
+	}
+
+	function handleDiscountInput(item: any, field: 'percent' | 'max', event: Event & { currentTarget: HTMLInputElement }) {
+		const digits = event.currentTarget.value.replace(/\D/g, '').slice(0, 2);
+		event.currentTarget.value = digits;
+		discountDrafts[item.itemId] = { ...discountDrafts[item.itemId], [field]: digits };
+		if (discountErrors[item.itemId]) {
+			discountErrors[item.itemId] = { ...discountErrors[item.itemId], [field]: undefined };
+		}
+	}
+
+	function validateDiscountDrafts(item: any): RelistDiscountFieldErrors {
+		const percentText = discountPercentText(item);
+		const maxText = discountMaxText(item);
+		return getRelistDiscountFieldErrors(percentText === '' ? NaN : Number(percentText), maxText === '' ? NaN : Number(maxText));
+	}
+
+	// Only the blurred field and fields the user has already edited get an error, so untouched defaults stay quiet.
+	function handleDiscountBlur(item: any, field: 'percent' | 'max') {
+		const result = validateDiscountDrafts(item);
+		const edited = discountDrafts[item.itemId] ?? {};
+		discountErrors[item.itemId] = {
+			percent: field === 'percent' || edited.percent !== undefined ? result.percent : undefined,
+			max: field === 'max' || edited.max !== undefined ? result.max : undefined
+		};
+	}
+
+	async function handleDiscountToggle(item: any, checked: boolean, checkbox: HTMLInputElement) {
+		const itemId = String(item.itemId);
+		const percentText = discountPercentText(item);
+		const maxText = discountMaxText(item);
+		const percent = percentText === '' ? NaN : Number(percentText);
+		const max = maxText === '' ? NaN : Number(maxText);
+
+		if (checked) {
+			const result = validateDiscountDrafts(item);
+			if (result.percent || result.max) {
+				discountErrors[itemId] = result;
+				checkbox.checked = false;
+				return;
+			}
+		}
+		delete discountErrors[itemId];
+
+		const updatedMetaData: MetaDataModel = {
+			...item.metadata,
+			relistDiscountEnabled: checked,
+			relistDiscountPercent: checked ? percent : item.metadata?.relistDiscountPercent,
+			relistDiscountMaxPercent: checked ? max : item.metadata?.relistDiscountMaxPercent,
+			// A fresh enable recaptures the price anchors at the next relist.
+			...(checked ? { relistDiscountBasePrice: null, relistDiscountLastPrice: null } : {})
+		};
+		item.metadata = updatedMetaData;
+
+		try {
+			await postMetaData(itemId, updatedMetaData);
+		} catch (error) {
+			console.error('Failed to save relist discount setting:', error);
 		}
 	}
 
@@ -362,6 +440,52 @@
 													<span>Relist every 30 days</span>
 												</label>
 											</li>
+											<li class="dropdown-item relist-option relist-discount">
+												<label class="flex items-center gap-2 m-0">
+													<input
+														type="checkbox"
+														checked={!!item.metadata?.relistDiscountEnabled}
+														onchange={(event) => handleDiscountToggle(item, event.currentTarget.checked, event.currentTarget)}
+													/>
+													<span>Discount on relist</span>
+												</label>
+												<div class="discount-fields">
+													<label class="discount-field">
+														<span class="discount-label">
+															{@render discountWarning(discountErrors[item.itemId]?.percent)}
+															Discount %
+														</span>
+														<input
+															type="text"
+															inputmode="numeric"
+															maxlength="2"
+															class="auth-field"
+															aria-label="Discount percent, maximum {MAX_DISCOUNT_PERCENT}"
+															value={discountPercentText(item)}
+															disabled={!!item.metadata?.relistDiscountEnabled}
+															oninput={(event) => handleDiscountInput(item, 'percent', event)}
+															onblur={() => handleDiscountBlur(item, 'percent')}
+														/>
+													</label>
+													<label class="discount-field">
+														<span class="discount-label">
+															{@render discountWarning(discountErrors[item.itemId]?.max)}
+															Maximum %
+														</span>
+														<input
+															type="text"
+															inputmode="numeric"
+															maxlength="2"
+															class="auth-field"
+															aria-label="Maximum discount percent, maximum {MAX_DISCOUNT_PERCENT}"
+															value={discountMaxText(item)}
+															disabled={!!item.metadata?.relistDiscountEnabled}
+															oninput={(event) => handleDiscountInput(item, 'max', event)}
+															onblur={() => handleDiscountBlur(item, 'max')}
+														/>
+													</label>
+												</div>
+											</li>
 										</ul>
 									</li>
 
@@ -378,6 +502,15 @@
 		</div>
 	{/if}
 </div>
+
+{#snippet discountWarning(message: string | undefined)}
+	<span class="discount-warning" class:visible={!!message} role={message ? 'img' : undefined} aria-label={message} aria-hidden={message ? undefined : 'true'}>
+		&#9888;
+		{#if message}
+			<span class="discount-tooltip" role="tooltip">{message}</span>
+		{/if}
+	</span>
+{/snippet}
 
 <style>
 	.items-container {
@@ -427,6 +560,19 @@
 	.relist-submenu { min-width: 210px; padding: 0.5rem 0.75rem; }
 	.relist-option { padding: 0.25rem 0; }
 	.relist-option label { width: 100%; font-size: 0.9rem; cursor: pointer; }
+	.relist-discount { border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); margin-top: 0.25rem; padding-top: 0.5rem; }
+	.discount-fields { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.4rem 0 0 1.6rem; }
+	.discount-field { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: default; }
+	.discount-field input { width: 3.5rem; min-height: 30px; text-align: right; }
+	.discount-field input:disabled { background: color-mix(in srgb, currentColor 8%, transparent); border-style: dashed; color: color-mix(in srgb, currentColor 55%, transparent); font-weight: 600; cursor: not-allowed; opacity: 0.85; }
+	.discount-field:has(input:disabled) .discount-label { opacity: 0.6; }
+	.discount-label { display: inline-flex; align-items: center; gap: 0.3rem; }
+	/* Always reserves its width so the menu does not resize when an error appears. */
+	.discount-warning { position: relative; display: inline-block; width: 1rem; text-align: center; line-height: 1; color: #d97706; visibility: hidden; cursor: help; }
+	.discount-warning.visible { visibility: visible; }
+	.discount-tooltip { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; display: none; width: max-content; max-width: 14rem; padding: 0.35rem 0.55rem; border-radius: 6px; background: #1f2937; color: #fff; font-size: 0.78rem; line-height: 1.25; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); pointer-events: none; }
+	.discount-tooltip::after { content: ''; position: absolute; left: 0.35rem; top: 100%; border: 6px solid transparent; border-top-color: #1f2937; }
+	.discount-warning:hover .discount-tooltip { display: block; }
 
 	@media (max-width: 900px) {
 		.items-container { max-height: none; }
