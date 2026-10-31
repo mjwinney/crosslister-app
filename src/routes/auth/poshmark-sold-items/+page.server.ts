@@ -1,5 +1,7 @@
 import { StatusCodes, updateEbayMetadata, getPoshmarkDaysInPastToScrape, getPoshmarkMetadataByPage } from '$lib/server/DatabaseUtils';
 import { updatePoshmarkMetadata, type MetaDataModel } from "$lib/server/DatabaseUtils";
+import { readMetadataRequest } from '$lib/server/metadataRequest';
+import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { Actions } from './$types';
 
@@ -66,23 +68,21 @@ export const load: PageServerLoad = async ({ request, locals }) => {
 // };
 
 export const actions: Actions = {
-    updateItem: async ({ request }) => {
+    updateItem: async ({ request, locals }) => {
         console.log('updateItem: ENTER');
-        console.log('updateItem: request:', request);
         const formData = await request.formData();
-        const itemId = formData.get('itemId') as string;
-        const metaData: MetaDataModel = JSON.parse(formData.get('metaData') as string);
-        const userId = formData.get('userId') as string;
+
+        const parsed = readMetadataRequest<MetaDataModel>(formData, locals);
+        if (!parsed.ok) {
+            return parsed.failure;
+        }
+        const { userId, itemId, metaData } = parsed;
         console.log(`updateItem: itemId:${itemId}, metaData:${JSON.stringify(metaData)}, userId:${userId}`);
 
-        // const metaData = formData.get('metaData') as MetaDataModel;
         const response = await updatePoshmarkMetadata(userId, itemId, metaData, true);
 
         if (response !== StatusCodes.OK) {
-            return new Response('Failed to update Poshmark item metadata', {
-                status: 500,
-                headers: { 'Content-Type': 'text/html' }
-            });
+            return fail(500, { message: 'Failed to update Poshmark item metadata' });
         }
 
         console.log('poshmark metadata API request successful, success');

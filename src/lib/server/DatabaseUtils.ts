@@ -250,8 +250,8 @@ export type MetaDataModel = {
     lastRelistResult?: string | null,
     relistAttemptCount?: number | null,
     relistDiscountEnabled?: boolean,
-    relistDiscountPercent?: number,
-    relistDiscountMaxPercent?: number,
+    relistDiscountPercent?: number | null,
+    relistDiscountMaxPercent?: number | null,
     relistDiscountBasePrice?: number | null,
     relistDiscountLastPrice?: number | null
 }
@@ -272,21 +272,33 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
 
     try {
         const existingRecord = await EbayItemMetadata.findOne({ itemId, userId }).exec();
+        const metadataToSet: Partial<MetaDataModel> = { ...metaDataModel };
+        delete metadataToSet.originalListedAt;
 
-        if (existingRecord) {
-            if (!metaDataModel.originalListedAt && existingRecord.originalListedAt) {
-                metaDataModel.originalListedAt = existingRecord.originalListedAt;
-            }
-            if (!metaDataModel.currentListedAt && existingRecord.currentListedAt) {
-                metaDataModel.currentListedAt = existingRecord.currentListedAt;
-            }
-        } else if (!metaDataModel.originalListedAt && metaDataModel.currentListedAt) {
-            metaDataModel.originalListedAt = metaDataModel.currentListedAt;
+        const originalListedAtCandidate = metaDataModel.originalListedAt
+            ?? metaDataModel.currentListedAt
+            ?? metaDataModel.listedTime
+            ?? existingRecord?.listedTime;
+
+        if (existingRecord && existingRecord.originalListedAt == null && originalListedAtCandidate != null) {
+            await EbayItemMetadata.updateOne(
+                {
+                    itemId,
+                    userId,
+                    $or: [{ originalListedAt: null }, { originalListedAt: { $exists: false } }]
+                },
+                { $set: { originalListedAt: originalListedAtCandidate } }
+            ).exec();
         }
 
         const result = await EbayItemMetadata.findOneAndUpdate(
             { itemId, userId },         // match by _id and userId
-            { $set: metaDataModel },    // apply provided metadata fields
+            {
+                $set: metadataToSet,
+                $setOnInsert: {
+                    ...(originalListedAtCandidate != null ? { originalListedAt: originalListedAtCandidate } : {})
+                }
+            },
             { new: true, upsert }       // return updated doc; optionally create if missing
         ).exec();
 
@@ -312,29 +324,58 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
         }
     }
 
-    if (relistData.relistAt !== undefined && relistData.relistAt !== null && Number.isNaN(new Date(relistData.relistAt).getTime())) {
+    if (relistData.relistAt != null && Number.isNaN(new Date(relistData.relistAt).getTime())) {
         return StatusCodes.BadRequest;
     }
 
+    const settings: Partial<MetaDataModel> = { ...relistData };
     if (relistData.relistEnabled === false) {
-        relistData.relistAt = null;
+        settings.relistAt = null;
+    }
+
+    return updateEbayMetadata(userId, itemId, settings, true);
+}
+
+export async function markRelistSuccess(
+    userId: string,
+    itemId: string,
+    result: { listedAt?: Date; intervalDays?: number } = {}
+): Promise<StatusCodes> {
+    const listedAt = result.listedAt ?? new Date();
+    const intervalDays = result.intervalDays ?? 30;
+    if (!Number.isInteger(intervalDays) || intervalDays <= 0) {
+        return StatusCodes.BadRequest;
     }
 
     return updateEbayMetadata(userId, itemId, {
-        relistEnabled: relistData.relistEnabled,
-        relistAt: relistData.relistAt ?? null,
-        relistIntervalDays: relistData.relistIntervalDays,
-        originalListedAt: relistData.originalListedAt,
-        currentListedAt: relistData.currentListedAt,
-        lastRelistAttemptAt: relistData.lastRelistAttemptAt,
-        lastRelistResult: relistData.lastRelistResult,
-        relistAttemptCount: relistData.relistAttemptCount,
-        relistDiscountEnabled: relistData.relistDiscountEnabled,
-        relistDiscountPercent: relistData.relistDiscountPercent,
-        relistDiscountMaxPercent: relistData.relistDiscountMaxPercent,
-        relistDiscountBasePrice: relistData.relistDiscountBasePrice,
-        relistDiscountLastPrice: relistData.relistDiscountLastPrice
-    }, true);
+        currentListedAt: listedAt,
+        lastRelistAttemptAt: listedAt,
+        lastRelistResult: 'success',
+        relistAttemptCount: 0,
+        relistAt: new Date(listedAt.getTime() + intervalDays * 24 * 60 * 60 * 1000),
+        relistIntervalDays: intervalDays
+    });
+}
+
+export async function markRelistFailure(userId: string, itemId: string, reason: string): Promise<StatusCodes> {
+    await connectToDatabase();
+    if (!cachedDb) {
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        const result = await EbayItemMetadata.updateOne(
+            { itemId, userId },
+            {
+                $set: { lastRelistAttemptAt: new Date(), lastRelistResult: reason },
+                $inc: { relistAttemptCount: 1 }
+            }
+        ).exec();
+        return result.matchedCount ? StatusCodes.OK : StatusCodes.NotFound;
+    } catch (error) {
+        console.error(`Error recording relist failure for itemId:${itemId} userId:${userId}`, error);
+        return StatusCodes.InsertFailed;
+    }
 }
 
 // A relist creates a new eBay listing, so the item id must move in both collections.
@@ -349,7 +390,12 @@ export async function replaceEbayItemId(userId: string, oldItemId: string, newIt
     try {
         const metadataResult = await EbayItemMetadata.updateOne(
             { userId, itemId: oldItemId },
-            { $set: { itemId: newItemId, ...(startTime ? { currentListedAt: startTime } : {}) } }
+            {
+                $set: {
+                    itemId: newItemId,
+                    ...(startTime ? { currentListedAt: startTime } : {})
+                }
+            }
         ).exec();
 
         await EbayActiveItems.updateOne(

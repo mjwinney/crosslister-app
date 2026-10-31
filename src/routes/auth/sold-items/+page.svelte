@@ -20,13 +20,9 @@
 	});
 
 	async function updatePurchasePrice(order: any, newValue: number) {
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
-
 		const formData = new FormData();
 		formData.append('itemId', order.TransactionArray.Transaction.Item.ItemID);
 		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
-		formData.append('userId', userId);
 
 		await fetch('/auth/active-items?/updateItem', {
 			method: 'POST',

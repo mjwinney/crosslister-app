@@ -6,6 +6,7 @@ import {
     updateEbayMetadata
 } from '$lib/server/DatabaseUtils';
 import { refreshEbayToken, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
+import { validateRelistDiscount } from '$lib/relistDiscount';
 import type { RequestHandler } from './$types';
 
 export const config = { maxDuration: 60 };
@@ -69,16 +70,39 @@ export const GET: RequestHandler = async ({ request }) => {
                 let ok = false;
                 // Relisting creates a new eBay item id; metadata must be updated under it.
                 let currentItemId = itemId;
+                // Price anchors to persist after a successful discounted relist.
+                let discountUpdate: { relistDiscountBasePrice: number; relistDiscountLastPrice: number } | undefined;
+
+                const discountEnabled = metadata.relistDiscountEnabled === true;
+                const discountPercent = metadata.relistDiscountPercent;
+                const discountMaxPercent = metadata.relistDiscountMaxPercent;
 
                 if (!locals) {
                     result = 'missing or unrefreshable eBay tokens';
+                } else if (discountEnabled && !validateRelistDiscount(discountPercent, discountMaxPercent).valid) {
+                    // Skip rather than relist at an unintended price.
+                    result = 'invalid relist discount settings';
                 } else {
                     try {
-                        const response = await relistEbayItemsWithPriceChange(locals, itemId, 0);
+                        const response = await relistEbayItemsWithPriceChange(
+                            locals,
+                            itemId,
+                            discountEnabled ? (discountPercent as number) : 0,
+                            discountEnabled
+                                ? {
+                                      maxPercent: discountMaxPercent as number,
+                                      basePrice: metadata.relistDiscountBasePrice,
+                                      lastPrice: metadata.relistDiscountLastPrice
+                                  }
+                                : undefined
+                        );
                         ok = response.status === 200;
                         if (ok && 'data' in response && response.data?.newItemId) {
-                            const { newItemId, oldListingEnded, idSwapped } = response.data;
-                            console.log(`relist-due: item ${itemId} relisted as ${newItemId}, oldListingEnded=${oldListingEnded}, idSwapped=${idSwapped}`);
+                            const { newItemId, oldListingEnded, idSwapped, newPrice, basePrice } = response.data;
+                            console.log(`relist-due: item ${itemId} relisted as ${newItemId}, oldListingEnded=${oldListingEnded}, idSwapped=${idSwapped}, newPrice=${newPrice}`);
+                            if (discountEnabled && typeof basePrice === 'number' && typeof newPrice === 'number') {
+                                discountUpdate = { relistDiscountBasePrice: basePrice, relistDiscountLastPrice: newPrice };
+                            }
                             if (idSwapped) {
                                 currentItemId = newItemId;
                                 result = 'success';
@@ -106,7 +130,8 @@ export const GET: RequestHandler = async ({ request }) => {
                     ...(ok
                         ? {
                               currentListedAt: attemptTime,
-                              relistAt: new Date(attemptTime.getTime() + intervalDays * 24 * 60 * 60 * 1000)
+                              relistAt: new Date(attemptTime.getTime() + intervalDays * 24 * 60 * 60 * 1000),
+                              ...discountUpdate
                           }
                         : {})
                 });

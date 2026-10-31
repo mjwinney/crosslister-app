@@ -109,13 +109,10 @@
 	async function postMetaData(itemID: string, metaData: MetaDataModel) {
 		// console.log('postMetaData called:', itemID, metaData);
 
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
-
+		// The server takes the user from the session, so only the item and its metadata are sent.
 		const formData = new FormData();
 		formData.append('itemId', itemID);
 		formData.append('metaData', JSON.stringify(metaData));
-		formData.append('userId', userId);
 
 		const response = await fetch('/auth/active-items?/updateItem', {
 			method: 'POST',
@@ -132,7 +129,12 @@
 			...item.metadata,
 			relistEnabled: checked,
 			relistIntervalDays: 30,
-			relistAt: nextRelistDate
+			relistAt: nextRelistDate,
+			...(checked ? {} : {
+				relistDiscountEnabled: false,
+				relistDiscountBasePrice: null,
+				relistDiscountLastPrice: null
+			})
 		};
 
 		item.metadata = updatedMetaData;
@@ -200,6 +202,17 @@
 
 		const updatedMetaData: MetaDataModel = {
 			...item.metadata,
+			...(checked
+				? {
+					relistEnabled: true,
+					...(item.metadata?.relistEnabled
+						? {}
+						: {
+							relistAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+							relistIntervalDays: 30
+						})
+				}
+				: {}),
 			relistDiscountEnabled: checked,
 			relistDiscountPercent: checked ? percent : item.metadata?.relistDiscountPercent,
 			relistDiscountMaxPercent: checked ? max : item.metadata?.relistDiscountMaxPercent,

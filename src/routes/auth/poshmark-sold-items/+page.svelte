@@ -89,15 +89,12 @@
 
 	async function updatePurchasePrice(order: any, newValue: number) {
 		console.log(`updatePurchasePrice called with:${JSON.stringify(order)}, newValue=${newValue}`);
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
 
 		const formData = new FormData();
 		formData.append('itemId', order.itemId);
 		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
-		formData.append('userId', userId);
 
-		console.log(`updatePurchasePrice formData:itemId=${formData.get('itemId')}, metaData=${formData.get('metaData')}, userId=${formData.get('userId')}`);
+		console.log(`updatePurchasePrice formData:itemId=${formData.get('itemId')}, metaData=${formData.get('metaData')}`);
 
 		await fetch('/auth/poshmark-sold-items?/updateItem', {
 			method: 'POST',

@@ -1,6 +1,6 @@
 # Relist Auto-Discount: Implementation Plan
 
-Status: Phase 1 (data model) and Phase 3 (UI) implemented. Phase 2 (server validation and `nextDiscountPrice`) and Phase 4 (relist logic) are still to do. Tests are not written yet.
+Status: all phases implemented and covered by tests (`npm test`).
 
 ## Goal
 
@@ -107,8 +107,8 @@ How the rows work:
 
 Notes from the current code:
 
-- `relistEbayItemsWithPriceChange` currently accepts a signed percentage (increase or decrease) with a +/-50% limit. It is changed to accept a discount only (see Phase 4).
-- `relist-due/+server.ts` currently calls it with a price change of 0.
+- `relistEbayItemsWithPriceChange` used to accept a signed percentage (increase or decrease) with a +/-50% limit. It now accepts a discount only (see Phase 4).
+- `relist-due/+server.ts` used to call it with a price change of 0. It now passes the item's discount settings.
 - `replaceEbayItemId` moves metadata to the new item ID after a relist. It must keep the discount fields.
 
 ## Implementation steps
@@ -119,42 +119,66 @@ Notes from the current code:
 2. Add the same fields to `MetaDataModel` and to the read mappings in `DatabaseUtils.ts`.
 3. Confirm `replaceEbayItemId` preserves the fields.
 
-### Phase 2: Validation (partly done, parallel with Phase 3)
+### Phase 2: Validation (done)
 
-Done early because the UI needs it: `src/lib/relistDiscount.ts` exists with `validateRelistDiscount`, `MAX_DISCOUNT_PERCENT` and the two default constants. Still to do: `nextDiscountPrice` and the server-side check in `updateItem`.
+`src/lib/relistDiscount.ts` has `validateRelistDiscount`, `getRelistDiscountFieldErrors`, `nextDiscountPrice`, `prepareRelistDiscountUpdate`, `MAX_DISCOUNT_PERCENT` and the two default constants.
 
 4. Create a shared validator in `src/lib/relistDiscount.ts`, with no server imports so the browser can use it. Exports:
    - `validateRelistDiscount(discount, max)`: both must be integers, `discount > 0`, `discount < max`, `discount <= 50`, `max <= 50`. Export the limit as a `MAX_DISCOUNT_PERCENT = 50` constant shared by the UI, server and eBay helper.
    - `nextDiscountPrice(current, base, discount, max)`: returns `max(round(current * (1 - discount / 100), 2), round(base * (1 - max / 100), 2))`.
-5. In the `updateItem` action, validate when `relistDiscountEnabled` is true and return 400 on failure. On enable, clear the base and last prices. Reject percentage changes while enabled.
-
+5. The `updateItem` action calls `prepareRelistDiscountUpdate(incoming, existingRecord)` after the ownership check:
+   - When `relistDiscountEnabled` is true, the pair is validated and a 400 is returned on failure.
+   - Newly enabling the discount sets the base and last prices to null.
+   - Changing the percentages while the discount stays enabled returns a 400.
+   - Switching the discount off clears the base and last prices.
+   - The base and last prices sent by the client are always dropped. They belong to the relist job, and the page sends stale copies with every metadata save, which would otherwise make the next relist look like a manual price edit.
+   - The action's existing-record lookup goes straight to the Mongoose model, so it relies on the connection the app's request hook already opens. The tests open it themselves in `beforeAll`.
+   - Identity: the owner is taken from `locals.session.userId` (401 when signed out). A `userId` in the form is ignored, and the page no longer sends one. `itemId`, `userId`, `_id` and `createdAt` are stripped from the metadata so a client cannot reassign a record. The same pattern still exists in other routes (see the end of this document).
 ### Phase 3: UI (done)
 
 6. In the Relist submenu add a "Discount on relist" checkbox with two numeric inputs (step 1, min 1, max 50, digits only). Inputs are disabled while the checkbox is on. Values above 50 are rejected with an inline error. Implemented as text inputs that strip non-digits and allow two characters at most, with the typed text kept per item so a field can be cleared and retyped.
 7. Add a handler next to `handleRelistToggle` that validates first. On failure, leave the checkbox unchecked and show an inline error. Persist through `postMetaData`. Implemented as `handleDiscountToggle`. On enable it also sends the base and last prices as null.
 8. Validate the discount and maximum as a pair when either input loses focus (`handleDiscountBlur`), showing or clearing the same error on both labels as a warning icon with a hover tooltip (no text below the inputs, so the menu does not resize). Blur only validates; values are saved when the checkbox is enabled.
 
-### Phase 4: Relist logic (depends on 1 and 2)
+### Phase 4: Relist logic (done)
 
-9. Change `relistEbayItemsWithPriceChange` to `(locals, itemId, discountPercent, floorPrice?)`:
-   - `discountPercent` is a discount only: a whole number from 0 to 50. Negative values (price increases) and values above 50 return a 400.
-   - `0` means relist at the unchanged price, which the plain 30-day relist still needs. If you want to reject 0 as well, the plain relist needs a separate code path.
-   - New price: `max(round(livePrice * (1 - discountPercent / 100), 2), floorPrice ?? 0)`. The 50% cap always applies to each step, and the caller supplies the floor.
-10. In `relist-due/+server.ts`, when the discount is enabled, read the live price and set the base price to it if the base is empty or the live price differs from `relistDiscountLastPrice` (manual edit). Compute the floor and pass the discount and floor to `relistEbayItemsWithPriceChange`. After a successful relist, save the base price and the new price as `relistDiscountLastPrice` with the existing success update. Skip the price change once the live price is already at the floor.
+9. `relistEbayItemsWithPriceChange` is now `(locals, itemId, discountPercent, discount?)`, where `discount` is `{ maxPercent, basePrice?, lastPrice? }`. The floor is computed inside the method rather than passed in, because the method already fetches the live price and this avoids a second eBay call:
+   - `discountPercent` is a discount only: a whole number from 0 to 50. Negative values (price increases), values above 50 and non-integers return a 400. With `discount`, the pair is also checked by `validateRelistDiscount`.
+   - `0` means relist at the unchanged price, which the plain 30-day relist still needs.
+   - With `discount`: if `basePrice` or `lastPrice` is empty, or the live price differs from `lastPrice` (manual edit), the base is reset to the live price. The new price is `nextDiscountPrice(live, base, discountPercent, maxPercent)`.
+   - Without `discount` and `discountPercent > 0`, the price is simply discounted from the live price (used by the test action).
+   - The result data now includes `newPrice` and `basePrice`.
+10. `relist-due/+server.ts` passes the discount settings when `relistDiscountEnabled` is true. If the stored percent and max are invalid, the item is skipped with the result `invalid relist discount settings` instead of relisting at an unintended price. After a successful relist it saves `relistDiscountBasePrice` and `relistDiscountLastPrice` (the new price) with the existing success update. At the floor the relist still happens, at the unchanged price.
+11. The test action `relistEbayItemsWithPriceChange` in `+page.server.ts` now passes `10` (a 10% discount) instead of `-10`.
+
+Checked by running `nextDiscountPrice` repeatedly from a base of 100: 5/20 gives 95, 90.25, 85.74, 81.45, 80, 80; 10/15 gives 90, 85, 85; 3/7 gives 97, 94.09, 93, 93.
 
 ## Testing
 
 ### Framework
 
-Vitest, because the project already builds with Vite. Add a `test` block to `vite.config.ts` with:
+Vitest with `mongodb-memory-server` (a real in-process MongoDB). Setup:
 
-- node environment
-- include `src/**/*.test.ts`
-- an alias for `$env/static/private` pointing at a test stub (for example `src/test/env-private.ts`) that returns the in-memory Mongo URI
+- `vite.config.ts` has a `test` block: node environment, `src/**/*.test.ts`, and aliases for `$env/static/private` and `$env/dynamic/private` that point at stubs in `src/test/`. The stubs mean tests can never read `.env` or reach the real database; without a running test server the Mongo URI is an unreachable address.
+- `src/test/mongo.ts` has `startTestMongo`, `clearTestMongo` and `stopTestMongo`. `startTestMongo()` is awaited at the top of a test file before `DatabaseUtils` is imported, because it reads the URI at import time.
+- `package.json` scripts: `npm test` (run once) and `npm run test:watch`.
+- The first run downloads a MongoDB binary.
 
-Add scripts to `package.json`: `test` (run once) and `test:watch`.
+### Test files
 
-### Validator unit tests
+| File | Covers |
+| ---- | ------ |
+| `src/lib/relistDiscount.test.ts` | Validator, per-field errors, `nextDiscountPrice` sequences, `prepareRelistDiscountUpdate` |
+| `src/lib/server/DatabaseUtils.test.ts` | Mongo integration: upsert and defaults, `originalListedAt`, due-item reads, `getEbayMetadata`, `replaceEbayItemId`, `markRelistSuccess` and `markRelistFailure` |
+| `src/lib/server/ebayUtils.relist.test.ts` | `relistEbayItemsWithPriceChange` with `fetch` mocked: validation, the floor, manual-edit reset |
+| `src/routes/auth/active-items/updateItem.test.ts` | The `updateItem` action against the in-memory database |
+| `src/routes/api/relist-due/server.test.ts` | The cron route with the eBay relist helper mocked and the real database helpers |
+
+To check the tests catch regressions, the `discount >= max` rule and the floor clamp in `nextDiscountPrice` were each broken on purpose, and tests failed in both cases.
+
+### What the planned tests cover
+
+#### Validator unit tests
 
 - Valid: 5/20, 10/15, 1/2.
 - Valid at the limit: 49/50.
@@ -164,7 +188,7 @@ Add scripts to `package.json`: `test` (run once) and `test:watch`.
 - Pricing, base 100, 5/20: 95, 90.25, 85.74, 81.45, 80, 80.
 - Rounding to 2 decimals at every step.
 
-### Mongo integration tests
+#### Mongo integration tests
 
 Mongo can be exercised without a real database by using `mongodb-memory-server`, which runs a real in-process MongoDB. This is preferred over mocking Mongoose because real queries, `$set`, upserts and the unique index are exercised.
 
@@ -233,3 +257,9 @@ Out of scope: Svelte component tests, a minimum-dollar floor, GitHub Actions CI 
 1. Disabling then re-enabling the discount captures the current price as the new base.
 2. A manual eBay price edit between relists resets the floor to the edited (current) price. This is detected by comparing the live price with the last price the feature set.
 3. Tests are run locally only for now. GitHub Actions CI is not set up.
+
+## Related security fix
+
+Every metadata `updateItem` action used to read `userId` from the submitted form, so a signed-in user could write to another user's records. All five now go through `readMetadataRequest` in `src/lib/server/metadataRequest.ts`: the owner comes from `locals.session.userId` (401 when signed out), a form `userId` is ignored, `itemId`, `userId`, `_id` and `createdAt` are stripped from the metadata, and non-object metadata returns a 400. The actions are in `active-items`, `sold-items`, `scheduled-items`, `poshmark-sold-items` and `poshmark-active-items` (`+page.server.ts` in each), and the pages no longer send a `userId`. Failures now use `fail()` instead of returning a `Response`. Tests are in `src/routes/auth/metadataActions.test.ts` and `updateItem.test.ts`.
+
+Still open: other fields such as `lastRelistResult` and `relistAttemptCount` are client-settable through the metadata payload, because the actions accept any schema field.

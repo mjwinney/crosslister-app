@@ -3,6 +3,7 @@ import { env } from '$env/dynamic/private';
 import { type MetaDataModel, getEbayMetadata,  StatusCodes, replaceEbayItemId, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 import { da } from "date-fns/locale";
+import { MAX_DISCOUNT_PERCENT, nextDiscountPrice, validateRelistDiscount } from "$lib/relistDiscount";
 
 interface Success<T> {
     status: 'success';
@@ -2029,9 +2030,15 @@ function buildProductListingDetails(details: any): string {
         return '';
     }
 
+    const brand = details.BrandMPN?.Brand;
+    const mpn = details.BrandMPN?.MPN;
+    const brandMpn = brand && mpn
+        ? `<BrandMPN>${xmlNode('Brand', brand)}${xmlNode('MPN', mpn)}</BrandMPN>`
+        : '';
+
     return `
 <ProductListingDetails>
-    ${details.BrandMPN? `<BrandMPN>${xmlNode('Brand', details.BrandMPN.Brand)}${xmlNode('MPN', details.BrandMPN.MPN)}</BrandMPN>`: ''}
+    ${brandMpn}
     ${xmlNode('UPC', details.UPC)}
     ${xmlNode('EAN', details.EAN)}
     ${xmlNode('ISBN', details.ISBN)}
@@ -2375,16 +2382,28 @@ export async function delistEbayItem(locals: App.Locals, itemId: string): Promis
     }
 }
 
-export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, priceChange: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
-    console.log(`ebayUtils: relistEbayItemsWithPriceChange called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}, PriceChange: ${priceChange}`);
+export type RelistDiscountOptions = {
+    maxPercent: number;
+    basePrice?: number | null;
+    lastPrice?: number | null;
+};
 
-    // The price change is a percentage either positive (increase) or negative (decrease) and cannot be greater than
-    // or less than 50% for safety reasons
-    if (priceChange > 50 || priceChange < -50) {
+// `discountPercent` is a whole-number discount (0 = unchanged price); with `discount` it is applied to the live price but never below the floor.
+export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, discountPercent: number, discount?: RelistDiscountOptions): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+    console.log(`ebayUtils: relistEbayItemsWithPriceChange called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}, DiscountPercent: ${discountPercent}`);
+
+    if (!Number.isInteger(discountPercent) || discountPercent < 0 || discountPercent > MAX_DISCOUNT_PERCENT) {
         return {
             status: 400,
-            message: 'Invalid price change, must be between -50% and 50%'
+            message: `Invalid discount, must be a whole number from 0 to ${MAX_DISCOUNT_PERCENT}`
         };
+    }
+
+    if (discount) {
+        const validation = validateRelistDiscount(discountPercent, discount.maxPercent);
+        if (!validation.valid) {
+            return { status: 400, message: validation.message };
+        }
     }
 
     // Get the current information for the item from eBay before attempting to relist it with a price change
@@ -2402,16 +2421,26 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     const ebayItem = itemData.data.GetItemResponse.Item;
     console.log(`relistEbayItemsWithPriceChange: ebayItem=${JSON.stringify(ebayItem)}`);
 
-    const currentPrice = ebayItem.SellingStatus.CurrentPrice;
+    const currentPrice = Number(ebayItem.SellingStatus.CurrentPrice);
     console.log(`relistEbayItemsWithPriceChange: currentPrice=${currentPrice}`);
-
-    let newPrice = currentPrice; // Default to current price if no change is specified
-    if (priceChange !== 0) {
-        newPrice = Math.round(currentPrice * (1 + priceChange / 100) * 100) / 100;
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+        return {
+            status: 400,
+            message: 'Invalid current price returned from eBay API'
+        };
     }
-    // The priceChange is a percentage, so calculate the new price accordingly.
-    // Make sure it is rounded to 2 decimal places
-    console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice}`);
+
+    let newPrice = currentPrice;
+    let basePrice: number | undefined;
+    if (discount) {
+        // A live price that differs from the one we last set was edited by hand, so the floor restarts from it.
+        const priceEdited = discount.lastPrice == null || Math.abs(currentPrice - discount.lastPrice) >= 0.005;
+        basePrice = discount.basePrice == null || priceEdited ? currentPrice : discount.basePrice;
+        newPrice = nextDiscountPrice(currentPrice, basePrice, discountPercent, discount.maxPercent);
+    } else if (discountPercent > 0) {
+        newPrice = nextDiscountPrice(currentPrice, currentPrice, discountPercent, MAX_DISCOUNT_PERCENT);
+    }
+    console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice} basePrice=${basePrice}`);
 
     const clonedItem = mapGetItemToAddItem(ebayItem);
 
@@ -2470,7 +2499,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
 
     return {
         status: 200,
-        data: { newItemId, startTime, oldListingEnded, idSwapped }
+        data: { newItemId, startTime, oldListingEnded, idSwapped, newPrice, basePrice }
     };
 }
 

@@ -102,13 +102,9 @@
 	async function postMetaData(itemID: string, metaData: MetaDataModel) {
 		// console.log('postMetaData called:', itemID, metaData);
 
-		const session = await authClient.getSession();
-		const userId = session.data?.session.userId || '';
-
 		const formData = new FormData();
 		formData.append('itemId', itemID);
 		formData.append('metaData', JSON.stringify(metaData));
-		formData.append('userId', userId);
 
 		const response = await fetch('/auth/active-items?/updateItem', {
 			method: 'POST',

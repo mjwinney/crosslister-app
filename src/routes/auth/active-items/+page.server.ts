@@ -1,4 +1,6 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
+import { prepareRelistDiscountUpdate } from '$lib/relistDiscount';
+import { readMetadataRequest } from '$lib/server/metadataRequest';
 import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -157,26 +159,19 @@ export const load: PageServerLoad = async ({ request, locals }) => {
 };
 
 export const actions: Actions = {
-    updateItem: async ({ request }) => {
+    updateItem: async ({ request, locals }) => {
         console.log('updateItem: ENTER');
         console.log('updateItem: request:', request);
+
         const formData = await request.formData();
         console.log('updateItem: request JSON:', JSON.stringify(formData));
 
-        const itemId = String(formData.get('itemId') ?? '').trim();
-        const userId = String(formData.get('userId') ?? '').trim();
-        const rawMetaData = formData.get('metaData');
-
-        if (!itemId || !userId || !rawMetaData) {
-            return fail(400, { message: 'itemId, userId, and metaData are required' });
+        const parsed = readMetadataRequest<MetaDataModel>(formData, locals);
+        if (!parsed.ok) {
+            return parsed.failure;
         }
-
-        let metaData: MetaDataModel;
-        try {
-            metaData = JSON.parse(String(rawMetaData));
-        } catch {
-            return fail(400, { message: 'metaData must be valid JSON' });
-        }
+        const { userId, itemId } = parsed;
+        let metaData = parsed.metaData;
 
         if (metaData.relistIntervalDays !== undefined) {
             const interval = Number(metaData.relistIntervalDays);
@@ -193,10 +188,16 @@ export const actions: Actions = {
             metaData.relistAt = null;
         }
 
-        const existingRecord = await (await import('$lib/server/models/ebay-item-metadata')).EbayItemMetadata.findOne({ itemId }).select('userId').lean().exec();
+        const existingRecord = await (await import('$lib/server/models/ebay-item-metadata')).EbayItemMetadata.findOne({ itemId }).select('userId relistDiscountEnabled relistDiscountPercent relistDiscountMaxPercent').lean().exec();
         if (existingRecord && existingRecord.userId !== userId) {
             return fail(403, { message: 'You do not own this eBay item' });
         }
+
+        const discountUpdate = prepareRelistDiscountUpdate(metaData, existingRecord);
+        if (!discountUpdate.ok) {
+            return fail(400, { message: discountUpdate.message });
+        }
+        metaData = discountUpdate.data;
 
         console.log('updateItem: userId:', userId);
 
@@ -247,7 +248,7 @@ export const actions: Actions = {
 
         console.log('page.server.ts: relistEbayItemsWithPriceChange: itemID:', itemId);
 
-        const response = await relistEbayItemsWithPriceChange(locals, itemId, -10);
+        const response = await relistEbayItemsWithPriceChange(locals, itemId, 10);
 
         if (response.status !== 200) {
             console.log('page.server.ts: relistEbayItemsWithPriceChange: failed');
