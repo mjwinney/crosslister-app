@@ -128,6 +128,7 @@ interface EbayInfo {
 // Combine them into a discriminated union
 type Result<T> = Success<T> | Failure;
 
+// Load a user's stored eBay credentials and annotate token expiry for callers that need to refresh them.
 export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayInfo>>
 {
     // Ensure the database connection is established
@@ -145,7 +146,7 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
             return { status: 'error', message: `Error finding eBay data for userId:${userId}` };
         }
 
-        // Check if the refresh token is expired or about to expire (e.g., within the next 5 minutes)
+        // Mark the eBay token for refresh slightly before expiration to avoid using a token that expires mid-request.
         const now = new Date();
         const bufferTime = 5 * 60 * 1000;
         const refreshTokenExpired = ebayData.expiresAt.getTime() < now.getTime() + bufferTime;
@@ -256,6 +257,7 @@ export type MetaDataModel = {
     relistDiscountLastPrice?: number | null
 }
 
+// Persist item metadata without allowing later updates to overwrite the original listing date once it is established.
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
 {
     // Ensure the database connection is established
@@ -275,6 +277,7 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
         const metadataToSet: Partial<MetaDataModel> = { ...metaDataModel };
         delete metadataToSet.originalListedAt;
 
+        // Backfill the write-once original date for older records, using the best available listing timestamp.
         const originalListedAtCandidate = metaDataModel.originalListedAt
             ?? metaDataModel.currentListedAt
             ?? metaDataModel.listedTime
@@ -429,6 +432,7 @@ export async function getDueRelistGroupsByUser(
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
+    // Filter enabled overdue listings, order them by due time, group by user, then cap both batch dimensions.
     const groups = await EbayItemMetadata.aggregate<{ _id: string; items: Array<Record<string, any>> }>([
         {
             $match: {

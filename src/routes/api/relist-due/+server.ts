@@ -16,7 +16,7 @@ const ITEMS_PER_USER_LIMIT = 50;
 const DEFAULT_INTERVAL_DAYS = 30;
 const TIME_BUDGET_MS = 45_000;
 
-// Invoked by Vercel Cron, which sends `Authorization: Bearer ${CRON_SECRET}`
+// Vercel Cron invokes this endpoint with a bearer secret; one run processes due listings until its time budget is nearly spent.
 export const GET: RequestHandler = async ({ request }) => {
     console.log(`relist-due: RequestHandler ENTER`);
     if (!env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${env.CRON_SECRET}`) {
@@ -27,7 +27,8 @@ export const GET: RequestHandler = async ({ request }) => {
     const now = new Date();
     const deadline = Date.now() + TIME_BUDGET_MS;
     console.log(`relist-due: authorized, now=${now.toISOString()} budget=${TIME_BUDGET_MS}ms userBatch=${USER_BATCH_LIMIT} itemsPerUser=${ITEMS_PER_USER_LIMIT}`);
-    // Users handled this run are excluded so failed items are retried next run, not looped on.
+
+    // Keep aggregate results for the cron response; failed users are deferred to the next cron run, not retried in this one.
     const handledUserIds: string[] = [];
     let processed = 0;
     let succeeded = 0;
@@ -37,6 +38,7 @@ export const GET: RequestHandler = async ({ request }) => {
     while (Date.now() < deadline) {
         batchNumber++;
         console.log(`relist-due: fetching batch ${batchNumber}, excluding ${handledUserIds.length} handled user(s), ${deadline - Date.now()}ms left`);
+        // Fetch due work oldest-first in bounded groups; database failures stop the run, while an empty batch completes it.
         const batch = await getDueRelistGroupsByUser(now, USER_BATCH_LIMIT, ITEMS_PER_USER_LIMIT, handledUserIds);
         if (!batch.ok) {
             console.error(`relist-due: database unavailable, code=${batch.code}`);
@@ -54,6 +56,7 @@ export const GET: RequestHandler = async ({ request }) => {
             handledUserIds.push(userId);
             console.log(`relist-due: user ${userId} has ${items.length} item(s) due`);
 
+            // Reuse the user's token context for all due items in this group.
             const locals = await buildLocals(userId).catch((error) => {
                 console.error(`relist-due: buildLocals failed for user ${userId}`, error);
                 return null;
@@ -77,6 +80,7 @@ export const GET: RequestHandler = async ({ request }) => {
                 const discountPercent = metadata.relistDiscountPercent;
                 const discountMaxPercent = metadata.relistDiscountMaxPercent;
 
+                // Refuse unsafe discount settings, otherwise ask eBay to create the replacement listing.
                 if (!locals) {
                     result = 'missing or unrefreshable eBay tokens';
                 } else if (discountEnabled && !validateRelistDiscount(discountPercent, discountMaxPercent).valid) {
@@ -123,6 +127,7 @@ export const GET: RequestHandler = async ({ request }) => {
                 const intervalDays = metadata.relistIntervalDays ?? DEFAULT_INTERVAL_DAYS;
                 console.log(`relist-due: item ${itemId} user ${userId} ok=${ok} result=${result}; updating metadata`);
 
+                // Record every attempt; only successful relists advance the next due date and reset retries.
                 const updateStatus = await updateEbayMetadata(userId, currentItemId, {
                     lastRelistAttemptAt: attemptTime,
                     lastRelistResult: result,
@@ -155,6 +160,7 @@ export const GET: RequestHandler = async ({ request }) => {
     return json({ processed, succeeded, failed });
 };
 
+// Build the per-user eBay request context and refresh credentials when the stored token's expiry check requires it.
 async function buildLocals(userId: string): Promise<App.Locals | null> {
     console.log(`relist-due: buildLocals for user ${userId}`);
     const tokens = await getEbayTokensFromDB(userId);

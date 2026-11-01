@@ -188,9 +188,10 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
     }
 }
 
+// Exchange the saved refresh token for fresh credentials, persist them, and update this request's locals.
 export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
     console.log(`refreshEbayToken called`);
-    // Prepare token request
+    // Build the OAuth refresh request using the application's eBay credentials.
     const clientId = env.EBAY_CLIENT_ID;
     const clientSecret = env.EBAY_CLIENT_SECRET;
 
@@ -232,14 +233,13 @@ export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
             console.log(`New refresh token: ${data.refresh_token}`);
             console.log(`New expires in: ${data.expires_in}`);
 
-            // Update the token store and database
+            // Persist whichever credentials eBay returned, then use them for subsequent calls in this request.
             await updateEbayToken({
                 userId,
                 ...(data.access_token ? { accessToken: data.access_token } : {}),
                 ...(data.refresh_token ? { refreshToken: data.refresh_token } : {}),
                 ...(data.expires_in ? { expiresIn: Number(data.expires_in) } : {})
             });
-            // Use the fresh tokens for the remainder of this request
             if (data.access_token) locals.ebayAccessToken = data.access_token;
             if (data.refresh_token) locals.ebayRefreshToken = data.refresh_token;
             return true;
@@ -2389,9 +2389,11 @@ export type RelistDiscountOptions = {
 };
 
 // `discountPercent` is a whole-number discount (0 = unchanged price); with `discount` it is applied to the live price but never below the floor.
+// Create a replacement listing, move its database references to the new ID, then end the prior listing.
 export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, discountPercent: number, discount?: RelistDiscountOptions): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     console.log(`ebayUtils: relistEbayItemsWithPriceChange called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}, DiscountPercent: ${discountPercent}`);
 
+    // Reject invalid caller settings before making any eBay requests.
     if (!Number.isInteger(discountPercent) || discountPercent < 0 || discountPercent > MAX_DISCOUNT_PERCENT) {
         return {
             status: 400,
@@ -2406,8 +2408,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         }
     }
 
-    // Get the current information for the item from eBay before attempting to relist it with a price change
-    // Pass blank output selector so it does not limit what is returned
+    // Fetch the live listing first so its current details and price are the basis for the replacement.
     const itemData = await getMyEbayItem(locals, itemId, []);
 
     if (!('data' in itemData) || itemData.status !== 200 || !itemData.data.GetItemResponse?.Item) {
@@ -2432,6 +2433,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
 
     let newPrice = currentPrice;
     let basePrice: number | undefined;
+    // Apply the configured step discount while respecting the saved base-price floor.
     if (discount) {
         // A live price that differs from the one we last set was edited by hand, so the floor restarts from it.
         const priceEdited = discount.lastPrice == null || Math.abs(currentPrice - discount.lastPrice) >= 0.005;
@@ -2442,6 +2444,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     }
     console.log(`relistEbayItemsWithPriceChange: newPrice=${newPrice} basePrice=${basePrice}`);
 
+    // Convert the fetched eBay listing to an AddItem payload and apply the chosen price.
     const clonedItem = mapGetItemToAddItem(ebayItem);
 
     clonedItem.StartPrice = newPrice;
@@ -2449,11 +2452,10 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         clonedItem.Title += ' 🔥';
     }
 
-    // Build the request body for relisting the item with the new price.
     const addItemRequest = buildAddItemXml(locals.ebayAccessToken as string, clonedItem);
     console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
-    // Attempt to use the new additem request to relist the item with the updated price.
+    // Publish the replacement before changing the database or ending the currently active listing.
     const addItemResult = await addEbayItem(locals, addItemRequest);
 
     if (addItemResult.status !== 200 || !('data' in addItemResult)) {
@@ -2475,7 +2477,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     }
     const startTime = addItemResponse.StartTime ? new Date(addItemResponse.StartTime) : undefined;
 
-    // Move the DB records to the new id before ending the old listing so a crash cannot leave them pointing at the old one.
+    // Move database records to the new ID before ending the old listing, so a crash cannot leave records pointing at it.
     let replaceStatus = await replaceEbayItemId(locals.session?.userId as string, itemId, newItemId, startTime);
     if (replaceStatus !== StatusCodes.OK) {
         console.error(`relistEbayItemsWithPriceChange: failed to replace itemId ${itemId} with ${newItemId}, retrying once`);
@@ -2488,7 +2490,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
 
     console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
 
-    // The new listing is live, so a failed EndItem is reported but not treated as a failed relist.
+    // End the old listing only after the replacement is live; report an EndItem failure without undoing the relist.
     const delistResult = await delistEbayItem(locals, itemId);
     const delistAck = 'data' in delistResult ? delistResult.data?.EndItemResponse?.Ack : undefined;
     const oldListingEnded = delistResult.status === 200 && ['Success', 'Warning'].includes(delistAck);
