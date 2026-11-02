@@ -366,8 +366,6 @@
 
 <style>
 	.items-container {
-		max-height: calc(100vh - 74px);
-		overflow: auto;
 		padding: clamp(1rem, 2vw, 2rem);
 		scrollbar-width: thin;
 	}

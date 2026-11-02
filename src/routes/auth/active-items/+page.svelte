@@ -435,7 +435,7 @@
 							<div class="col-actions">
 								<Dropdown>
 									<li>
-										<button class="dropdown-item submenu-trigger" type="button">Crosslist</button>
+										<button class="dropdown-item submenu-trigger" type="button">Prelist</button>
 										<ul class="dropdown-menu submenu-content">
 											<CrosslistMenu itemId={item.itemId} onCrosslist={crosslistTo} {marketplaces} item={item} />
 										</ul>
@@ -528,8 +528,6 @@
 <style>
 	.items-container {
 		position: relative;
-		max-height: calc(100vh - 74px);
-		overflow: auto;
 		padding: clamp(1rem, 2vw, 2rem);
 		scrollbar-width: thin;
 	}

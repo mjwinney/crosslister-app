@@ -158,7 +158,7 @@
 			<div class="auth-spinner" role="status">
 				<span class="sr-only">Loading...</span>
 			</div>
-			<div class="mt-2 overlay-label">Loading…</div>
+			<div class="mt-2 overlay-label">Loadingï¿½</div>
 		</div>
 	</div>
 {/if}
@@ -204,8 +204,6 @@
 <style>
 	.items-container {
 		position: relative;
-		max-height: calc(100vh - 74px);
-		overflow: auto;
 		padding: clamp(1rem, 2vw, 2rem);
 		scrollbar-width: thin;
 	}

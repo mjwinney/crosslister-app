@@ -64,11 +64,7 @@
 
 .auth-app .items-container {
 	position: relative;
-	max-height: calc(100vh - 120px);
-	overflow: auto;
 	padding: 1rem;
-	scrollbar-width: thin;
-	scrollbar-color: var(--auth-accent) var(--auth-bg-alt);
 	color: var(--auth-text);
 	background: radial-gradient(circle at 8% 0%, rgba(124, 58, 237, 0.15), transparent 28rem),
 		radial-gradient(circle at 92% 100%, rgba(34, 211, 238, 0.08), transparent 24rem),

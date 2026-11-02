@@ -96,7 +96,7 @@
 				</div>
 			</aside>
 
-			<section class="content-panel min-h-[calc(100vh-122px)] overflow-auto rounded-xl border border-slate-700/20 bg-transparent shadow-none">
+			<section class="content-panel min-h-[calc(100vh-122px)] rounded-xl border border-slate-700/20 bg-transparent shadow-none">
 				{@render children()}
 			</section>
 		</div>

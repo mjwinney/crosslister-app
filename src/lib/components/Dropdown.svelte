@@ -22,12 +22,13 @@
 			const spaceLeft = rect.left;
 			const spaceBelow = window.innerHeight - rect.bottom;
 			const spaceAbove = rect.top;
-			const submenuWidth = 160;
+			// Main menu (~130px) plus widest submenu (~250px)
+			const submenuWidth = 400;
 			const menuHeight = 200; // approximate height of the dropdown menu
 
 			// Determine horizontal position (left or right)
 			let horizontalStyle = '';
-			if (spaceRight >= submenuWidth || spaceRight >= spaceLeft) {
+			if (spaceRight >= submenuWidth || (spaceLeft < submenuWidth && spaceRight >= spaceLeft)) {
 				horizontalStyle = `left: ${rect.right - 12}px; right: auto;`;
 				submenuSide = 'right';
 			} else {

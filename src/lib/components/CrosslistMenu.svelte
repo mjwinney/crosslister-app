@@ -42,7 +42,7 @@
 </script>
 
 <li class="crosslist-menu">
-	<div class="crosslist-header">Crosslist to:</div>
+	<div class="crosslist-header">Prelist to:</div>
 	<ul class="marketplace-list">
 		{#each marketplaces as marketplace}
 			<li>
