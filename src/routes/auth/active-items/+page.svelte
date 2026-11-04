@@ -398,7 +398,12 @@
 					<div class="col-info mr-3">
 						<p class="item-title text-base m-0">{item.title}</p>
 						<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
-						<p class="auth-positive text-sm m-0">${formatCurrency(item.price)}</p>
+						<p class="auth-positive text-sm m-0 price-line">
+							${formatCurrency(item.price)}
+							{#if item.metadata?.relistEnabled}
+								<img src="/relist-30.svg" class="relist-badge" alt="Relists every 30 days" title="Relists every 30 days" />
+							{/if}
+						</p>
 					</div>
 
 					<div class="col-right flex-col ml-auto">
@@ -551,6 +556,8 @@
 	.col-info { flex: 0 0 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
 	.col-info .item-title { font-weight: 700; }
+	.price-line { display: flex; align-items: center; gap: 0.4rem; }
+	.relist-badge { width: 22px; height: 22px; }
 	.col-info .auth-muted { font-size: 0.85rem; }
 	.col-info .auth-positive { font-weight: 700; }
 	.col-field { flex: 0 0 140px; min-width: 0; }
