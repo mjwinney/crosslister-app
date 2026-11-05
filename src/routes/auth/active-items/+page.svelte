@@ -403,6 +403,9 @@
 							{#if item.metadata?.relistEnabled}
 								<img src="/relist-30.svg" class="relist-badge" alt="Relists every 30 days" title="Relists every 30 days" />
 							{/if}
+							{#if item.metadata?.relistDiscountEnabled}
+								<img src="/relist-discount-30.svg" class="relist-badge" alt="Relists with discount every 30 days" title="Relists with discount every 30 days" />
+							{/if}
 						</p>
 					</div>
 
