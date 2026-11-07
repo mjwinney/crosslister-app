@@ -6,6 +6,7 @@ import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
+import { EbayReportSync } from './models/ebay-report-sync';
 import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
 import { PoshmarkItemMetadata } from './models/poshmark-item-metadata';
 
@@ -707,6 +708,79 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
             finalShippingCost: metaData.reduce((acc, item) => acc + (item.finalShippingCost || 0), 0)
         }
     };
+}
+
+export type EbayReportRow = {
+    itemId: string,
+    title: string,
+    soldTime: Date,
+    soldPrice: number,
+    purchasePrice?: number,
+    feePrice: number,
+    addFeeGeneral: number,
+    finalShippingCost: number
+}
+
+type EbayReportRowsResult =
+  | { ok: true; data: EbayReportRow[] }
+  | { ok: false; code: StatusCodes };
+
+// Sold items in the range, oldest first; purchasePrice stays undefined when never entered so the report can flag it.
+export async function getEbaySoldItemsForReport(userId: string, fromDate: Date, toDate: Date) : Promise<EbayReportRowsResult>
+{
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const metaData = await EbayItemMetadata.find({
+        userId,
+        soldTime: { $gte: fromDate, $lte: toDate }
+    }).sort({ soldTime: 1 }).lean().exec();
+
+    return {
+        ok: true,
+        data: metaData.map(item => ({
+            itemId: item.itemId,
+            title: item.title ?? '',
+            soldTime: item.soldTime as Date,
+            soldPrice: item.soldPrice ?? 0,
+            purchasePrice: item.purchasePrice ?? undefined,
+            feePrice: item.feePrice ?? 0,
+            addFeeGeneral: item.addFeeGeneral ?? 0,
+            finalShippingCost: item.finalShippingCost ?? 0
+        }))
+    };
+}
+
+// Kept separate from EbaySold, which the dashboard uses to decide what to fetch.
+export async function getEbayReportSyncedAt(userId: string, period: string): Promise<Date | null> {
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        return null;
+    }
+
+    const doc = await EbayReportSync.findOne({ userId, period }).lean().exec();
+    return doc?.syncedAt ?? null;
+}
+
+export async function setEbayReportSyncedAt(userId: string, period: string, syncedAt: Date): Promise<StatusCodes> {
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        return StatusCodes.NoDatabaseConnection;
+    }
+
+    try {
+        await EbayReportSync.updateOne({ userId, period }, { $set: { syncedAt } }, { upsert: true }).exec();
+        return StatusCodes.OK;
+    } catch (error) {
+        console.error(`Error saving report sync time for userId:${userId} period:${period}`, error);
+        return StatusCodes.InsertFailed;
+    }
 }
 
 export type PoshmarkMetaDataSummary = {

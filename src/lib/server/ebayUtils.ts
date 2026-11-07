@@ -75,6 +75,249 @@ function getItemIdFromTransaction(transaction: any): string | null {
     return null;
 }
 
+function asArray<T>(value: T | T[] | undefined | null): T[] {
+    if (value == null) return [];
+    return Array.isArray(value) ? value : [value];
+}
+
+function toNumber(value: unknown): number {
+    const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(n) ? n : 0;
+}
+
+// The sale date for tax purposes is when the order was paid, not when the listing ended.
+function getOrderSoldTime(order: any, txn: any): Date | undefined {
+    const raw = order?.PaidTime ?? order?.CreatedTime ?? txn?.CreatedDate;
+    if (!raw) return undefined;
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function getBuyerShippingCost(order: any): number {
+    if (order?.IsMultiLegShipping) {
+        return toNumber(order.MultiLegShippingDetails?.SellerShipmentToLogisticsProvider?.ShippingServiceDetails?.TotalShippingCost);
+    }
+    return toNumber(asArray<any>(order?.TransactionArray?.Transaction)[0]?.ActualShippingCost);
+}
+
+// Fields are set only when known so a partial sync never overwrites stored values or user-entered purchase data.
+function buildOrderMetadata(order: any, financeTransactions: any[] | null): MetaDataModel {
+    const txn: any = asArray<any>(order?.TransactionArray?.Transaction)[0];
+    const metadata: MetaDataModel = { soldPrice: toNumber(txn?.TransactionPrice) };
+
+    if (txn?.Item?.Title) metadata.title = String(txn.Item.Title);
+
+    const soldTime = getOrderSoldTime(order, txn);
+    if (soldTime) metadata.soldTime = soldTime;
+
+    if (!financeTransactions) {
+        if (txn?.FinalValueFee != null) metadata.feePrice = toNumber(txn.FinalValueFee);
+        return metadata;
+    }
+
+    // totalFeeAmount on the SALE transaction already includes payment processing fees.
+    const sale = financeTransactions.find((t: any) => t.transactionType === 'SALE');
+    if (sale?.totalFeeAmount) metadata.feePrice = toNumber(sale.totalFeeAmount.value);
+
+    const labelCost = financeTransactions
+        .filter((t: any) => t.transactionType === 'SHIPPING_LABEL' && t.bookingEntry !== 'CREDIT')
+        .reduce((sum: number, t: any) => sum + Math.abs(toNumber(t.amount?.value)), 0);
+    const adFee = financeTransactions
+        .filter((t: any) => t.transactionType === 'NON_SALE_CHARGE' && t.feeType === 'AD_FEE')
+        .reduce((sum: number, t: any) => sum + Math.abs(toNumber(t.amount?.value)), 0);
+
+    metadata.shippingLabelCost = labelCost;
+    metadata.addFeeGeneral = adFee;
+    metadata.finalShippingCost = parseFloat((getBuyerShippingCost(order) - labelCost).toFixed(2));
+
+    return metadata;
+}
+
+const ORDER_SYNC_WINDOW_DAYS = 89; // GetOrders rejects ranges over 90 days
+const ORDER_SYNC_MAX_AGE_DAYS = 89; // GetOrders rejects CreateTimeFrom older than 90 days
+const ORDER_SYNC_PAGE_SIZE = 100;
+const FINANCES_BATCH_SIZE = 10;
+
+type OrdersPageResult =
+    | { ok: true; orders: any[]; hasMore: boolean }
+    | { ok: false; status: number; message: string };
+
+async function fetchOrdersPage(locals: App.Locals, fromDate: Date, toDate: Date, page: number): Promise<OrdersPageResult> {
+    const headers = {
+        'Content-Type': 'text/xml',
+        'Connection': 'Keep-Alive',
+        'X-EBAY-API-COMPATIBILITY-LEVEL': '1423',
+        'X-EBAY-API-DEV-NAME': env.EBAY_DEV_ID || '',
+        'X-EBAY-API-SITEID': '0',
+        'X-EBAY-API-CALL-NAME': 'GetOrders',
+    };
+
+    const xmlBody = `<?xml version="1.0" encoding="utf-8"?>
+    <GetOrdersRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>${locals.ebayAccessToken}</eBayAuthToken>
+        </RequesterCredentials>
+        <CreateTimeFrom>${fromDate.toISOString()}</CreateTimeFrom>
+        <CreateTimeTo>${toDate.toISOString()}</CreateTimeTo>
+        <OrderRole>Seller</OrderRole>
+        <OrderStatus>Completed</OrderStatus>
+        <SortingOrder>Ascending</SortingOrder>
+        <Pagination>
+            <EntriesPerPage>${ORDER_SYNC_PAGE_SIZE}</EntriesPerPage>
+            <PageNumber>${page}</PageNumber>
+        </Pagination>
+    </GetOrdersRequest>`;
+
+    try {
+        const response = await fetch(env.EBAY_TRADING_API_ENDPOINT, { method: 'POST', headers, body: xmlBody });
+        const text = await response.text();
+
+        if (!response.ok) {
+            return { ok: false, status: response.status, message: text };
+        }
+
+        const parsed = new XMLParser().parse(text)?.GetOrdersResponse;
+        if (parsed?.Ack === 'Failure') {
+            return { ok: false, status: 502, message: JSON.stringify(parsed.Errors ?? 'GetOrders failed') };
+        }
+
+        return {
+            ok: true,
+            orders: asArray<any>(parsed?.OrderArray?.Order),
+            hasMore: String(parsed?.HasMoreOrders) === 'true'
+        };
+    } catch (error) {
+        console.error('fetchOrdersPage error:', error);
+        return { ok: false, status: 500, message: 'Failed to retrieve eBay orders' };
+    }
+}
+
+// GetOrders often omits the item title, so it is looked up separately when missing.
+async function fetchItemTitle(locals: App.Locals, itemId: string): Promise<string | undefined> {
+    console.log(`fetchItemTitle called for itemId:${itemId}`);
+    const result = await getMyEbayItem(locals, itemId, ['Title']);
+    if (!('data' in result) || result.status !== 200) {
+        console.warn(`GetItem title lookup failed for itemId:${itemId} status:${'status' in result ? result.status : 'n/a'}`);
+        return undefined;
+    }
+    const title = result.data?.GetItemResponse?.Item?.Title;
+    if (!title) console.warn(`GetItem returned no title for itemId:${itemId}`);
+    return title ? String(title) : undefined;
+}
+
+const FULFILLMENT_PAGE_SIZE = 200;
+
+// Fills blank titles for existing records; the Fulfillment API can return orders older than the GetOrders 90-day limit.
+export async function backfillItemTitles(locals: App.Locals, userId: string, fromDate: Date, toDate: Date): Promise<number> {
+    let offset = 0;
+    let total = 0;
+    let updated = 0;
+    let skippedNoTitle = 0;
+    let skippedNoRecord = 0;
+    // eBay rejects end dates at or after the current time, so leave a small margin for clock skew.
+    const fulfillmentEnd = new Date(Math.min(toDate.getTime(), Date.now() - 60 * 1000));
+
+    try {
+        do {
+            const qsParams = new URLSearchParams({
+                filter: `creationdate:[${fromDate.toISOString()}..${fulfillmentEnd.toISOString()}]`,
+                limit: String(FULFILLMENT_PAGE_SIZE),
+                offset: String(offset)
+            });
+            const response = await fetch(`${env.EBAY_API_ENDPOINT}sell/fulfillment/v1/order?${qsParams.toString()}`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${locals.ebayAccessToken}`, 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                console.warn(`Fulfillment order lookup failed status:${response.status} body:${await response.text()}`);
+                break;
+            }
+
+            const data = await response.json();
+            total = Number(data.total ?? 0);
+            const orders = asArray<any>(data.orders);
+            if (orders.length === 0) break;
+
+            for (const order of orders) {
+                for (const line of asArray<any>(order.lineItems)) {
+                    if (!line.legacyItemId || !line.title) { skippedNoTitle++; continue; }
+                    const status = await updateEbayMetadata(userId, String(line.legacyItemId), { title: String(line.title) }, false);
+                    if (status === StatusCodes.OK) updated++;
+                    else skippedNoRecord++;
+                }
+            }
+
+            offset += orders.length;
+        } while (offset < total);
+    } catch (error) {
+        console.error('backfillItemTitles error:', error);
+    }
+
+    console.log(`backfillItemTitles updated ${updated} titles, skipped noTitleOnLine:${skippedNoTitle} noMatchingRecord:${skippedNoRecord}, fulfillmentTotal:${total} for userId:${userId}`);
+    return updated;
+}
+
+// Imports every completed seller order in the range into the metadata table (sale date, price, fees, shipping).
+export async function syncEbayOrdersForRange(locals: App.Locals, fromDate: Date, toDate: Date): Promise<{ ok: true; synced: number } | { ok: false; status: number; message: string }> {
+    const userId = locals?.session?.userId;
+    if (!userId) {
+        return { ok: false, status: 401, message: 'Not authenticated' };
+    }
+
+    console.log(`syncEbayOrdersForRange started for userId:${userId}`);
+    let synced = 0;
+
+    const earliestAllowed = new Date(Date.now() - ORDER_SYNC_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+    if (fromDate < earliestAllowed) {
+        console.warn(`syncEbayOrdersForRange clamped fromDate ${fromDate.toISOString()} to ${earliestAllowed.toISOString()} (GetOrders 90-day limit)`);
+    }
+    let windowStart = fromDate < earliestAllowed ? earliestAllowed : fromDate;
+
+    while (windowStart < toDate) {
+        const windowEnd = new Date(Math.min(windowStart.getTime() + ORDER_SYNC_WINDOW_DAYS * 24 * 60 * 60 * 1000, toDate.getTime()));
+
+        let page = 1;
+        let hasMore = true;
+        while (hasMore) {
+            const result = await fetchOrdersPage(locals, windowStart, windowEnd, page);
+            if (!result.ok) return result;
+
+            // Finances calls are slow and rate limited, so run them in small parallel batches.
+            for (let i = 0; i < result.orders.length; i += FINANCES_BATCH_SIZE) {
+                const batch = result.orders.slice(i, i + FINANCES_BATCH_SIZE);
+                const finances = await Promise.all(batch.map((order: any) => getTransactions(locals, order.OrderID)));
+
+                for (let j = 0; j < batch.length; j++) {
+                    const order = batch[j];
+                    const itemId = getItemIdFromTransaction(order.TransactionArray?.Transaction);
+                    if (!itemId) continue;
+
+                    const finance = finances[j];
+                    const financeTransactions = 'data' in finance && finance.status === 200 && Array.isArray(finance.data?.transactions)
+                        ? finance.data.transactions
+                        : null;
+
+                    const metadata = buildOrderMetadata(order, financeTransactions);
+                    if (!metadata.title) metadata.title = await fetchItemTitle(locals, String(itemId));
+
+                    const status = await updateEbayMetadata(userId, String(itemId), metadata, true);
+                    if (status === StatusCodes.OK) synced++;
+                }
+            }
+
+            hasMore = result.hasMore;
+            page++;
+        }
+
+        windowStart = windowEnd;
+    }
+
+    await backfillItemTitles(locals, userId, fromDate, toDate);
+
+    return { ok: true, synced };
+}
+
 export async function buildEbayAuthURL(state?: string): Promise<Result<string>> {
     console.log('buildEbayAuthURL called');
 
@@ -1299,7 +1542,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     return Promise.resolve({ status: 500, message: 'Invalid order item structure' });
                 }
                 // console.log(`getMyEbayOrdersDates itemId: ${itemId}`);
-                return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails"]);
+                return getMyEbayItem(locals, itemId, ["PictureDetails", "ListingDetails", "Title"]);
             });
 
             // Step 2: Await all promises in parallel
@@ -1322,10 +1565,10 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
 
                     const metaData: MetaDataModel = {
                         // pictureURL: item.PictureURL,
-                        soldTime: ebayItem.ListingDetails?.EndTime,
+                        ...(ebayItem.Title ? { title: String(ebayItem.Title) } : {}),
+                        soldTime: getOrderSoldTime(item, txn) ?? ebayItem.ListingDetails?.EndTime,
                         listedTime: ebayItem.ListingDetails?.StartTime,
-                        soldPrice: txn?.TransactionPrice,
-                        feePrice: txn?.FinalValueFee
+                        soldPrice: txn?.TransactionPrice
                     };
 
                     // Upsert into the metadata table
@@ -1388,6 +1631,12 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                         addFeeGeneral: addFeeGeneral,
                         finalShippingCost: parseFloat((buyerShippingCost - sellerShippingLabelCost).toFixed(2))
                     };
+
+                    // SALE totalFeeAmount includes payment processing fees
+                    const saleTransaction = itemData.data.transactions.find((t: any) => t.transactionType === 'SALE');
+                    if (saleTransaction?.totalFeeAmount) {
+                        metaData.feePrice = toNumber(saleTransaction.totalFeeAmount.value);
+                    }
 
                     // Upsert into the metadata table
                     const result = await updateEbayMetadata(userId, itemId, metaData, true);

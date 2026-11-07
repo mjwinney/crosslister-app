@@ -6,7 +6,8 @@ const allowedReturnPaths = new Set([
     '/auth/active-items',
     '/auth/sold-items',
     '/auth/unsold-items',
-    '/auth/dashboard'
+    '/auth/dashboard',
+    '/auth/reports'
 ]);
 
 export const GET: RequestHandler = async ({ cookies, url }) => {

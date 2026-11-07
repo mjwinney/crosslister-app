@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { authClient } from '$lib/auth-client';
 	import { openAuthModal } from '$lib/auth-modal';
 	import { appTheme, setAppTheme } from '$lib/stores/theme';
+	import UserSettingsDialog from './UserSettingsDialog.svelte';
 
 	const session = authClient.useSession();
+	let settingsOpen = $state(false);
 
 	async function handleLogout() {
 		await authClient.signOut({
@@ -39,15 +42,7 @@
 			>
 				{$appTheme === 'dark' ? 'Light' : 'Dark'}
 			</button>
-			{#if $session?.data}
-				<button
-					class="nav-cta nav-logout inline-flex shrink-0 items-center justify-center rounded-full border-0 font-bold text-white transition-transform duration-200 hover:-translate-y-0.5"
-					type="button"
-					onclick={handleLogout}
-				>
-					Log Out
-				</button>
-			{:else}
+			{#if !$session?.data}
 				<button
 					class="nav-cta inline-flex h-[50px] w-[136px] shrink-0 items-center justify-center rounded-full border border-transparent p-0 font-bold text-white transition-transform duration-200 hover:-translate-y-0.5 max-[420px]:w-[116px]"
 					type="button"
@@ -56,8 +51,54 @@
 					Sign In
 				</button>
 			{/if}
+			{#if $session?.data}
+				<div class="relative group">
+					<button
+						type="button"
+						class="user-menu-btn inline-flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full border border-slate-500/70 bg-slate-900/40 p-0 text-slate-200 transition hover:border-cyan-400 hover:text-white"
+						aria-label="User menu"
+					>
+						<svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor" aria-hidden="true">
+							<path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" />
+						</svg>
+					</button>
+					<!-- Top padding keeps the panel reachable when the pointer moves down from the icon. -->
+					<div
+						class="invisible absolute right-0 top-full z-20 w-44 pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+					>
+						<div class="user-menu-panel rounded-xl border border-slate-600/60 bg-slate-900/95 p-1 shadow-xl">
+							<button
+								type="button"
+								class="user-menu-item block w-full px-3 py-2 text-left text-sm font-semibold text-slate-200 transition hover:bg-slate-700/60 hover:text-cyan-300"
+								onclick={(e) => {
+									settingsOpen = true;
+									e.currentTarget.blur();
+								}}
+							>
+								User settings
+							</button>
+							<div
+								role="menuitem"
+								tabindex="0"
+								class="user-menu-item block w-full px-3 py-2 text-left text-sm font-semibold text-slate-200 transition hover:bg-slate-700/60 hover:text-cyan-300 cursor-pointer"
+								onclick={handleLogout}
+								onkeydown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault();
+										handleLogout();
+									}
+								}}
+							>
+								Log out
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
+
+	<UserSettingsDialog bind:open={settingsOpen} timezone={page.data.userTimezone} />
 </nav>
 
 <style>
@@ -82,12 +123,6 @@
 		font-size: 1.125rem;
 		line-height: 1;
 		white-space: nowrap;
-	}
-
-	.nav-shell .nav-logout {
-		padding: 13.6px 22.4px;
-		font-size: 1rem;
-		line-height: 1.5;
 	}
 
 	:global(html[data-theme='light']) .nav-shell {
@@ -122,5 +157,23 @@
 
 	:global(html[data-theme='light']) .nav-cta {
 		box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+	}
+
+	.nav-shell .user-menu-item {
+		border-radius: 0.5rem;
+	}
+
+	:global(html[data-theme='light']) .user-menu-btn {
+		background: #ffffff;
+		color: #0f172a;
+	}
+
+	:global(html[data-theme='light']) .user-menu-panel {
+		border-color: rgba(148, 163, 184, 0.6);
+		background: #ffffff;
+	}
+
+	:global(html[data-theme='light']) .user-menu-item {
+		color: #0f172a;
 	}
 </style>

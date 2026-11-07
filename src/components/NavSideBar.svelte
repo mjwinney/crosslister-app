@@ -5,7 +5,6 @@
 		dashboard: true,
 		ebay: true,
 		poshmark: true,
-		reports: false,
 		settings: false
 	});
 
@@ -22,7 +21,8 @@
 				{ label: 'Active', href: '/auth/active-items' },
 				{ label: 'Scheduled', href: '/auth/scheduled-items' },
 				{ label: 'Sold', href: '/auth/sold-items' },
-				{ label: 'Unsold', href: '/auth/unsold-items' }
+				{ label: 'Unsold', href: '/auth/unsold-items' },
+				{ label: 'Reports', href: '/auth/reports' }
 			]
 		},
 		{

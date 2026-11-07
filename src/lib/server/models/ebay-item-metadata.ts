@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 const EbayItemMetadataSchema = new mongoose.Schema({
     itemId: { type: String, required: true },
     userId: { type: String, required: true },
+    title: { type: String, required: false },
     purchasePrice: { type: Number, required: false },
     soldPrice: { type: Number, required: false },
     purchaseDate: { type: String, required: false }, // stored as MM/DD/YYYY string

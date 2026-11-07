@@ -3,6 +3,7 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { sveltekitCookies } from "better-auth/svelte-kit";
 import { getRequestEvent } from "$app/server";
 import client from "./server/db"; // Import the client promise from db.ts
+import { DEFAULT_TIMEZONE } from "./timezones";
 
 const db = client.db();
 
@@ -16,6 +17,16 @@ export const auth = betterAuth({
     emailAndPassword: {
         enabled: true,
         autoSignIn: false //defaults to true
+    },
+    user: {
+        additionalFields: {
+            timezone: {
+                type: "string",
+                required: false,
+                defaultValue: DEFAULT_TIMEZONE,
+                input: true
+            }
+        }
     },
     socialProviders: {
         github: {

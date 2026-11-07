@@ -33,7 +33,8 @@ export async function handle({ event, resolve }) {
         "/auth/active-items",
         "/auth/sold-items",
         "/auth/unsold-items",
-        "/auth/dashboard"
+        "/auth/dashboard",
+        "/auth/reports"
       ];
       
       if (ebayProtectedRoutes.includes(event.url.pathname)) {
@@ -55,7 +56,7 @@ export async function handle({ event, resolve }) {
         const refreshed = await refreshEbayToken(event.locals);
         if (!refreshed) {
           // Refresh token is invalid (e.g. invalid_grant); user must re-authorize with eBay
-          const reauthRoutes = ["/auth/active-items", "/auth/sold-items", "/auth/unsold-items", "/auth/dashboard"];
+          const reauthRoutes = ["/auth/active-items", "/auth/sold-items", "/auth/unsold-items", "/auth/dashboard", "/auth/reports"];
           if (reauthRoutes.includes(event.url.pathname)) {
             const returnTo = `${event.url.pathname}${event.url.search}`;
             throw redirect(302, `/ebay-api/auth?returnTo=${encodeURIComponent(returnTo)}`);
@@ -84,6 +85,7 @@ export async function handle({ event, resolve }) {
     "/auth/active-items",
     "/auth/sold-items",
     "/auth/unsold-items",
+    "/auth/reports",
     "/ebay-api/auth",
     "/auth/ebay-auth-success-callback",
     "/auth/poshmark-sold-items"

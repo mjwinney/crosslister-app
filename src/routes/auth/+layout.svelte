@@ -17,7 +17,8 @@
 		| '/auth/unsold-items'
 		| '/auth/poshmark-dashboard'
 		| '/auth/poshmark-active-items'
-		| '/auth/poshmark-sold-items';
+		| '/auth/poshmark-sold-items'
+		| '/auth/reports';
 
 	let isLoading = $state(false);
 	const routeReady: () => void = () => {

@@ -1,5 +1,5 @@
 import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
-import { getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
+import { backfillItemTitles, getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ depends, request, locals }) => {
@@ -35,13 +35,10 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
     const soldResult = await getSold(userId);
 
     const toDate = new Date();
-    let fromDate = toDate;
-
-    if (!soldResult.ok) {
-        // Possible first time retrieveing sold items
-        // So set back 90 days from now
-        fromDate = new Date(toDate.getTime() - (90 * 24 * 60 * 60 * 1000));
-    }
+    const lastRetrieved = soldResult.ok ? soldResult.data.lastRetrievedDate : undefined;
+    // GetOrders rejects CreateTimeFrom older than 90 days
+    const earliestAllowed = new Date(toDate.getTime() - (89 * 24 * 60 * 60 * 1000));
+    const fromDate = lastRetrieved && lastRetrieved > earliestAllowed ? lastRetrieved : earliestAllowed;
 
     const ordersResponse = await getMyEbayOrdersDates(locals, toDate, fromDate);
 
@@ -51,6 +48,9 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
             headers: { 'Content-Type': 'text/html' }
         });
     }
+
+    // Fill blank titles for older sales (GetOrders only reaches back 90 days)
+    await backfillItemTitles(locals, userId, new Date(toDate.getTime() - (365 * 24 * 60 * 60 * 1000)), toDate);
 
     const weekStatsResult = await getCurrentWeekStats(userId);
     const previousWeekStatsResult = await getPreviousWeekStats(userId);
@@ -70,16 +70,11 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
     const previousMonthStats = previousMonthStatsResult.ok ? previousMonthStatsResult.data : emptySummary;
     const last6MonthStats = last6MonthStatsResult.ok ? last6MonthStatsResult.data : emptySummary;
 
-    // Update the sold database table with the current date as this was last time
-    // the sold items were retrieved
-    // const updateSoldResponse = await updateSold(userId, toDate, true);
-
-    // if (updateSoldResponse !== StatusCodes.OK) {
-    //     return new Response('Failed to update eBay sold items', {
-    //         status: 500,
-    //         headers: { 'Content-Type': 'text/html' }
-    //     });
-    // }
+    // Record when sold items were last retrieved so the next login only fetches newer orders
+    const updateSoldResponse = await updateSold(userId, toDate, true);
+    if (updateSoldResponse !== StatusCodes.OK) {
+        console.error(`Failed to update lastRetrievedDate for userId:${userId} status:${updateSoldResponse}`);
+    }
 
     // const orders = ordersResponse.data.GetOrdersResponse.OrderArray.Order;
 
