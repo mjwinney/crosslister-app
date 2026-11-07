@@ -57,7 +57,7 @@ export interface UpdateEbayTokenParams {
 
 export async function updateEbayToken(params: UpdateEbayTokenParams): Promise<StatusCodes> {
     const { userId, accessToken, refreshToken, expiresIn, browseToken, browseExpiresIn, sellerUsername } = params;
-    console.log(`updateEbayToken called with userId=${userId}, accessToken=${accessToken}, refreshToken=${refreshToken}, expiresIn=${expiresIn}, browseToken=${browseToken}, browseExpiresIn=${browseExpiresIn}, sellerUsername=${sellerUsername}`);
+    console.log(`updateEbayToken called for userId=${userId}`);
 
     // Ensure the database connection is established
     await connectToDatabase();

@@ -110,7 +110,7 @@ export async function buildEbayAuthURL(state?: string): Promise<Result<string>> 
 }
 
 export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): Promise<Result<EbayTokens>> {
-    console.log(`eBay Auth Success Callback: ${url}`);
+    console.log('eBay authorization-code token exchange started');
     // If you need to access session data, you can do so here
     const userId = locals?.session?.userId;
     console.log(`eBay Auth Success Callback userId: ${userId}`);
@@ -156,12 +156,10 @@ export async function getTokensFromEbayResponse(locals: App.Locals, url: URL): P
             };
         }
 
-        console.log(`eBay Auth Success Callback data: ${JSON.stringify(data)}`);
+        console.log('eBay OAuth authorization-code granted scope:', data.scope ?? '(not returned)');
 
         const { access_token, refresh_token, expires_in } = data;
 
-        console.log(`eBay Auth access_token: ${access_token}`);
-        console.log(`eBay Auth refresh_token: ${refresh_token}`);
         console.log(`eBay Auth expires_in: ${expires_in}`);
 
         // // Update eBay token in the database
@@ -202,8 +200,6 @@ export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
     });
 
-    console.log(`refreshEbayToken called with refresh_token=${locals.ebayRefreshToken}`);
-
     try {
         const refreshResponse = await fetch(env.EBAY_API_ENDPOINT + 'identity/v1/oauth2/token', {
             method: 'POST',
@@ -221,7 +217,7 @@ export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
             return false;
         }
 
-        console.log(`refreshEbayToken Callback data: ${JSON.stringify(data)}`);
+        console.log('eBay OAuth refresh granted scope:', data.scope ?? '(not returned)');
 
         if (refreshResponse.ok) {
             const userId = locals?.session?.userId;
@@ -229,8 +225,6 @@ export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
                 throw new Error('Missing userId while refreshing eBay token');
             }
             console.log(`refreshEbayToken userId: ${userId}`);
-            console.log(`New access token: ${data.access_token}`);
-            console.log(`New refresh token: ${data.refresh_token}`);
             console.log(`New expires in: ${data.expires_in}`);
 
             // Persist whichever credentials eBay returned, then use them for subsequent calls in this request.

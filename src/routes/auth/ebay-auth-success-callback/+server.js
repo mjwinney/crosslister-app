@@ -2,7 +2,7 @@ import { StatusCodes, updateEbayToken } from '$lib/server/DatabaseUtils';
 import { getTokensFromEbayResponse, getUser } from '$lib/server/ebayUtils.js';
 
 export async function GET({ locals, url, cookies }) {
-    console.log(`eBay Auth Success Callback: ${url}`);
+    console.log('eBay Auth Success Callback received');
     console.log(`eBay Auth Success Callback locals.session:`, locals.session);
     console.log(`eBay Auth Success Callback locals.user:`, locals.user);
 
@@ -40,8 +40,6 @@ export async function GET({ locals, url, cookies }) {
     }
 
     console.log(`eBay Auth Success Callback userId: ${userId}`);
-    console.log(`eBay Auth Success Callback access_token: ${result.data.access_token}`);
-    console.log(`eBay Auth Success Callback refresh_token: ${result.data.refresh_token}`);
     console.log(`eBay Auth Success Callback expires_in: ${result.data.expires_in}`);
 
     // Update eBay token in the database
