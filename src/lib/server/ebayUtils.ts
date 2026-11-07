@@ -90,7 +90,7 @@ export async function buildEbayAuthURL(state?: string): Promise<Result<string>> 
         client_id: EBAY_CLIENT_ID ?? '',
         redirect_uri: EBAY_RU_NAME ?? '',
         response_type: 'code',
-        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory',
+        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment',
         prompt: 'login' // forces user to login each time for testing purposes
     });
 
@@ -99,8 +99,6 @@ export async function buildEbayAuthURL(state?: string): Promise<Result<string>> 
     }
 
     const endpoint = `${env.EBAY_AUTH_ENDPOINT}oauth2/authorize?${qsParams.toString()}`;
-
-    console.log('endpoint:', JSON.stringify(endpoint));
 
     // Redirect the client to the eBay authorization endpoint
     return {
@@ -197,7 +195,7 @@ export async function refreshEbayToken(locals: App.Locals): Promise<boolean> {
     const params = new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: locals.ebayRefreshToken || '',
-        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory'
+        scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment'
     });
 
     try {

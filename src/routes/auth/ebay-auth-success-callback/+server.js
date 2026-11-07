@@ -3,8 +3,6 @@ import { getTokensFromEbayResponse, getUser } from '$lib/server/ebayUtils.js';
 
 export async function GET({ locals, url, cookies }) {
     console.log('eBay Auth Success Callback received');
-    console.log(`eBay Auth Success Callback locals.session:`, locals.session);
-    console.log(`eBay Auth Success Callback locals.user:`, locals.user);
 
     const userId = locals?.session?.userId;
     

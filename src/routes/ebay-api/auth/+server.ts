@@ -32,7 +32,6 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     const result = await buildEbayAuthURL(state);
     
     if (result.status === 'success') {
-        console.log('eBay auth route: Redirecting to', result.data);
         throw redirect(302, result.data);
     } else {
         console.error('eBay auth route: Failed to build auth URL:', result.message);
