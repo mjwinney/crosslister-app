@@ -93,6 +93,7 @@ export async function buildEbayAuthURL(state?: string): Promise<Result<string>> 
         scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment',
         prompt: 'login' // forces user to login each time for testing purposes
     });
+    console.log('eBay OAuth requested scopes:', qsParams.get('scope'));
 
     if (state) {
         qsParams.set('state', state);
