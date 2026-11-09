@@ -1,5 +1,6 @@
 import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
 import { backfillItemTitles, getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ depends, request, locals }) => {
@@ -8,10 +9,7 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
 
     const userId = locals?.session?.userId;
     if (!userId) {
-        return new Response('Failed to retrieve user ID', {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' }
-        });
+        error(500, 'Failed to retrieve user ID');
     }
 
     // See if we need to get the ebay SellerUsername for the user to display on the dashboard
@@ -43,10 +41,7 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
     const ordersResponse = await getMyEbayOrdersDates(locals, toDate, fromDate);
 
     if (ordersResponse.status !== 200 || !('data' in ordersResponse)) {
-        return new Response('Failed to retrieve eBay inventory items', {
-            status: 500,
-            headers: { 'Content-Type': 'text/html' }
-        });
+        error(500, 'Failed to retrieve eBay inventory items');
     }
 
     // Fill blank titles for older sales (GetOrders only reaches back 90 days)

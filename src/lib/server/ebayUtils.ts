@@ -1522,7 +1522,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                 };
             }
 
-            const orders = jsonData.GetOrdersResponse.OrderArray.Order;
+            // XMLParser returns a single object (not an array) when there is only one order
+            const rawOrders = jsonData.GetOrdersResponse.OrderArray.Order;
+            const orders: any[] = Array.isArray(rawOrders) ? rawOrders : rawOrders ? [rawOrders] : [];
 
             // Normalize Transaction to always be an array, then find the first ItemID
             const getItemId = (transaction: any): string | null => {
