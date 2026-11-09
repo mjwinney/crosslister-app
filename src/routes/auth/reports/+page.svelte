@@ -1,12 +1,44 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { REPORT_PERIODS, formatMoney, formatSaleDate } from '$lib/reports';
+	import CurrencyInput from '@canutin/svelte-currency-input';
+	import { REPORT_PERIODS, buildReportTotals, formatMoney, formatSaleDate } from '$lib/reports';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let refreshing = $state(false);
+
+	// Edited COGS keyed by itemId; reset whenever the server data reloads.
+	let cogsByItem = $state<Record<string, number | null>>({});
+	let savedCogs: Record<string, number | null> = {};
+
+	$effect(() => {
+		const initial: Record<string, number | null> = {};
+		for (const line of data.lines) initial[line.itemId] = line.cogs;
+		cogsByItem = { ...initial };
+		savedCogs = initial;
+	});
+
+	const lines = $derived(
+		data.lines.map((line) => {
+			const cogs = cogsByItem[line.itemId] ?? null;
+			return { ...line, cogs, missingCogs: !cogs };
+		})
+	);
+	const totals = $derived(buildReportTotals(lines));
+
+	async function saveCogs(itemId: string) {
+		const value = cogsByItem[itemId];
+		if (value === null || value === undefined || value === savedCogs[itemId]) return;
+
+		const formData = new FormData();
+		formData.append('itemId', itemId);
+		formData.append('metaData', JSON.stringify({ purchasePrice: value }));
+
+		const response = await fetch('/auth/active-items?/updateItem', { method: 'POST', body: formData });
+		if (response.ok) savedCogs[itemId] = value;
+	}
 </script>
 
 <svelte:head>
@@ -15,7 +47,7 @@
 
 <header class="report-header">
 	<div>
-		<h1>eBay sales report</h1>
+		<h2 class="mb-0">eBay sales report</h2>
 		<p class="subtitle">{data.title}</p>
 		<p class="subtitle timezone-note">Dates shown in {data.timeZone}.</p>
 	</div>
@@ -66,9 +98,9 @@
 		<p class="success">Imported {form.synced} sale(s).</p>
 	{/if}
 
-	{#if data.totals.missingCogsCount > 0}
+	{#if totals.missingCogsCount > 0}
 		<p class="warning">
-			{data.totals.missingCogsCount} item(s) have no purchase price (COGS) and are highlighted in red.
+			{totals.missingCogsCount} item(s) have no purchase price (COGS) and are highlighted in red.
 		</p>
 	{/if}
 </div>
@@ -88,12 +120,31 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each data.lines as line (line.itemId + line.soldTime.toISOString())}
+			{#each lines as line (line.itemId + line.soldTime.toISOString())}
 				<tr class:missing={line.missingCogs}>
 					<td>{formatSaleDate(line.soldTime, data.timeZone)}</td>
 					<td>{line.title}</td>
 					<td class="num">{formatMoney(line.sales)}</td>
-					<td class="num">{line.missingCogs ? 'Missing' : formatMoney(line.cogs ?? 0)}</td>
+					<td
+						class="num cogs-cell"
+						onfocusout={() => saveCogs(line.itemId)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') e.currentTarget.querySelector('input')?.blur();
+						}}
+					>
+						<CurrencyInput
+							bind:value={cogsByItem[line.itemId]}
+							currency="USD"
+							locale="en-US"
+							isNegativeAllowed={false}
+							inputClasses={{
+								unformatted: 'auth-field',
+								formatted: 'auth-field',
+								formattedPositive: 'auth-field',
+								formattedNegative: 'auth-field'
+							}}
+						/>
+					</td>
 					<td class="num">{formatMoney(line.fees)}</td>
 					<td class="num">{formatMoney(line.shipping)}</td>
 				</tr>
@@ -103,10 +154,10 @@
 			<tr>
 				<th>Total</th>
 				<th>{data.totals.count} item(s)</th>
-				<th class="num">{formatMoney(data.totals.sales)}</th>
-				<th class="num">{formatMoney(data.totals.cogs)}</th>
-				<th class="num">{formatMoney(data.totals.fees)}</th>
-				<th class="num">{formatMoney(data.totals.shipping)}</th>
+				<th class="num">{formatMoney(totals.sales)}</th>
+				<th class="num">{formatMoney(totals.cogs)}</th>
+				<th class="num">{formatMoney(totals.fees)}</th>
+				<th class="num">{formatMoney(totals.shipping)}</th>
 			</tr>
 		</tfoot>
 	</table>
@@ -119,6 +170,12 @@
 		justify-content: space-between;
 		align-items: flex-start;
 		gap: 1rem;
+	}
+
+	.report-header h2 {
+		margin: 0;
+		font-size: clamp(1.35rem, 2vw, 1.8rem);
+		letter-spacing: 0;
 	}
 
 	.subtitle {
@@ -235,6 +292,11 @@
 		text-align: right;
 	}
 
+	.cogs-cell :global(input) {
+		width: 7rem;
+		text-align: right;
+	}
+
 	tfoot th {
 		border-top: 2px solid rgba(128, 128, 128, 0.5);
 	}
@@ -245,6 +307,27 @@
 	}
 
 	@media print {
+		:global(.nav-shell),
+		:global(.sidebar-panel),
+		:global(.busy-overlay) {
+			display: none !important;
+		}
+
+		:global(.grid:has(> .sidebar-panel)) {
+			display: block !important;
+		}
+
+		:global(main),
+		:global(.auth-app),
+		:global(.items-container) {
+			background: #fff !important;
+			color: #000 !important;
+		}
+
+		:global(.items-container::before) {
+			display: none;
+		}
+
 		form,
 		select,
 		button,
@@ -257,6 +340,10 @@
 			font-size: 11pt;
 		}
 
+		/* The default table-footer-group repeats the footer on every printed page. */
+		tfoot {
+			display: table-row-group;
+		}
 		tr.missing td {
 			background: rgba(220, 38, 38, 0.08);
 		}

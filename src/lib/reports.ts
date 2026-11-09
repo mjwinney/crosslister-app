@@ -97,7 +97,7 @@ export function buildReportLines(rows: ReportRow[]): ReportLine[] {
         cogs: row.purchasePrice ?? null,
         fees: round2(row.feePrice + row.addFeeGeneral),
         shipping: round2(-row.finalShippingCost),
-        missingCogs: row.purchasePrice === undefined || row.purchasePrice === null
+        missingCogs: !row.purchasePrice
     }));
 }
 
