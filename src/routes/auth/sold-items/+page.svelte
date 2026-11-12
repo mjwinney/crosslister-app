@@ -4,8 +4,6 @@
 	import { onMount, tick } from 'svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	import CurrencyInput from '@canutin/svelte-currency-input';
-	import { fly } from 'svelte/transition';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
@@ -16,25 +14,46 @@
 		if (!session || !session?.data) {
 			goto('/');
 		}
-		console.log(currencyInputEl); // now defined
 	});
 
-	async function updatePurchasePrice(order: any, newValue: number) {
+	async function updatePurchasePrice(order: any, input: HTMLInputElement) {
+		const value = input.value.trim();
+		const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? '');
+		if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value) || !Number.isFinite(Number(value))) {
+			purchasePriceErrors[itemId] = 'Enter a valid price with up to two decimal places.';
+			return;
+		}
+
+		const newValue = Number(value);
+		purchasePriceErrors[itemId] = '';
+		if (newValue === Number(order.Metadata?.purchasePrice ?? 0)) {
+			input.value = formatCurrency(String(newValue));
+			return;
+		}
+
 		const formData = new FormData();
-		formData.append('itemId', order.TransactionArray.Transaction.Item.ItemID);
+		formData.append('itemId', itemId);
 		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
 
-		await fetch('/auth/active-items?/updateItem', {
-			method: 'POST',
-			body: formData
-		});
-
-		// Update local data so UI reflects immediately
-		editableItems = editableItems.map((it: any) =>
-			String(it.TransactionArray.Transaction.Item.ItemID) === String(order.TransactionArray.Transaction.Item.ItemID)
-				? { ...it, Metadata: { ...it.Metadata, purchasePrice: newValue } }
-				: it
-		);
+		purchasePriceSaving[itemId] = true;
+		try {
+			const response = await fetch('/auth/sold-items?/updateItem', {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) throw new Error('Failed to save purchase price');
+			editableItems = editableItems.map((item: any) =>
+				String(transactionsOf(item)[0]?.Item?.ItemID ?? '') === itemId
+					? { ...item, Metadata: { ...item.Metadata, purchasePrice: newValue } }
+					: item
+			);
+			input.value = formatCurrency(String(newValue));
+		} catch (error) {
+			console.error('Failed to save purchase price', error);
+			purchasePriceErrors[itemId] = 'Could not save purchase price. Try again.';
+		} finally {
+			purchasePriceSaving[itemId] = false;
+		}
 	}
 
 	/**
@@ -181,32 +200,6 @@
 		isLoading = false;  // Loading spinner removed
     }
 
-	function startEditing(order: any, index: number, event: MouseEvent) {
-		// Anchor the fixed-position dialog to the clicked purchase price cell (viewport coords)
-		const anchor = (event.currentTarget as HTMLElement).closest('.sold-metric') ?? itemsElements[index];
-		const rect = anchor.getBoundingClientRect();
-		dialogPos = { top: rect.top, left: rect.left };
-
-		tempPurchasePrice = order.Metadata.purchasePrice || '0';
-		editingIndex = index;
-	}
-
-	async function stopEditing() {
-		const idx = editingIndex;
-		if (idx < 0) return;
-		const order = editableItems[idx];
-		const newVal = Number(tempPurchasePrice);
-		editableItems = editableItems.map((it: any, i: number) =>
-			i === idx ? { ...it, Metadata: { ...it.Metadata, purchasePrice: newVal } } : it
-		);
-		editingIndex = -1;
-		await updatePurchasePrice(order, newVal);
-	}
-
-	function cancelEditing() {
-		editingIndex = -1;
-	}
-
 	let { data } = $props();
 
 	let dataItems = $derived(data.post.GetOrdersResponse?.OrderArray);
@@ -222,13 +215,8 @@
 	let totalItems = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfEntries);
 	let totalNumberOfPages = $derived(data.post.GetOrdersResponse?.PaginationResult.TotalNumberOfPages);
 	
-	// Track which item is being edited
-	let tempPurchasePrice = $state(0);
-	let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
-
-	let editingIndex = $state(-1);
-	let itemsElements: HTMLElement[] = [];
-	let dialogPos = $state({ top: 0, left: 0 });
+	let purchasePriceErrors = $state<Record<string, string>>({});
+	let purchasePriceSaving = $state<Record<string, boolean>>({});
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -257,7 +245,7 @@
 			</div>
 		</div>
 		<div class="items-list">
-			{#each editableItems as order, index}
+			{#each editableItems as order}
 				{#each transactionsOf(order) as transaction}
 					<div class="item-row flex items-start border-b p-2">
 						<div class="col-image mr-3 flex items-center justify-center p-3">
@@ -280,83 +268,53 @@
 							<p class="auth-muted text-sm m-0">Sold: {formatIsoToMonDDYYYY(transaction.CreatedDate)}</p>
 						</div>
 
-						<div class="col-right sold-metrics" bind:this={itemsElements[index]}>
-							<div class="sold-metric purchase-price">
-								<span class="field-label">Purchase Price</span>
-								<div class="metric-value flex items-center">
-									<span>${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.Metadata.purchasePrice || 0))}</span>
-									<button class="icon-action ml-2" onclick={(e) => startEditing(order, index, e)} title="Edit purchase price">✏️</button>
-								</div>
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Fee</span>
-								<span class="metric-value auth-negative">${formatCurrency(order.finalValueFee)}</span>
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Shipping</span>
-								{#if calculateShipping(order, transaction) >= 0}
-									<span class="metric-value auth-positive">${formatCurrencyFromNumber(calculateShipping(order, transaction))} <span class="auth-muted">{formatShippingCalc(order, transaction)}</span></span>
-								{:else}
-									<span class="metric-value auth-negative">${formatCurrencyFromNumber(calculateShipping(order))} <span class="auth-muted">{formatShippingCalc(order, transaction)}</span></span>
-								{/if}
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Promo Fee</span>
-								{#if order.addFeeGeneral > 0}
-									<span class="metric-value auth-negative">${formatCurrency(order.addFeeGeneral)}</span>
-								{:else}
-									<span class="metric-value auth-muted">---</span>
-								{/if}
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Profit</span>
-								<span class="metric-value auth-positive">${calculateProfit(order, transaction)}</span>
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">ROI</span>
-								<span class="metric-value auth-positive">{calculateROI(order, transaction)}</span>
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Time To Sell</span>
-								<span class="metric-value">{getDayDifference(order.StartTime, order.EndTime)}</span>
-							</div>
-							<div class="sold-metric">
-								<span class="field-label">Location</span>
-								<span class="metric-value">{order.Metadata.storageLocation ? order.Metadata.storageLocation : 'N/A'}</span>
-							</div>
+						<div class="col-right sold-details">
+							<table class="auth-table auth-table-compact">
+								<tbody>
+									<tr>
+										<td>Purchase Price:</td>
+										<td>
+											$<input
+												type="text"
+												inputmode="decimal"
+												class="auth-field purchase-price-input"
+												aria-label={`Purchase price for ${transaction.Item.Title}`}
+												aria-invalid={!!purchasePriceErrors[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}
+												disabled={purchasePriceSaving[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}
+												value={formatCurrency(String(order.Metadata?.purchasePrice ?? 0))}
+												onblur={(event) => updatePurchasePrice(order, event.currentTarget)}
+												onkeydown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+											/>
+											{#if purchasePriceErrors[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}
+												<div class="auth-negative" role="alert">{purchasePriceErrors[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}</div>
+											{/if}
+										</td>
+									</tr>
+									<tr><td>Fee:</td><td class="auth-negative">${formatCurrency(order.finalValueFee)}</td></tr>
+									<tr>
+										<td>Shipping:</td>
+										<td class={calculateShipping(order, transaction) >= 0 ? 'auth-positive' : 'auth-negative'}>
+											${formatCurrencyFromNumber(calculateShipping(order, transaction))} <span class="auth-muted">{formatShippingCalc(order, transaction)}</span>
+										</td>
+									</tr>
+									<tr>
+										<td>Promo Fee:</td>
+										<td class={order.addFeeGeneral > 0 ? 'auth-negative' : 'auth-muted'}>{order.addFeeGeneral > 0 ? `$${formatCurrency(order.addFeeGeneral)}` : '---'}</td>
+									</tr>
+								</tbody>
+							</table>
+							<table class="auth-table auth-table-compact">
+								<tbody>
+									<tr><td>Profit:</td><td class="auth-positive">${calculateProfit(order, transaction)}</td></tr>
+									<tr><td>ROI:</td><td class="auth-positive">{calculateROI(order, transaction)}</td></tr>
+									<tr><td>Time To Sell:</td><td>{getDayDifference(order.StartTime, order.EndTime)}</td></tr>
+								</tbody>
+							</table>
 						</div>
 					</div>
 				{/each}
 			{/each}
 		</div>
-
-		<!-- Slide-in dialog -->
-		{#if editingIndex !== -1}
-			<div class="side-dialog shadow p-3"
-				style="position:fixed; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
-				transition:fly={{ x: 200, duration: 300 }}>
-				<h6>Edit Purchase Price</h6>
-				<CurrencyInput
-				bind:value={tempPurchasePrice}
-				currency="USD"
-				locale="en-US"
-				inputClasses={{
-					unformatted: "auth-field",
-					formatted: "auth-field",
-					formattedPositive: "auth-field",
-					formattedNegative: "auth-field",
-				}}
-				/>
-				<div class="mt-3 flex justify-end gap-2">
-				<button class="auth-button auth-button-secondary" onclick={() => cancelEditing()}>
-					Cancel
-				</button>
-				<button class="auth-button auth-button-primary" onclick={() => stopEditing()}>
-					Save
-				</button>
-				</div>
-			</div>
-		{/if}
 
 		<div class="my-3 flex justify-center">
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
@@ -376,37 +334,35 @@
 	.item-row {
 		gap: 0.75rem;
 		flex-wrap: nowrap;
-		min-width: 1040px;
+		min-width: 0;
 		overflow-x: hidden;
 		align-items: center;
 		border-radius: 10px;
 		transition: background-color 180ms ease, box-shadow 180ms ease;
 	}
-	.item-image { width: 80px; height: 80px; border-radius: 8px; }
+	.item-image { width: 100px; height: 100px; border-radius: 8px; }
 
 	.items-list { display: flex; flex-direction: column; gap: 0.75rem; }
-	.col-image { flex: 0 0 80px; }
-	.col-info { flex: 0 0 200px; min-width: 150px; }
+	.col-image { flex: 0 0 124px; }
+	.col-info { flex: 1 1 200px; min-width: 150px; }
 	.col-info p { font-size: 1rem; margin: 0; }
 	.col-info .item-title { font-weight: 700; }
 	.col-info .auth-muted { font-size: 0.85rem; }
 	.col-info .auth-positive { font-weight: 700; }
-	.col-right { flex: 1 1 auto; min-width: 0; }
-	.sold-metrics {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 0.75rem;
-		align-items: start;
-	}
-	.sold-metric { display: flex; min-width: 0; flex-direction: column; }
-	.field-label { display: block; margin-bottom: 0.15rem; font-size: 0.72rem; font-weight: 700; line-height: 1rem; text-transform: uppercase; }
-	.metric-value { min-height: 1.5rem; font-size: 0.86rem; line-height: 1.35; overflow-wrap: anywhere; }
-	.purchase-price .metric-value { font-weight: 600; }
-	.purchase-price button { min-width: 24px; }
+	.col-right { flex: 0 1 auto; min-width: 0; }
+	.sold-details { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.75rem; align-items: flex-start; }
+	.sold-details .auth-table { width: auto; max-width: 100%; }
+	.sold-details .auth-table td:first-child { white-space: nowrap; }
+	.purchase-price-input { width: 7rem; max-width: 100%; }
+	.sold-details .auth-table tbody tr { transition: background-color 180ms ease; }
+	.item-row:hover .sold-details .auth-table tbody tr { background: var(--auth-surface-hover); }
 
 	@media (max-width: 900px) {
 		.items-container { max-height: none; }
 		.items-container > .items-header { align-items: flex-start; }
+		.item-row { flex-wrap: wrap; }
+		.col-info { flex: 1 1 150px; }
+		.col-right { flex: 1 1 100%; }
 	}
 	@media (max-width: 576px) {
 		.items-container { padding: 1rem 0.75rem; }
