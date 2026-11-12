@@ -4,31 +4,52 @@
 	import { onDestroy, onMount, tick } from 'svelte';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import { page } from '$app/state';
-	import { fly } from 'svelte/transition';
 	import { poshmarkTabOpen, poshmarkTabLoggedInUid } from '$lib/stores/poshmark';
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
+	let isRefreshing = $state(false);
+	let sessionReady = $state(false);
+	let refreshError = $state('');
+	let refreshRequested = false;
+	let refreshTimeout: ReturnType<typeof setTimeout> | undefined;
+	let destroyed = false;
 
 	onMount(async () => {
 		if (initialized) return;
 			initialized = true;
 
 		const session = await authClient.getSession();
+		if (destroyed) return;
 		// console.log(`Dashboard page load function: session=${JSON.stringify(session)}`);
 		if (!session || !session?.data) {
 			goto('/');
+			return;
 		}
 
         // Register message listeners (handlers are declared at module scope)
         window.addEventListener("message", handlePoshmarkSoldItemsResponse);
+		sessionReady = true;
+	});
+
+	$effect(() => {
+		if (sessionReady && $poshmarkTabOpen && $poshmarkTabLoggedInUid && !refreshRequested) {
+			refreshRequested = true;
+			sendPoshmarkSoldItemsRequest();
+		}
 	});
 
 	function sendPoshmarkSoldItemsRequest() {
         // Send to server or extension to fetch sold items
         // console.log("sendPoshmarkSoldItemsRequest called");
 
-		isLoading = true; // Show loading spinner while fetching data
+		isRefreshing = true;
+		refreshError = '';
+		clearTimeout(refreshTimeout);
+		refreshTimeout = setTimeout(() => {
+			isRefreshing = false;
+			refreshError = 'Could not refresh Poshmark sold items. Check your Poshmark session and try again.';
+		}, 120000);
 
 		// This is going to go to the chrome extension content script,
 		// which will then forward to the background script,
@@ -48,6 +69,7 @@
 
         if (event.data?.type === "POSHMARK_SOLD_DATA") {
             console.log("Received POSHMARK_SOLD_DATA from Poshmark data:", event.data);
+			clearTimeout(refreshTimeout);
             // Handle response as needed
             // let poshMarkSoldItemsData = JSON.stringify(event.data.data);
 
@@ -55,56 +77,63 @@
 			const formData = new FormData();
 			formData.append('data', JSON.stringify(event.data.data));
 
-			const res = await fetch('/auth/poshmark-sold-items/save-poshmark-sold-items', {
-				method: 'POST',
-				body: formData
-			});
+			try {
+				const res = await fetch('/auth/poshmark-sold-items/save-poshmark-sold-items', {
+					method: 'POST',
+					body: formData
+				});
 
-			const data = await res.json();
+				if (!res.ok) {
+					throw new Error('Failed to save Poshmark sold items');
+				}
 
-			if (!res.ok) {
-				console.error('Failed to send sold items to server', JSON.stringify(event.data.data));
-				return {
-					status: 'error',
-					message: data
-				};
+				await invalidateAll();
+				refreshError = '';
+			} catch (error) {
+				console.error('Failed to refresh Poshmark sold items', error);
+				refreshError = 'Could not refresh Poshmark sold items. Check your Poshmark session and try again.';
+			} finally {
+				isRefreshing = false;
 			}
-
-			// Action returns the data to be displayed in the UI
-			// so save it to a variable that the UI can access.
-			// const json = await res.json();
-			// console.log('Imported sold items, server response:', json);
-
-			// Save the data so it can be displayed in the UI. 
-			// We have to do it this way because the load function only runs on page load,
-			// and we want to update the UI immediately after importing without requiring a page refresh.
-			// dataItems = json;
-            // console.log("POSHMARK_SOLD_DATA EXIT");
-
-			// Force the page to reload so it will re-run the load function and get the new data 
-			// from the database, which was just updated with the imported sold items.
-			await handlePageChange(1);
 		}
     }
 
-	async function updatePurchasePrice(order: any, newValue: number) {
-		console.log(`updatePurchasePrice called with:${JSON.stringify(order)}, newValue=${newValue}`);
+	async function updatePurchasePrice(order: any, input: HTMLInputElement) {
+		const value = input.value.trim();
+		const itemId = String(order.itemId);
+		if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(value) || !Number.isFinite(Number(value))) {
+			purchasePriceErrors[itemId] = 'Enter a valid price with up to two decimal places.';
+			return;
+		}
+
+		const newValue = Number(value);
+		purchasePriceErrors[itemId] = '';
+		if (newValue === Number(order.purchasePrice ?? 0)) {
+			input.value = formatCurrency(newValue);
+			return;
+		}
 
 		const formData = new FormData();
 		formData.append('itemId', order.itemId);
 		formData.append('metaData', JSON.stringify({ purchasePrice: newValue }));
 
-		console.log(`updatePurchasePrice formData:itemId=${formData.get('itemId')}, metaData=${formData.get('metaData')}`);
-
-		await fetch('/auth/poshmark-sold-items?/updateItem', {
-			method: 'POST',
-			body: formData
-		});
-
-		// Update local data so UI reflects immediately
-		editableItems = editableItems.map((it: any) =>
-			String(it.itemId) === String(order.itemId) ? { ...it, purchasePrice: newValue } : it
-		);
+		purchasePriceSaving[itemId] = true;
+		try {
+			const response = await fetch('/auth/poshmark-sold-items?/updateItem', {
+				method: 'POST',
+				body: formData
+			});
+			if (!response.ok) throw new Error('Failed to save purchase price');
+			editableItems = editableItems.map((item: any) =>
+				String(item.itemId) === itemId ? { ...item, purchasePrice: newValue } : item
+			);
+			input.value = formatCurrency(newValue);
+		} catch (error) {
+			console.error('Failed to save purchase price', error);
+			purchasePriceErrors[itemId] = 'Could not save purchase price. Try again.';
+		} finally {
+			purchasePriceSaving[itemId] = false;
+		}
 	}
 
 	/**
@@ -170,37 +199,6 @@
 		isLoading = false;  // Loading spinner removed
     }
 
-	function startEditing(order: any, index: number) {
-		console.log(`startEditing called for order ${JSON.stringify(order)}, index ${index}`);
-
-		const el = itemsElements[index];
-		if (el) {
-			const rect = el.getBoundingClientRect();
-			dialogPos = { top: rect.top + window.scrollY, left: rect.left };
-		}
-
-		tempPurchasePrice = order.purchasePrice || 0;
-		editingIndex = index;
-	}
-
-	async function stopEditing() {
-		const idx = editingIndex;
-		if (idx < 0) return;
-		const order = editableItems[idx];
-		// Coerce tempPurchasePrice to number before saving
-		const newVal = Number(tempPurchasePrice);
-		// Update local copy so UI updates immediately
-		editableItems = editableItems.map((it: any, i: number) =>
-			i === idx ? { ...it, purchasePrice: newVal } : it
-		);
-		editingIndex = -1;
-		await updatePurchasePrice(order, newVal);
-	}
-
-	function cancelEditing() {
-		editingIndex = -1;
-	}
-
 	function openPoshmarkTab() {
 		// Semd message to extension to open Poshmark tab
 		window.postMessage({ type: "OPEN_POSHMARK_TAB" }, "*");
@@ -212,6 +210,8 @@
 
 	// Clean up listeners and intervals when this component is destroyed
     onDestroy(() => {
+		destroyed = true;
+		clearTimeout(refreshTimeout);
         if (typeof window !== 'undefined') {
 			window.removeEventListener("message", handlePoshmarkSoldItemsResponse);
         }
@@ -233,17 +233,8 @@
 	let totalItems = $derived(dataItems.totalItemCount ?? 0);
 	let totalNumberOfPages = $derived((dataItems.totalItemCount ?? 0) > 0 ? Math.ceil((dataItems.totalItemCount ?? 0) / 20) : 0);
 	
-	// Track which item is being edited
-	let tempPurchasePrice = $state(0);
-	let editingIndex = $state(-1);
-
-	// Reactive debug logging to verify state updates (use $effect in runes mode)
-	// $effect(() => {
-	// 	console.log('editingItemId,temp,type', editingItemId, tempPurchasePrice, typeof tempPurchasePrice);
-	// });
-	// let currencyInputEl: InstanceType<typeof CurrencyInput> | null = null;
-	let itemsElements: HTMLElement[] = [];
-	let dialogPos = $state({ top: 0, left: 0 });
+	let purchasePriceErrors = $state<Record<string, string>>({});
+	let purchasePriceSaving = $state<Record<string, boolean>>({});
 
     let poshMarkTabLoggedIn = $derived($poshmarkTabOpen && $poshmarkTabLoggedInUid !== "");
 	let poshMarkTabOpenButNotLoggedIn = $derived($poshmarkTabOpen && ($poshmarkTabLoggedInUid === "" || $poshmarkTabLoggedInUid === null));
@@ -264,17 +255,26 @@
     </div>
 {/if}
 
+<div class="auth-muted mt-2 refresh-status" role="status">
+	{#if isRefreshing}Refreshing Poshmark sold items...{/if}
+</div>
+
+{#if refreshError}
+	<div class="text-center mt-2" role="alert">
+		{refreshError}
+		{#if poshMarkTabLoggedIn}
+			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3" onclick={sendPoshmarkSoldItemsRequest}>Retry</button>
+		{/if}
+	</div>
+{/if}
+
 {#if editableItems == null || editableItems.length === 0}
 	<div class="text-center mt-5">No sold items found.
-		{#if poshMarkTabLoggedIn}
-			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
-				Refresh
-			</button>
-		{:else if poshMarkTabOpenButNotLoggedIn}
+		{#if poshMarkTabOpenButNotLoggedIn}
 			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 				User not logged in
 			</button>
-		{:else}
+		{:else if !poshMarkTabLoggedIn}
 			<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 				Open POSHMARK tab
 			</button>
@@ -285,15 +285,11 @@
 		<div class="items-header mb-3">
 			<div class="flex items-center">
 				<h2 class="mb-0">Sold Items ({totalItems})</h2>
-				{#if poshMarkTabLoggedIn}
-					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={sendPoshmarkSoldItemsRequest}>
-						Refresh
-					</button>
-				{:else if poshMarkTabOpenButNotLoggedIn}
+				{#if poshMarkTabOpenButNotLoggedIn}
 					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 						User not logged in
 					</button>
-				{:else}
+				{:else if !poshMarkTabLoggedIn}
 					<button type="button" class="auth-button auth-button-primary auth-button-compact ml-3 mt-2" onclick={openPoshmarkTab}>
 						Open POSHMARK tab
 					</button>
@@ -306,7 +302,7 @@
 		</div>
 		<table class="auth-table mb-4">
 			<tbody>
-				{#each editableItems as order, index}
+				{#each editableItems as order (order.itemId)}
 					<tr>
 						<td>
 							<div class="flex items-center justify-center p-3">
@@ -324,13 +320,26 @@
 									<p class="auth-muted text-sm m-0">Shipping: Paid by seller</p>
 							<p class="auth-muted text-sm m-0">Sold: {formatIsoToMonDDYYYY(order.soldTime)}</p>
 						</td>
-						<td bind:this={itemsElements[index]}>
+						<td>
 							<table class="auth-table auth-table-compact">
 								<tbody>
 									<tr>
 										<td>Purchase Price:</td>
-										<td>${formatCurrency(editingIndex === index ? tempPurchasePrice : (order.purchasePrice || 0))}
-											<button class="icon-action ml-2" onclick={() => startEditing(order, index)} title="Edit purchase price">✏️</button>
+										<td>
+											$<input
+												type="text"
+												inputmode="decimal"
+												class="auth-field purchase-price-input"
+												aria-label={`Purchase price for ${order.title}`}
+												aria-invalid={!!purchasePriceErrors[String(order.itemId)]}
+												disabled={purchasePriceSaving[String(order.itemId)]}
+												value={formatCurrency(order.purchasePrice)}
+												onblur={(event) => updatePurchasePrice(order, event.currentTarget)}
+												onkeydown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+											/>
+											{#if purchasePriceErrors[String(order.itemId)]}
+												<div class="auth-negative" role="alert">{purchasePriceErrors[String(order.itemId)]}</div>
+											{/if}
 										</td>
 									</tr>
 									<tr>
@@ -345,9 +354,6 @@
 										<td>ROI:</td>
 										<td class="auth-positive">{calculateROI(order)}</td>	
 									</tr>
-									<tr>
-										<td>Location:</td>
-									</tr>
 								</tbody>
 							</table>
 						</td>
@@ -356,34 +362,6 @@
 			</tbody>
 		</table>
 
-		<!-- Slide-in dialog -->
-		{#if editingIndex !== -1}
-			<div class="side-dialog shadow p-3"
-				style="position:absolute; top:{dialogPos.top}px; left:{dialogPos.left}px; z-index:1000;"
-				transition:fly={{ x: 200, duration: 300 }}>
-				<h6>Edit Purchase Price</h6>
-				<!-- Temporary plain input to isolate reactivity of the CurrencyInput component -->
-				<input
-					type="text"
-					class="auth-field"
-					bind:value={tempPurchasePrice}
-				/>
-				<div class="mt-3 flex justify-end gap-2">
-				<button class="auth-button auth-button-secondary" onclick={() => cancelEditing()}>
-					Cancel
-				</button>
-				<button class="auth-button auth-button-primary" onclick={() => stopEditing()}>
-					Save
-				</button>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Debug panel (temporary) -->
-		{#if editingIndex !== -1}
-			<div class="debug-panel mt-2">editingIndex: {editingIndex} — temp: {tempPurchasePrice} — type: {typeof tempPurchasePrice}</div>
-		{/if}
-
 		<div class="my-3 flex justify-center">
 			<Pagination page={currentPage} totalPages={totalNumberOfPages} onPageChange={handlePageChange} />
 		</div>
@@ -391,6 +369,15 @@
 {/if}
 
 <style>
+	.purchase-price-input {
+		width: 7rem;
+		max-width: 100%;
+	}
+
+	.refresh-status {
+		min-height: 1.5em;
+	}
+
 	.item-image {
 		width: 100px;
 		height: 100px;
