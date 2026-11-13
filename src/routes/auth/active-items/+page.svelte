@@ -22,6 +22,7 @@
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
+	let relistClock = $state(Date.now());
 	const routeReady = getContext<() => void>('auth-route-ready');
 	let poshMarkTabLoggedIn = $derived($poshmarkTabOpen && $poshmarkTabLoggedInUid !== "");
 	let initialized = false;
@@ -51,7 +52,26 @@
 				goto(resolve('/'));
 			}
 		});
+
+		relistClockInterval = setInterval(() => {
+			relistClock = Date.now();
+		}, 60_000);
 	});
+
+	let relistClockInterval: ReturnType<typeof setInterval> | undefined;
+
+	function relistDaysRemaining(relistAt: unknown, currentTime: number): number {
+		const relistTimestamp = relistAt instanceof Date
+			? relistAt.getTime()
+			: typeof relistAt === 'string'
+				? Date.parse(relistAt)
+				: NaN;
+
+		if (!Number.isFinite(relistTimestamp)) return 30;
+
+		const daysRemaining = Math.ceil((relistTimestamp - currentTime) / (24 * 60 * 60 * 1000));
+		return Math.min(30, Math.max(1, daysRemaining));
+	}
 
 	// action handlers
 	async function crosslistTo(market: string, item: any) {
@@ -242,6 +262,7 @@
 	});
 
 	onDestroy(() => {
+		if (relistClockInterval) clearInterval(relistClockInterval);
 		initialized = false;
 	});
 
@@ -401,7 +422,8 @@
 						<p class="auth-positive text-sm m-0 price-line">
 							${formatCurrency(item.price)}
 							{#if item.metadata?.relistEnabled}
-								<img src="/relist-30.svg" class="relist-badge" alt="Relists every 30 days" title="Relists every 30 days" />
+								{@const daysRemaining = relistDaysRemaining(item.metadata?.relistAt, relistClock)}
+								<img src="/relist-{daysRemaining}.svg" class="relist-badge" alt="Relists in {daysRemaining} days" title="Relists in {daysRemaining} days" />
 							{/if}
 							{#if item.metadata?.relistDiscountEnabled}
 								<img src="/relist-discount-30.svg" class="relist-badge" alt="Relists with discount every 30 days" title="Relists with discount every 30 days" />

@@ -1,0 +1,8 @@
+<svg width="220" height="220" xmlns="http://www.w3.org/2000/svg">
+ <g>
+  <title>7 day relist</title>
+  <path d="m177,67a85,85 0 1 1 -42,-37" fill="none" stroke="#67B545" stroke-width="12"/>
+  <polygon fill="#67B545" points="131,30 167,30 149,8" transform="matrix(-0.247736 0.968827 -0.968827 -0.247736 199.32 -107.648)"/>
+  <text fill="#67B545" font-family="Arial, Helvetica, sans-serif" font-size="89.96" font-weight="700" text-anchor="middle" transform="matrix(1 0 0 1 16 14)" x="90" y="123.03">7</text>
+ </g>
+</svg>
