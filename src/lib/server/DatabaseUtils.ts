@@ -755,6 +755,46 @@ export async function getEbaySoldItemsForReport(userId: string, fromDate: Date, 
     };
 }
 
+export type PoshmarkReportRow = {
+    itemId: string,
+    title: string,
+    soldTime: Date,
+    soldPrice: number,
+    purchasePrice?: number,
+    feePrice: number
+}
+
+type PoshmarkReportRowsResult =
+  | { ok: true; data: PoshmarkReportRow[] }
+  | { ok: false; code: StatusCodes };
+
+export async function getPoshmarkSoldItemsForReport(userId: string, fromDate: Date, toDate: Date) : Promise<PoshmarkReportRowsResult>
+{
+    await connectToDatabase();
+
+    if (!cachedDb) {
+        console.log("No database connection available");
+        return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    }
+
+    const metaData = await PoshmarkItemMetadata.find({
+        userId,
+        soldTime: { $gte: fromDate, $lte: toDate }
+    }).sort({ soldTime: 1 }).lean().exec();
+
+    return {
+        ok: true,
+        data: metaData.map(item => ({
+            itemId: item.itemId,
+            title: item.title ?? '',
+            soldTime: item.soldTime as Date,
+            soldPrice: item.soldPrice ?? 0,
+            purchasePrice: item.purchasePrice ?? undefined,
+            feePrice: item.feePrice ?? 0
+        }))
+    };
+}
+
 // Kept separate from EbaySold, which the dashboard uses to decide what to fetch.
 export async function getEbayReportSyncedAt(userId: string, period: string): Promise<Date | null> {
     await connectToDatabase();

@@ -88,7 +88,8 @@ export async function handle({ event, resolve }) {
     "/auth/reports",
     "/ebay-api/auth",
     "/auth/ebay-auth-success-callback",
-    "/auth/poshmark-sold-items"
+    "/auth/poshmark-sold-items",
+    "/auth/poshmark-reports"
   ];
 
   // Check if the current route is protected and the user is not authenticated

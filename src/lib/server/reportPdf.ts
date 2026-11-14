@@ -13,13 +13,23 @@ const COLUMNS = [
     { title: 'Shipping', width: 75, align: 'right' as const }
 ];
 
+const POSHMARK_COLUMNS = [
+    { title: 'Date of sale', width: 70, align: 'left' as const },
+    { title: 'Item', width: 210, align: 'left' as const },
+    { title: 'Sales', width: 85, align: 'right' as const },
+    { title: 'COGS', width: 85, align: 'right' as const },
+    { title: 'Poshmark fees', width: 90, align: 'right' as const }
+];
+
 export function renderReportPdf(
     title: string,
     lines: ReportLine[],
     totals: ReportTotals,
-    timeZone: string
+    timeZone: string,
+    platform: 'eBay' | 'Poshmark' = 'eBay'
 ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
+        const columns = platform === 'eBay' ? COLUMNS : POSHMARK_COLUMNS;
         const doc = new PDFDocument({ size: 'LETTER', margin: 36 });
         const chunks: Buffer[] = [];
         doc.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -38,7 +48,7 @@ export function renderReportPdf(
                 .font(style.bold ? 'Helvetica-Bold' : 'Helvetica')
                 .fontSize(9);
             let x = left;
-            COLUMNS.forEach((column, index) => {
+            columns.forEach((column, index) => {
                 doc.text(cells[index], x + 4, y + 4, {
                     width: column.width - 8,
                     align: column.align,
@@ -50,7 +60,7 @@ export function renderReportPdf(
             y += ROW_HEIGHT;
         };
 
-        const drawHeader = () => drawCells(COLUMNS.map((c) => c.title), { bold: true, background: '#e5e7eb' });
+        const drawHeader = () => drawCells(columns.map((column) => column.title), { bold: true, background: '#e5e7eb' });
 
         const drawRow = (cells: string[], style: { bold?: boolean; color?: string; background?: string } = {}) => {
             if (y + ROW_HEIGHT > bottomLimit) {
@@ -61,7 +71,7 @@ export function renderReportPdf(
             drawCells(cells, style);
         };
 
-        doc.font('Helvetica-Bold').fontSize(16).fillColor('black').text(`eBay Sales Report: ${title}`, left, y);
+        doc.font('Helvetica-Bold').fontSize(16).fillColor('black').text(`${platform} Sales Report: ${title}`, left, y);
         y = doc.y + 6;
         doc.font('Helvetica').fontSize(9).fillColor('black')
             .text(`Generated ${new Date().toLocaleDateString('en-US')}`, left, y);
@@ -82,7 +92,7 @@ export function renderReportPdf(
                     formatMoney(line.sales),
                     line.missingCogs ? 'Missing' : formatMoney(line.cogs ?? 0),
                     formatMoney(line.fees),
-                    formatMoney(line.shipping)
+                    ...(platform === 'eBay' ? [formatMoney(line.shipping)] : [])
                 ],
                 line.missingCogs ? { color: '#b91c1c', background: '#fee2e2' } : {}
             );
@@ -94,7 +104,7 @@ export function renderReportPdf(
                 formatMoney(totals.sales),
                 formatMoney(totals.cogs),
                 formatMoney(totals.fees),
-                formatMoney(totals.shipping)
+                ...(platform === 'eBay' ? [formatMoney(totals.shipping)] : [])
             ],
             { bold: true, background: '#f3f4f6' }
         );

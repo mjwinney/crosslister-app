@@ -31,7 +31,8 @@
 			items: [
 				{ label: 'Dashboard', href: '/auth/poshmark-dashboard' },
 				{ label: 'Active', href: '/auth/poshmark-active-items' },
-				{ label: 'Sold', href: '/auth/poshmark-sold-items' }
+				{ label: 'Sold', href: '/auth/poshmark-sold-items' },
+				{ label: 'Reports', href: '/auth/poshmark-reports' }
 			]
 		}
 	] as const;

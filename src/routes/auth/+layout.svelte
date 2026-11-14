@@ -18,6 +18,7 @@
 		| '/auth/poshmark-dashboard'
 		| '/auth/poshmark-active-items'
 		| '/auth/poshmark-sold-items'
+		| '/auth/poshmark-reports'
 		| '/auth/reports';
 
 	let isLoading = $state(false);

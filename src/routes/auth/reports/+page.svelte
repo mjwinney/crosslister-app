@@ -10,12 +10,12 @@
 	let refreshing = $state(false);
 
 	// Edited COGS keyed by itemId; reset whenever the server data reloads.
-	let cogsByItem = $state<Record<string, number | null>>({});
-	let savedCogs: Record<string, number | null> = {};
+	let cogsByItem = $state<Record<string, number | undefined>>({});
+	let savedCogs: Record<string, number | undefined> = {};
 
 	$effect(() => {
-		const initial: Record<string, number | null> = {};
-		for (const line of data.lines) initial[line.itemId] = line.cogs;
+		const initial: Record<string, number | undefined> = {};
+		for (const line of data.lines) initial[line.itemId] = line.cogs ?? undefined;
 		cogsByItem = { ...initial };
 		savedCogs = initial;
 	});
