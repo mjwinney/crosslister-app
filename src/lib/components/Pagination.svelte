@@ -54,9 +54,21 @@
             </button>
         </li>
 
+        {#if page > 1}
+            <li class="page-item {disabled ? 'disabled' : ''}">
+                <button class="page-link" onclick={() => change(page - 1)} disabled={disabled}>{page - 1}</button>
+            </li>
+        {/if}
+
         <li class="page-item active">
             <button class="page-link" aria-current="page" onclick={() => change(page)} disabled={disabled}>{page}</button>
         </li>
+
+        {#if page < totalPages}
+            <li class="page-item {disabled ? 'disabled' : ''}">
+                <button class="page-link" onclick={() => change(page + 1)} disabled={disabled}>{page + 1}</button>
+            </li>
+        {/if}
 
         <li class="page-item {page === totalPages || disabled ? 'disabled' : ''}">
             <button class="page-link navigation-link" aria-label="Next page" onclick={() => change(page + 1)} disabled={page === totalPages || disabled}>
