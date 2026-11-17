@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearTestMongo, startTestMongo, stopTestMongo } from '../../../test/mongo';
 
 // The page server module pulls in the eBay client, which is irrelevant to updateItem.
@@ -12,12 +12,16 @@ vi.mock('$lib/server/ebayUtils', () => ({
 await startTestMongo();
 const db = await import('$lib/server/DatabaseUtils');
 const { EbayItemMetadata } = await import('$lib/server/models/ebay-item-metadata');
+const { EbayActiveItems } = await import('$lib/server/models/ebay-active-items');
 const { actions } = await import('./+page.server');
 
 const USER = 'user-1';
 
 // The action queries the model directly and relies on the app's request hooks having opened the connection.
 beforeAll(() => db.connectToDatabase());
+beforeEach(async () => {
+	await EbayActiveItems.create({ userId: USER, itemId: 'item-1', StartTime: new Date(Date.now() - 10 * 86400000) });
+});
 afterEach(clearTestMongo);
 afterAll(stopTestMongo);
 
@@ -48,6 +52,24 @@ const enabledDiscount = {
 };
 
 describe('updateItem', () => {
+	it('schedules from the stored listing start and preserves the schedule on later edits', async () => {
+		const active = await EbayActiveItems.findOne({ userId: USER, itemId: 'item-1' }).lean().exec();
+		const expected = new Date(active!.StartTime.getTime() + 29 * 86400000);
+
+		const result = await callUpdateItem({ relistEnabled: true, relistAt: '2027-01-01T00:00:00.000Z' });
+		expect(result).toMatchObject({ success: true });
+		expect((await load())?.relistAt).toEqual(expected);
+
+		await callUpdateItem({ relistEnabled: true, relistAt: '2028-01-01T00:00:00.000Z', purchasePrice: 12 });
+		expect(await load()).toMatchObject({ relistAt: expected, purchasePrice: 12 });
+	});
+
+	it('rejects enabling without an active listing start time', async () => {
+		const result = await callUpdateItem({ relistEnabled: true }, { itemId: 'missing' });
+		expect(result.status).toBe(400);
+		expect(await load('missing')).toBeNull();
+	});
+
 	it('returns 400 when required form fields are missing', async () => {
 		const request = new Request('http://localhost', { method: 'POST', body: new FormData() });
 		const result = await (actions.updateItem as any)({ request, locals: signedIn });

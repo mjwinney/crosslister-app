@@ -7,13 +7,13 @@ import {
 } from '$lib/server/DatabaseUtils';
 import { refreshEbayToken, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
 import { validateRelistDiscount } from '$lib/relistDiscount';
+import { getRelistAt } from '$lib/relistSchedule';
 import type { RequestHandler } from './$types';
 
 export const config = { maxDuration: 60 };
 
 const USER_BATCH_LIMIT = 10;
 const ITEMS_PER_USER_LIMIT = 50;
-const DEFAULT_INTERVAL_DAYS = 30;
 const TIME_BUDGET_MS = 45_000;
 
 // Vercel Cron invokes this endpoint with a bearer secret; one run processes due listings until its time budget is nearly spent.
@@ -73,6 +73,7 @@ export const GET: RequestHandler = async ({ request }) => {
                 let ok = false;
                 // Relisting creates a new eBay item id; metadata must be updated under it.
                 let currentItemId = itemId;
+                let listedAt: Date | undefined;
                 // Price anchors to persist after a successful discounted relist.
                 let discountUpdate: { relistDiscountBasePrice: number; relistDiscountLastPrice: number } | undefined;
 
@@ -102,7 +103,10 @@ export const GET: RequestHandler = async ({ request }) => {
                         );
                         ok = response.status === 200;
                         if (ok && 'data' in response && response.data?.newItemId) {
-                            const { newItemId, oldListingEnded, idSwapped, newPrice, basePrice } = response.data;
+                            const { newItemId, oldListingEnded, idSwapped, newPrice, basePrice, startTime } = response.data;
+                            if (startTime && !Number.isNaN(new Date(startTime).getTime())) {
+                                listedAt = new Date(startTime);
+                            }
                             console.log(`relist-due: item ${itemId} relisted as ${newItemId}, oldListingEnded=${oldListingEnded}, idSwapped=${idSwapped}, newPrice=${newPrice}`);
                             if (discountEnabled && typeof basePrice === 'number' && typeof newPrice === 'number') {
                                 discountUpdate = { relistDiscountBasePrice: basePrice, relistDiscountLastPrice: newPrice };
@@ -124,7 +128,6 @@ export const GET: RequestHandler = async ({ request }) => {
                 }
 
                 const attemptTime = new Date();
-                const intervalDays = metadata.relistIntervalDays ?? DEFAULT_INTERVAL_DAYS;
                 console.log(`relist-due: item ${itemId} user ${userId} ok=${ok} result=${result}; updating metadata`);
 
                 // Record every attempt; only successful relists advance the next due date and reset retries.
@@ -134,8 +137,9 @@ export const GET: RequestHandler = async ({ request }) => {
                     relistAttemptCount: ok ? 0 : (metadata.relistAttemptCount ?? 0) + 1,
                     ...(ok
                         ? {
-                              currentListedAt: attemptTime,
-                              relistAt: new Date(attemptTime.getTime() + intervalDays * 24 * 60 * 60 * 1000),
+                              currentListedAt: listedAt ?? attemptTime,
+                              relistAt: getRelistAt(listedAt ?? attemptTime, attemptTime),
+                              relistIntervalDays: 30,
                               ...discountUpdate
                           }
                         : {})

@@ -12,6 +12,21 @@
 	let triggerRef = $state<HTMLElement | null>(null);
 	let menuStyle = $state('');
 	let submenuSide = $state<'right' | 'left'>('right');
+	let menuAbove = false;
+
+	function updateMenuPosition() {
+		if (!triggerRef) return;
+
+		const rect = triggerRef.getBoundingClientRect();
+		const horizontalStyle = submenuSide === 'right'
+			? `left: ${rect.right - 12}px; right: auto;`
+			: `left: auto; right: ${window.innerWidth - rect.left - 12}px;`;
+		const verticalStyle = menuAbove
+			? `top: auto; bottom: ${window.innerHeight - rect.top}px;`
+			: `top: ${rect.top}px; bottom: auto;`;
+
+		menuStyle = `position: fixed; ${horizontalStyle} ${verticalStyle}`;
+	}
 
 	function toggle(e: MouseEvent) {
 		e.stopPropagation();
@@ -26,27 +41,14 @@
 			const submenuWidth = 400;
 			const menuHeight = 200; // approximate height of the dropdown menu
 
-			// Determine horizontal position (left or right)
-			let horizontalStyle = '';
 			if (spaceRight >= submenuWidth || (spaceLeft < submenuWidth && spaceRight >= spaceLeft)) {
-				horizontalStyle = `left: ${rect.right - 12}px; right: auto;`;
 				submenuSide = 'right';
 			} else {
-				horizontalStyle = `left: auto; right: ${window.innerWidth - rect.left - 12}px;`;
 				submenuSide = 'left';
 			}
 
-			// Determine vertical position (below or above)
-			let verticalStyle = '';
-			if (spaceBelow >= menuHeight || spaceBelow >= spaceAbove) {
-				// Align with the trigger
-				verticalStyle = `top: ${rect.top}px; bottom: auto;`;
-			} else {
-				// Position above
-				verticalStyle = `top: auto; bottom: ${window.innerHeight - rect.top}px;`;
-			}
-
-			menuStyle = `position: fixed; ${horizontalStyle} ${verticalStyle}`;
+			menuAbove = spaceBelow < menuHeight && spaceBelow < spaceAbove;
+			updateMenuPosition();
 		}
 	}
 
@@ -68,14 +70,15 @@
 		if (isOpen) {
 			document.addEventListener('click', handleClickOutside, true);
 			document.addEventListener('crosslist-complete', handleCrosslistComplete);
-		} else {
-			document.removeEventListener('click', handleClickOutside, true);
-			document.removeEventListener('crosslist-complete', handleCrosslistComplete);
+			window.addEventListener('scroll', updateMenuPosition, true);
+			window.addEventListener('resize', updateMenuPosition);
+			return () => {
+				document.removeEventListener('click', handleClickOutside, true);
+				document.removeEventListener('crosslist-complete', handleCrosslistComplete);
+				window.removeEventListener('scroll', updateMenuPosition, true);
+				window.removeEventListener('resize', updateMenuPosition);
+			};
 		}
-		return () => {
-			document.removeEventListener('click', handleClickOutside, true);
-			document.removeEventListener('crosslist-complete', handleCrosslistComplete);
-		};
 	});
 </script>
 

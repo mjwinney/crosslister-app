@@ -71,6 +71,13 @@ describe('relist-due authorization', () => {
 });
 
 describe('relist-due without a discount', () => {
+	it('processes a due item without requiring a schedule marker', async () => {
+		await db.updateEbayMetadata(USER, 'legacy', { relistEnabled: true, relistAt: due }, true);
+
+		expect(await (await callCron(authorized)).json()).toEqual({ processed: 1, succeeded: 1, failed: 0 });
+		expect(relistMock).toHaveBeenCalled();
+	});
+
 	it('relists at an unchanged price and leaves the discount fields alone', async () => {
 		await seed('item-1', { relistDiscountEnabled: false, relistDiscountPercent: 12, relistDiscountMaxPercent: 30 });
 
@@ -110,8 +117,24 @@ describe('relist-due with a discount', () => {
 			relistDiscountLastPrice: 95
 		});
 		const nextRelist = saved!.relistAt!.getTime();
-		expect(nextRelist).toBeGreaterThanOrEqual(before + 30 * DAY_MS);
-		expect(nextRelist).toBeLessThanOrEqual(Date.now() + 30 * DAY_MS);
+		expect(nextRelist).toBeGreaterThanOrEqual(before + 29 * DAY_MS);
+		expect(nextRelist).toBeLessThanOrEqual(Date.now() + 29 * DAY_MS);
+	});
+
+	it('uses the replacement listing start time returned by eBay', async () => {
+		const startTime = new Date(Date.now() - 10 * DAY_MS);
+		relistMock.mockImplementation(async (_locals, itemId: string) => {
+			await db.replaceEbayItemId(USER, itemId, `${itemId}-relisted`, startTime);
+			return { status: 200, data: { newItemId: `${itemId}-relisted`, idSwapped: true, startTime } };
+		});
+		await seed('item-1');
+
+		await callCron(authorized);
+
+		expect(await load('item-1-relisted')).toMatchObject({
+			currentListedAt: startTime,
+			relistAt: new Date(startTime.getTime() + 29 * DAY_MS)
+		});
 	});
 
 	it('passes the stored base and last prices on later relists', async () => {

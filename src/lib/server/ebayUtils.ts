@@ -755,7 +755,9 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
                 const itemId = item.ItemID;
                 const startDate = new Date(item.ListingDetails.StartTime);
 
-                const status = await updateActiveEbayItem(userId, itemId, startDate, true);
+                console.log(`GetMyeBaySellingResponse startDate: ${startDate}`);
+
+                const status = await updateActiveEbayItem(userId, itemId, { StartTime: startDate }, true);
                 if (status !== StatusCodes.OK) {
                     console.error(`Failed to insert active eBay item for itemId:${itemId}`);
                     return {

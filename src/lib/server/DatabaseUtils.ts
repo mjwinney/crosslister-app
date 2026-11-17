@@ -9,6 +9,7 @@ import { EbaySold } from './models/ebay-sold';
 import { EbayReportSync } from './models/ebay-report-sync';
 import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
 import { PoshmarkItemMetadata } from './models/poshmark-item-metadata';
+import { getRelistAt } from '$lib/relistSchedule';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -356,7 +357,7 @@ export async function markRelistSuccess(
         lastRelistAttemptAt: listedAt,
         lastRelistResult: 'success',
         relistAttemptCount: 0,
-        relistAt: new Date(listedAt.getTime() + intervalDays * 24 * 60 * 60 * 1000),
+        relistAt: getRelistAt(listedAt, listedAt),
         relistIntervalDays: intervalDays
     });
 }

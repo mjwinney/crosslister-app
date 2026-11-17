@@ -1,5 +1,7 @@
 import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
 import { prepareRelistDiscountUpdate } from '$lib/relistDiscount';
+import { getRelistAt } from '$lib/relistSchedule';
+import { EbayActiveItems } from '$lib/server/models/ebay-active-items';
 import { readMetadataRequest } from '$lib/server/metadataRequest';
 import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
 import { error, fail, redirect } from '@sveltejs/kit';
@@ -188,9 +190,21 @@ export const actions: Actions = {
             metaData.relistAt = null;
         }
 
-        const existingRecord = await (await import('$lib/server/models/ebay-item-metadata')).EbayItemMetadata.findOne({ itemId }).select('userId relistDiscountEnabled relistDiscountPercent relistDiscountMaxPercent').lean().exec();
+        const existingRecord = await (await import('$lib/server/models/ebay-item-metadata')).EbayItemMetadata.findOne({ itemId }).select('userId relistEnabled relistAt relistDiscountEnabled relistDiscountPercent relistDiscountMaxPercent').lean().exec();
         if (existingRecord && existingRecord.userId !== userId) {
             return fail(403, { message: 'You do not own this eBay item' });
+        }
+
+        if (metaData.relistEnabled === true && !existingRecord?.relistEnabled) {
+            const activeItem = await EbayActiveItems.findOne({ userId, itemId }).select('StartTime').lean().exec();
+            if (!activeItem?.StartTime || Number.isNaN(activeItem.StartTime.getTime())) {
+                return fail(400, { message: 'A valid eBay listing start time is required to enable relisting' });
+            }
+            metaData.relistAt = getRelistAt(activeItem.StartTime);
+            metaData.relistIntervalDays = 30;
+        } else if (existingRecord?.relistEnabled && metaData.relistEnabled !== false) {
+            delete metaData.relistAt;
+            delete metaData.relistIntervalDays;
         }
 
         const discountUpdate = prepareRelistDiscountUpdate(metaData, existingRecord);
@@ -208,7 +222,7 @@ export const actions: Actions = {
         }
 
         console.log('eBay API request successful, success');
-        return { success: true, message: 'Operation complete!' };
+        return { success: true, message: 'Operation complete!', relistAt: metaData.relistAt ?? (metaData.relistEnabled === false ? null : existingRecord?.relistAt ?? null) };
     },
 
     searchKeywords: async ({ request, locals }) => {

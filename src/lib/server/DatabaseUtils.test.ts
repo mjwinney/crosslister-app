@@ -172,7 +172,7 @@ describe('markRelistSuccess / markRelistFailure', () => {
 		const saved = await load('item-1');
 		expect(saved?.relistAttemptCount).toBe(0);
 		expect(saved?.lastRelistResult).toBe('success');
-		expect(saved?.relistAt).toEqual(new Date('2026-05-01T00:00:00.000Z'));
+		expect(saved?.relistAt).toEqual(new Date('2026-04-30T00:00:00.000Z'));
 	});
 
 	it('markRelistSuccess rejects a non-positive interval', async () => {

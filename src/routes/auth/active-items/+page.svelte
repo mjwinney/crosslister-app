@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate, goto, invalidateAll } from '$app/navigation';
+	import { deserialize } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { authClient } from '$lib/auth-client';
 	import { getContext, onDestroy, onMount, tick } from 'svelte';
@@ -138,31 +139,48 @@
 			method: 'POST',
 			body: formData
 		});
+		const result = deserialize(await response.text());
+		if (!response.ok || result.type !== 'success' || result.data?.success !== true) {
+			throw new Error(result.type === 'failure' && typeof result.data?.message === 'string'
+				? result.data.message
+				: 'Failed to save item settings');
+		}
+		const relistAt = result.data.relistAt;
+		if (relistAt !== null && !(relistAt instanceof Date) && typeof relistAt !== 'string') {
+			throw new Error('Failed to save item settings');
+		}
+		return relistAt;
 	}
 
-	async function handleRelistToggle(item: any, checked: boolean) {
-		const nextRelistDate = checked
-			? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-			: null;
+	let relistSaving = $state<Record<string, boolean>>({});
+	let relistErrors = $state<Record<string, string>>({});
 
-		const updatedMetaData: MetaDataModel = {
-			...item.metadata,
-			relistEnabled: checked,
-			relistIntervalDays: 30,
-			relistAt: nextRelistDate,
-			...(checked ? {} : {
-				relistDiscountEnabled: false,
-				relistDiscountBasePrice: null,
-				relistDiscountLastPrice: null
-			})
-		};
-
-		item.metadata = updatedMetaData;
-
+	async function handleRelistToggle(item: any, checked: boolean, checkbox: HTMLInputElement) {
+		const itemId = String(item.itemId);
+		checkbox.checked = !!item.metadata?.relistEnabled;
+		relistSaving[itemId] = true;
+		delete relistErrors[itemId];
 		try {
-			await postMetaData(String(item.itemId), updatedMetaData);
+			const updatedMetaData: MetaDataModel = {
+				...item.metadata,
+				relistEnabled: checked,
+				...(checked && item.metadata?.relistEnabled ? {} : {
+					relistIntervalDays: 30,
+					...(!checked ? { relistAt: null } : {})
+				}),
+				...(checked ? {} : {
+					relistDiscountEnabled: false,
+					relistDiscountBasePrice: null,
+					relistDiscountLastPrice: null
+				})
+			};
+			updatedMetaData.relistAt = await postMetaData(itemId, updatedMetaData);
+			item.metadata = updatedMetaData;
 		} catch (error) {
 			console.error('Failed to save relist setting:', error);
+			relistErrors[itemId] = error instanceof Error ? error.message : 'Failed to save item settings';
+		} finally {
+			delete relistSaving[itemId];
 		}
 	}
 
@@ -205,6 +223,7 @@
 
 	async function handleDiscountToggle(item: any, checked: boolean, checkbox: HTMLInputElement) {
 		const itemId = String(item.itemId);
+		checkbox.checked = !!item.metadata?.relistDiscountEnabled;
 		const percentText = discountPercentText(item);
 		const maxText = discountMaxText(item);
 		const percent = percentText === '' ? NaN : Number(percentText);
@@ -220,37 +239,40 @@
 		}
 		delete discountErrors[itemId];
 
-		const updatedMetaData: MetaDataModel = {
-			...item.metadata,
-			...(checked
-				? {
-					relistEnabled: true,
-					...(item.metadata?.relistEnabled
-						? {}
-						: {
-							relistAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-							relistIntervalDays: 30
-						})
-				}
-				: {}),
-			relistDiscountEnabled: checked,
-			relistDiscountPercent: checked ? percent : item.metadata?.relistDiscountPercent,
-			relistDiscountMaxPercent: checked ? max : item.metadata?.relistDiscountMaxPercent,
-			// A fresh enable recaptures the price anchors at the next relist.
-			...(checked ? { relistDiscountBasePrice: null, relistDiscountLastPrice: null } : {})
-		};
-		item.metadata = updatedMetaData;
-
+		relistSaving[itemId] = true;
+		delete relistErrors[itemId];
 		try {
-			await postMetaData(itemId, updatedMetaData);
+			const updatedMetaData: MetaDataModel = {
+				...item.metadata,
+				...(checked
+					? {
+						relistEnabled: true,
+						...(item.metadata?.relistEnabled
+							? {}
+							: {
+								relistIntervalDays: 30
+							})
+					}
+					: {}),
+				relistDiscountEnabled: checked,
+				relistDiscountPercent: checked ? percent : item.metadata?.relistDiscountPercent,
+				relistDiscountMaxPercent: checked ? max : item.metadata?.relistDiscountMaxPercent,
+				// A fresh enable recaptures the price anchors at the next relist.
+				...(checked ? { relistDiscountBasePrice: null, relistDiscountLastPrice: null } : {})
+			};
+			updatedMetaData.relistAt = await postMetaData(itemId, updatedMetaData);
+			item.metadata = updatedMetaData;
 		} catch (error) {
 			console.error('Failed to save relist discount setting:', error);
+			relistErrors[itemId] = error instanceof Error ? error.message : 'Failed to save item settings';
+		} finally {
+			delete relistSaving[itemId];
 		}
 	}
 
 	function handleOnblur(itemID: string, metaData: MetaDataModel) {
 		// console.log('Blur event received:', itemID, metaData);
-		postMetaData(itemID, metaData);
+		postMetaData(itemID, metaData).catch((error) => console.error('Failed to save item metadata:', error));
 	}
 
 	// function openPoshmarkTab() {
@@ -478,7 +500,8 @@
 													<input
 														type="checkbox"
 														checked={!!item.metadata?.relistEnabled}
-														onchange={(event) => handleRelistToggle(item, event.currentTarget.checked)}
+														disabled={!!relistSaving[item.itemId]}
+														onchange={(event) => handleRelistToggle(item, event.currentTarget.checked, event.currentTarget)}
 													/>
 													<span>Relist every 30 days</span>
 												</label>
@@ -488,6 +511,7 @@
 													<input
 														type="checkbox"
 														checked={!!item.metadata?.relistDiscountEnabled}
+														disabled={!!relistSaving[item.itemId]}
 														onchange={(event) => handleDiscountToggle(item, event.currentTarget.checked, event.currentTarget)}
 													/>
 													<span>Discount on relist</span>
@@ -529,6 +553,9 @@
 													</label>
 												</div>
 											</li>
+												{#if relistErrors[item.itemId]}
+													<li class="dropdown-item" role="alert">{relistErrors[item.itemId]}</li>
+												{/if}
 										</ul>
 									</li>
 
