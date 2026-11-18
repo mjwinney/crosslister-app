@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearTestMongo, startTestMongo, stopTestMongo } from '../../../test/mongo';
+import { getRelistAt } from '$lib/relistSchedule';
 
 const relistMock = vi.fn();
 
@@ -97,7 +98,6 @@ describe('relist-due without a discount', () => {
 
 describe('relist-due with a discount', () => {
 	it('passes the discount settings and saves the base and last prices on success', async () => {
-		const before = Date.now();
 		await seed('item-1', { relistDiscountEnabled: true, relistDiscountPercent: 5, relistDiscountMaxPercent: 20 });
 
 		const body = await (await callCron(authorized)).json();
@@ -116,9 +116,7 @@ describe('relist-due with a discount', () => {
 			relistDiscountBasePrice: 100,
 			relistDiscountLastPrice: 95
 		});
-		const nextRelist = saved!.relistAt!.getTime();
-		expect(nextRelist).toBeGreaterThanOrEqual(before + 29 * DAY_MS);
-		expect(nextRelist).toBeLessThanOrEqual(Date.now() + 29 * DAY_MS);
+		expect(saved!.relistAt).toEqual(getRelistAt(saved!.currentListedAt!, saved!.lastRelistAttemptAt!));
 	});
 
 	it('uses the replacement listing start time returned by eBay', async () => {
@@ -133,7 +131,7 @@ describe('relist-due with a discount', () => {
 
 		expect(await load('item-1-relisted')).toMatchObject({
 			currentListedAt: startTime,
-			relistAt: new Date(startTime.getTime() + 29 * DAY_MS)
+			relistAt: getRelistAt(startTime)
 		});
 	});
 

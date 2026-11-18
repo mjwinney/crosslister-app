@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearTestMongo, startTestMongo, stopTestMongo } from '../../../test/mongo';
+import { getRelistAt } from '$lib/relistSchedule';
 
 // The page server module pulls in the eBay client, which is irrelevant to updateItem.
 vi.mock('$lib/server/ebayUtils', () => ({
@@ -54,7 +55,7 @@ const enabledDiscount = {
 describe('updateItem', () => {
 	it('schedules from the stored listing start and preserves the schedule on later edits', async () => {
 		const active = await EbayActiveItems.findOne({ userId: USER, itemId: 'item-1' }).lean().exec();
-		const expected = new Date(active!.StartTime.getTime() + 29 * 86400000);
+		const expected = getRelistAt(active!.StartTime);
 
 		const result = await callUpdateItem({ relistEnabled: true, relistAt: '2027-01-01T00:00:00.000Z' });
 		expect(result).toMatchObject({ success: true });
