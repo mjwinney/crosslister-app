@@ -8,7 +8,6 @@
 
 	// show overlay while a client-side navigation / load is in progress
 	let isLoading = $state(false);
-	let isRefreshing = $state(false);
 	let sessionReady = $state(false);
 	let refreshError = $state('');
 	let refreshRequested = false;
@@ -43,11 +42,9 @@
         // Send to server or extension to fetch sold items
         // console.log("sendPoshmarkSoldItemsRequest called");
 
-		isRefreshing = true;
 		refreshError = '';
 		clearTimeout(refreshTimeout);
 		refreshTimeout = setTimeout(() => {
-			isRefreshing = false;
 			refreshError = 'Could not refresh Poshmark sold items. Check your Poshmark session and try again.';
 		}, 120000);
 
@@ -92,8 +89,6 @@
 			} catch (error) {
 				console.error('Failed to refresh Poshmark sold items', error);
 				refreshError = 'Could not refresh Poshmark sold items. Check your Poshmark session and try again.';
-			} finally {
-				isRefreshing = false;
 			}
 		}
     }
@@ -255,10 +250,6 @@
     </div>
 {/if}
 
-<div class="auth-muted mt-2 refresh-status" role="status">
-	{#if isRefreshing}Refreshing Poshmark sold items...{/if}
-</div>
-
 {#if refreshError}
 	<div class="text-center mt-2" role="alert">
 		{refreshError}
@@ -372,10 +363,6 @@
 	.purchase-price-input {
 		width: 7rem;
 		max-width: 100%;
-	}
-
-	.refresh-status {
-		min-height: 1.5em;
 	}
 
 	.item-image {
