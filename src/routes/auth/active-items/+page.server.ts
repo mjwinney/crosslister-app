@@ -175,13 +175,6 @@ export const actions: Actions = {
         const { userId, itemId } = parsed;
         let metaData = parsed.metaData;
 
-        if (metaData.relistIntervalDays !== undefined) {
-            const interval = Number(metaData.relistIntervalDays);
-            if (!Number.isInteger(interval) || interval <= 0) {
-                return fail(400, { message: 'relistIntervalDays must be a positive integer' });
-            }
-        }
-
         if (metaData.relistAt !== undefined && metaData.relistAt !== null && Number.isNaN(new Date(metaData.relistAt).getTime())) {
             return fail(400, { message: 'relistAt must be a valid date string or null' });
         }
@@ -201,10 +194,8 @@ export const actions: Actions = {
                 return fail(400, { message: 'A valid eBay listing start time is required to enable relisting' });
             }
             metaData.relistAt = getRelistAt(activeItem.StartTime);
-            metaData.relistIntervalDays = 30;
         } else if (existingRecord?.relistEnabled && metaData.relistEnabled !== false) {
             delete metaData.relistAt;
-            delete metaData.relistIntervalDays;
         }
 
         const discountUpdate = prepareRelistDiscountUpdate(metaData, existingRecord);

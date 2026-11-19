@@ -164,10 +164,7 @@
 			const updatedMetaData: MetaDataModel = {
 				...item.metadata,
 				relistEnabled: checked,
-				...(checked && item.metadata?.relistEnabled ? {} : {
-					relistIntervalDays: 30,
-					...(!checked ? { relistAt: null } : {})
-				}),
+				...(!checked ? { relistAt: null } : {}),
 				...(checked ? {} : {
 					relistDiscountEnabled: false,
 					relistDiscountBasePrice: null,
@@ -245,14 +242,7 @@
 			const updatedMetaData: MetaDataModel = {
 				...item.metadata,
 				...(checked
-					? {
-						relistEnabled: true,
-						...(item.metadata?.relistEnabled
-							? {}
-							: {
-								relistIntervalDays: 30
-							})
-					}
+					? { relistEnabled: true }
 					: {}),
 				relistDiscountEnabled: checked,
 				relistDiscountPercent: checked ? percent : item.metadata?.relistDiscountPercent,

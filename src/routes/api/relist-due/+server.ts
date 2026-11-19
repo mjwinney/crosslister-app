@@ -139,7 +139,6 @@ export const GET: RequestHandler = async ({ request }) => {
                         ? {
                               currentListedAt: listedAt ?? attemptTime,
                               relistAt: getRelistAt(listedAt ?? attemptTime, attemptTime),
-                              relistIntervalDays: 30,
                               ...discountUpdate
                           }
                         : {})

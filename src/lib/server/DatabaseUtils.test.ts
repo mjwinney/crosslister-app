@@ -166,17 +166,13 @@ describe('markRelistSuccess / markRelistFailure', () => {
 		await db.updateEbayMetadata(USER, 'item-1', { relistEnabled: true, relistAttemptCount: 3 }, true);
 		const listedAt = new Date('2026-04-01T00:00:00.000Z');
 
-		const status = await db.markRelistSuccess(USER, 'item-1', { listedAt, intervalDays: 30 });
+		const status = await db.markRelistSuccess(USER, 'item-1', { listedAt });
 		expect(status).toBe(db.StatusCodes.OK);
 
 		const saved = await load('item-1');
 		expect(saved?.relistAttemptCount).toBe(0);
 		expect(saved?.lastRelistResult).toBe('success');
 		expect(saved?.relistAt).toEqual(new Date('2026-04-29T00:00:00.000Z'));
-	});
-
-	it('markRelistSuccess rejects a non-positive interval', async () => {
-		expect(await db.markRelistSuccess(USER, 'item-1', { intervalDays: 0 })).toBe(db.StatusCodes.BadRequest);
 	});
 
 	it('markRelistFailure increments the attempt count and records the reason', async () => {

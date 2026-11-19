@@ -248,7 +248,6 @@ export type MetaDataModel = {
     currentListedAt?: Date | string | null,
     relistEnabled?: boolean,
     relistAt?: Date | string | null,
-    relistIntervalDays?: number | null,
     lastRelistAttemptAt?: Date | string | null,
     lastRelistResult?: string | null,
     relistAttemptCount?: number | null,
@@ -322,13 +321,6 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
 
 export async function updateRelistSettings(userId: string, itemId: string, relistData: Partial<MetaDataModel>) : Promise<StatusCodes>
 {
-    if (relistData.relistIntervalDays !== undefined) {
-        const interval = Number(relistData.relistIntervalDays);
-        if (!Number.isInteger(interval) || interval <= 0) {
-            return StatusCodes.BadRequest;
-        }
-    }
-
     if (relistData.relistAt != null && Number.isNaN(new Date(relistData.relistAt).getTime())) {
         return StatusCodes.BadRequest;
     }
@@ -344,21 +336,16 @@ export async function updateRelistSettings(userId: string, itemId: string, relis
 export async function markRelistSuccess(
     userId: string,
     itemId: string,
-    result: { listedAt?: Date; intervalDays?: number } = {}
+    result: { listedAt?: Date } = {}
 ): Promise<StatusCodes> {
     const listedAt = result.listedAt ?? new Date();
-    const intervalDays = result.intervalDays ?? 30;
-    if (!Number.isInteger(intervalDays) || intervalDays <= 0) {
-        return StatusCodes.BadRequest;
-    }
 
     return updateEbayMetadata(userId, itemId, {
         currentListedAt: listedAt,
         lastRelistAttemptAt: listedAt,
         lastRelistResult: 'success',
         relistAttemptCount: 0,
-        relistAt: getRelistAt(listedAt, listedAt),
-        relistIntervalDays: intervalDays
+        relistAt: getRelistAt(listedAt, listedAt)
     });
 }
 
@@ -461,7 +448,6 @@ export async function getDueRelistGroupsByUser(
                 metadata: {
                     relistEnabled: item.relistEnabled,
                     relistAt: item.relistAt,
-                    relistIntervalDays: item.relistIntervalDays,
                     originalListedAt: item.originalListedAt,
                     currentListedAt: item.currentListedAt,
                     lastRelistAttemptAt: item.lastRelistAttemptAt,
@@ -506,7 +492,6 @@ export async function getItemsDueForRelist(now: Date, limit = 50): Promise<{ ok:
             metadata: {
                 relistEnabled: item.relistEnabled,
                 relistAt: item.relistAt,
-                relistIntervalDays: item.relistIntervalDays,
                 originalListedAt: item.originalListedAt,
                 currentListedAt: item.currentListedAt,
                 lastRelistAttemptAt: item.lastRelistAttemptAt,
@@ -653,7 +638,6 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         currentListedAt: metaData?.currentListedAt || undefined,
         relistEnabled: metaData?.relistEnabled ?? undefined,
         relistAt: metaData?.relistAt || undefined,
-        relistIntervalDays: metaData?.relistIntervalDays ?? undefined,
         relistDiscountEnabled: metaData?.relistDiscountEnabled ?? undefined,
         relistDiscountPercent: metaData?.relistDiscountPercent ?? undefined,
         relistDiscountMaxPercent: metaData?.relistDiscountMaxPercent ?? undefined,

@@ -21,7 +21,6 @@ const EbayItemMetadataSchema = new mongoose.Schema({
     currentListedAt: { type: Date, required: false },
     relistEnabled: { type: Boolean, default: false },
     relistAt: { type: Date, required: false, default: null },
-    relistIntervalDays: { type: Number, required: false, default: 30 },
     lastRelistAttemptAt: { type: Date, required: false },
     lastRelistResult: { type: String, required: false },
     relistAttemptCount: { type: Number, required: false, default: 0 },
