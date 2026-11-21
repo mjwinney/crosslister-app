@@ -1,6 +1,7 @@
 // Shared by the reports page and the PDF route; keep free of server-only imports.
 
 export type ReportPeriod = 'ytd' | 'lastYear';
+export type ReportSortOrder = 'oldest' | 'latest';
 
 export const REPORT_PERIODS: { value: ReportPeriod; label: string }[] = [
     { value: 'ytd', label: 'Year to Date' },
@@ -99,6 +100,11 @@ export function buildReportLines(rows: ReportRow[]): ReportLine[] {
         shipping: round2(-row.finalShippingCost),
         missingCogs: !row.purchasePrice
     }));
+}
+
+export function sortReportLines(lines: readonly ReportLine[], order: ReportSortOrder): ReportLine[] {
+    const direction = order === 'oldest' ? 1 : -1;
+    return [...lines].sort((a, b) => direction * (a.soldTime.getTime() - b.soldTime.getTime()));
 }
 
 export function buildReportTotals(lines: ReportLine[]): ReportTotals {

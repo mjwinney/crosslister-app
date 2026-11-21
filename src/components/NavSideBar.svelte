@@ -41,11 +41,16 @@
 	type Props = {
 		children: Snippet;
 		navigateTo: (path: NavigationPath) => Promise<void>;
+		currentPath?: string;
 	};
-	let { children, navigateTo }: Props = $props();
+	let { children, navigateTo, currentPath = '' }: Props = $props();
 
 	function toggleSection(id: keyof typeof openSections) {
 		openSections[id] = !openSections[id];
+	}
+
+	function isActive(href: string): boolean {
+		return currentPath === href;
 	}
 </script>
 
@@ -75,15 +80,16 @@
 								</svg>
 							</button>
 
-							{#if openSections[section.id]}
+						{#if openSections[section.id]}
 								<div class="border-t border-slate-700/20 px-2 py-2">
 									<ul class="space-y-1">
 										{#each section.items as item (item.href)}
 											<li>
 												<button
 													type="button"
-													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-violet-500/15 hover:text-white"
+													class="flex w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors {isActive(item.href) ? 'bg-violet-600/40 text-white font-semibold' : 'text-slate-200 hover:bg-violet-500/15 hover:text-white'}"
 													onclick={() => navigateTo(item.href)}
+													aria-current={isActive(item.href) ? 'page' : undefined}
 												>
 													{item.label}
 												</button>

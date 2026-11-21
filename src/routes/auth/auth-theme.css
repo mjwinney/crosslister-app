@@ -58,9 +58,13 @@
 .auth-app .sidebar-panel .border-t { border-color: var(--auth-border); }
 .auth-app .sidebar-panel button { color: var(--auth-text); }
 .auth-app .sidebar-panel button:hover { color: var(--auth-heading); background-color: rgba(139, 92, 246, 0.15); }
+.auth-app[data-theme='dark'] .sidebar-panel button[aria-current='page'],
+.auth-app[data-theme='dark'] .sidebar-panel button[aria-current='page']:hover { background-color: rgba(124, 58, 237, 0.24); }
 .auth-app[data-theme='light'] .sidebar-panel { background-color: var(--auth-surface); border-color: #cbd5e1; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1); }
 .auth-app[data-theme='light'] .sidebar-panel > .space-y-2 > div { background-color: rgba(248, 250, 252, 0.92); }
 .auth-app[data-theme='light'] .sidebar-panel button:hover { color: #0f172a; background-color: #e0f2fe; }
+.auth-app[data-theme='light'] .sidebar-panel button[aria-current='page'],
+.auth-app[data-theme='light'] .sidebar-panel button[aria-current='page']:hover { background-color: #e9e7f7; }
 
 .auth-app .items-container {
 	position: relative;
@@ -273,7 +277,7 @@
 }
 
 .auth-app[data-theme='light'] .item-row { box-shadow: 0 5px 14px rgba(15, 23, 42, 0.07); }
-.auth-app[data-theme='light'] .item-row:hover { box-shadow: inset 3px 0 var(--auth-accent), 0 8px 20px rgba(15, 23, 42, 0.1); }
+.auth-app[data-theme='light'] .item-row:hover { box-shadow: inset 3px 0 #cbd5e1, 0 8px 20px rgba(15, 23, 42, 0.1); }
 .auth-app[data-theme='light'] .page-link { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); }
 .auth-app[data-theme='light'] .page-link:hover,
 .auth-app[data-theme='light'] .page-link:focus-visible { box-shadow: 0 0 0 2px rgba(8, 145, 178, 0.12); }

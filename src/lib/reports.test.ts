@@ -1,6 +1,6 @@
 // src/lib/reports.test.ts
 import { describe, expect, it } from 'vitest';
-import { getReportRange, startOfYearInZone } from './reports';
+import { getReportRange, sortReportLines, startOfYearInZone, type ReportLine } from './reports';
 import { isValidTimezone, resolveTimezone } from './timezones';
 
 describe('startOfYearInZone', () => {
@@ -30,6 +30,40 @@ describe('getReportRange', () => {
         const range = getReportRange('lastYear', now, 'America/Chicago');
         expect(range.from.toISOString()).toBe('2024-01-01T06:00:00.000Z');
         expect(range.to.toISOString()).toBe('2025-01-01T05:59:59.999Z');
+    });
+});
+
+describe('sortReportLines', () => {
+    const line = (itemId: string, soldTime: string): ReportLine => ({
+        itemId,
+        title: itemId,
+        soldTime: new Date(soldTime),
+        sales: 0,
+        cogs: null,
+        fees: 0,
+        shipping: 0,
+        missingCogs: true
+    });
+
+    it('sorts by sale instant in both directions without changing the source or tie order', () => {
+        const lines = [
+            line('middle-a', '2025-03-01T10:00:00Z'),
+            line('latest', '2025-03-01T12:00:00Z'),
+            line('oldest', '2024-12-31T23:00:00Z'),
+            line('middle-b', '2025-03-01T10:00:00Z')
+        ];
+        const original = [...lines];
+
+        expect(sortReportLines(lines, 'oldest').map((item) => item.itemId))
+            .toEqual(['oldest', 'middle-a', 'middle-b', 'latest']);
+        expect(sortReportLines(lines, 'latest').map((item) => item.itemId))
+            .toEqual(['latest', 'middle-a', 'middle-b', 'oldest']);
+        expect(lines).toEqual(original);
+    });
+
+    it('handles empty reports', () => {
+        expect(sortReportLines([], 'oldest')).toEqual([]);
+        expect(sortReportLines([], 'latest')).toEqual([]);
     });
 });
 

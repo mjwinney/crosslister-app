@@ -5,6 +5,7 @@
 	import PoshmarkTabWatcher from '$lib/components/PoshmarkTabWatcher.svelte';
 	import NavSideBar from '../../components/NavSideBar.svelte';
 	import { appTheme } from '$lib/stores/theme';
+	import { page as pageStore } from '$app/stores';
 	import './auth-theme.css';
 
 	let { children } = $props();
@@ -39,7 +40,7 @@
 
 <div class="auth-app" data-theme={$appTheme}>
 	<PoshmarkTabWatcher />
-	<NavSideBar {children} {navigateTo} />
+	<NavSideBar {children} {navigateTo} currentPath={$pageStore.url.pathname} />
 	{#if isLoading}
 		<div class="busy-overlay" role="status" aria-live="polite">
 			<div class="text-center">

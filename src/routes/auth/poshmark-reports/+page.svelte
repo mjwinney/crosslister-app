@@ -3,13 +3,15 @@
 	import { resolve } from '$app/paths';
 	import CurrencyInput from '@canutin/svelte-currency-input';
 	import { onDestroy, onMount } from 'svelte';
-	import { REPORT_PERIODS, buildReportTotals, formatMoney, formatSaleDate } from '$lib/reports';
+	import { REPORT_PERIODS, buildReportTotals, formatMoney, formatSaleDate, sortReportLines } from '$lib/reports';
+	import type { ReportSortOrder } from '$lib/reports';
 	import { poshmarkTabLoggedInUid, poshmarkTabOpen } from '$lib/stores/poshmark';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	let refreshing = $state(false);
+	let sortOrder = $state<ReportSortOrder>('oldest');
 	let refreshRequested = $state(false);
 	let refreshMessage = $state('');
 	let refreshError = $state('');
@@ -31,6 +33,7 @@
 		})
 	);
 	const totals = $derived(buildReportTotals(lines));
+	const sortedLines = $derived(sortReportLines(lines, sortOrder));
 
 	onMount(() => window.addEventListener('message', handlePoshmarkSoldItemsResponse));
 
@@ -158,6 +161,13 @@
 {#if data.lines.length === 0}
 	<p class="empty">No sales found for this period. Click Refresh data to import from Poshmark.</p>
 {:else}
+	<div class="controls table-sort">
+		<label for="sort-order">Sort by</label>
+		<select id="sort-order" bind:value={sortOrder}>
+			<option value="oldest">Date: oldest first</option>
+			<option value="latest">Date: latest first</option>
+		</select>
+	</div>
 	<table>
 		<thead>
 			<tr>
@@ -169,7 +179,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each lines as line (line.itemId + line.soldTime.toISOString())}
+			{#each sortedLines as line (line.itemId + line.soldTime.toISOString())}
 				<tr class:missing={line.missingCogs}>
 					<td>{formatSaleDate(line.soldTime, data.timeZone)}</td>
 					<td>{line.title}</td>
@@ -239,6 +249,11 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem;
+	}
+
+	.table-sort {
+		justify-content: flex-end;
+		margin-top: 1rem;
 	}
 
 	.controls select {
@@ -370,6 +385,7 @@
 		select,
 		button,
 		a,
+		.table-sort,
 		.status {
 			display: none !important;
 		}

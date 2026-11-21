@@ -2,12 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import CurrencyInput from '@canutin/svelte-currency-input';
-	import { REPORT_PERIODS, buildReportTotals, formatMoney, formatSaleDate } from '$lib/reports';
+	import { REPORT_PERIODS, buildReportTotals, formatMoney, formatSaleDate, sortReportLines } from '$lib/reports';
+	import type { ReportSortOrder } from '$lib/reports';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let refreshing = $state(false);
+	let sortOrder = $state<ReportSortOrder>('oldest');
 
 	// Edited COGS keyed by itemId; reset whenever the server data reloads.
 	let cogsByItem = $state<Record<string, number | undefined>>({});
@@ -27,6 +29,7 @@
 		})
 	);
 	const totals = $derived(buildReportTotals(lines));
+	const sortedLines = $derived(sortReportLines(lines, sortOrder));
 
 	async function saveCogs(itemId: string) {
 		const value = cogsByItem[itemId];
@@ -108,6 +111,13 @@
 {#if data.lines.length === 0}
 	<p class="empty">No sales found for this period. Click Refresh data to import from eBay.</p>
 {:else}
+	<div class="controls table-sort">
+		<label for="sort-order">Sort by</label>
+		<select id="sort-order" bind:value={sortOrder}>
+			<option value="oldest">Date: oldest first</option>
+			<option value="latest">Date: latest first</option>
+		</select>
+	</div>
 	<table>
 		<thead>
 			<tr>
@@ -120,7 +130,7 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each lines as line (line.itemId + line.soldTime.toISOString())}
+			{#each sortedLines as line (line.itemId + line.soldTime.toISOString())}
 				<tr class:missing={line.missingCogs}>
 					<td>{formatSaleDate(line.soldTime, data.timeZone)}</td>
 					<td>{line.title}</td>
@@ -196,6 +206,11 @@
 
 	.controls form {
 		display: contents;
+	}
+
+	.table-sort {
+		justify-content: flex-end;
+		margin-top: 1rem;
 	}
 
 	.controls select {
@@ -332,6 +347,7 @@
 		select,
 		button,
 		a,
+		.table-sort,
 		.status {
 			display: none !important;
 		}
