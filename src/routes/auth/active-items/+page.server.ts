@@ -1,7 +1,6 @@
-import { StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
+import { getEbayListingStart, StatusCodes, updateEbayMetadata, type MetaDataModel } from '$lib/server/DatabaseUtils';
 import { prepareRelistDiscountUpdate } from '$lib/relistDiscount';
 import { getRelistAt } from '$lib/relistSchedule';
-import { EbayActiveItems } from '$lib/server/models/ebay-active-items';
 import { readMetadataRequest } from '$lib/server/metadataRequest';
 import { getMyEbaySellingActive, getMyEbaySellingSold, findItemsByKeywords, relistEbayItemsWithPriceChange } from '$lib/server/ebayUtils';
 import { error, fail, redirect } from '@sveltejs/kit';
@@ -189,11 +188,11 @@ export const actions: Actions = {
         }
 
         if (metaData.relistEnabled === true && !existingRecord?.relistEnabled) {
-            const activeItem = await EbayActiveItems.findOne({ userId, itemId }).select('StartTime').lean().exec();
-            if (!activeItem?.StartTime || Number.isNaN(activeItem.StartTime.getTime())) {
+            const startTime = await getEbayListingStart(userId, itemId);
+            if (!startTime || Number.isNaN(startTime.getTime())) {
                 return fail(400, { message: 'A valid eBay listing start time is required to enable relisting' });
             }
-            metaData.relistAt = getRelistAt(activeItem.StartTime);
+            metaData.relistAt = getRelistAt(startTime);
         } else if (existingRecord?.relistEnabled && metaData.relistEnabled !== false) {
             delete metaData.relistAt;
         }

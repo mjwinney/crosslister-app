@@ -4,6 +4,20 @@ import mongoose from 'mongoose';
 const EbayItemMetadataSchema = new mongoose.Schema({
     itemId: { type: String, required: true },
     userId: { type: String, required: true },
+    listing: {
+        title: String,
+        pictureURL: String,
+        listedTime: Date
+    },
+    sold: {
+        soldPrice: Number,
+        soldTime: Date,
+        feePrice: Number,
+        shippingLabelCost: Number,
+        addFeeGeneral: Number,
+        finalShippingCost: Number
+    },
+    // Legacy fields are read until each user's records have been migrated.
     title: { type: String, required: false },
     purchasePrice: { type: Number, required: false },
     soldPrice: { type: Number, required: false },

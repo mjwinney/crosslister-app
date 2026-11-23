@@ -1,4 +1,4 @@
-import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, insertSoldEbayItems, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
+import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
 import { backfillItemTitles, getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';

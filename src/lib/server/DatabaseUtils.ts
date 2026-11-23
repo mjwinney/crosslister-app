@@ -2,9 +2,7 @@
 import mongoose, { now } from 'mongoose';
 import { MONGODB_URI } from '$env/static/private'; // Assuming you've set up environment variables in SvelteKit
 import { EbayToken } from './models/ebay-token';
-import { EbayActiveItems } from './models/ebay-active-items';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
-import { EbaySoldItems } from './models/ebay-sold-items';
 import { EbaySold } from './models/ebay-sold';
 import { EbayReportSync } from './models/ebay-report-sync';
 import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
@@ -181,52 +179,16 @@ export async function getEbayTokensFromDB(userId: string) : Promise<Result<EbayI
 
 // ...existing code...
 
-export async function updateActiveEbayItem(userId: string, itemId: string, updates: Partial<{ startDate: Date; [key: string]: any }>, upsert = false): Promise<StatusCodes> {
-    // Ensure DB connection
-    await connectToDatabase();
-    if (!cachedDb) return StatusCodes.NoDatabaseConnection;
-
-    try {
-        const result = await EbayActiveItems.findOneAndUpdate(
-            { itemId, userId },               // filter: match both itemId and userId
-            { $set: updates },                // apply updates
-            { new: true, upsert }             // return the updated doc; optionally create if missing
-        ).exec();
-
-        if (!result) {
-            // if upsert was false and no doc matched, treat as insert failure or not found
-            return upsert ? StatusCodes.InsertFailed : StatusCodes.BadRequest;
-        }
-
-        return StatusCodes.OK;
-    } catch (error) {
-        console.error(`Error updating active eBay item ${itemId} for user ${userId}:`, error);
-        return StatusCodes.InsertFailed;
-    }
+export async function getEbayListingStart(userId: string, itemId: string): Promise<Date | undefined> {
+    const connection = await connectToDatabase();
+    if (!connection.db) throw new Error('No database connection available');
+    const item = await connection.db.collection('ebayitemmetadatas').findOne({ userId, itemId });
+    const legacy = await connection.db.collection('ebayactiveitems').findOne({ userId, itemId });
+    return item?.listing?.listedTime ?? legacy?.StartTime ?? item?.listedTime ?? undefined;
 }
 
-export async function insertSoldEbayItems(itemId: string, startDate: Date) : Promise<StatusCodes>
-{
-    // Ensure the database connection is established
-    await connectToDatabase();
-
-    if (!cachedDb) {
-        console.log("No database connection available");
-        return StatusCodes.NoDatabaseConnection;
-    }
-
-    try {
-        await EbaySoldItems.updateOne({ _id: itemId }, {
-            startDate
-        },
-        { upsert: true } // Create a new document if one doesn't exist
-        );
-        return StatusCodes.OK;
-
-    } catch (error) {
-        console.error(`Error inserting sold eBay data for itemId:${itemId}`, error);
-        return StatusCodes.InsertFailed;
-    }
+export async function updateActiveEbayItem(userId: string, itemId: string, updates: Pick<MetaDataModel, 'listedTime' | 'title' | 'pictureURL'>, upsert = false): Promise<StatusCodes> {
+    return updateEbayMetadata(userId, itemId, updates, upsert);
 }
 
 export type MetaDataModel = {
@@ -258,6 +220,48 @@ export type MetaDataModel = {
     relistDiscountLastPrice?: number | null
 }
 
+const listingKeys = ['title', 'pictureURL', 'listedTime'] as const;
+const soldKeys = ['soldPrice', 'soldTime', 'feePrice', 'shippingLabelCost', 'addFeeGeneral', 'finalShippingCost'] as const;
+const metadataKeys = [
+    'purchasePrice', 'purchaseDate', 'purchaseLocation', 'storageLocation',
+    'currentListedAt', 'relistEnabled', 'relistAt', 'lastRelistAttemptAt',
+    'lastRelistResult', 'relistAttemptCount', 'relistDiscountEnabled',
+    'relistDiscountPercent', 'relistDiscountMaxPercent', 'relistDiscountBasePrice',
+    'relistDiscountLastPrice'
+] as const;
+const dateKeys = new Set(['listedTime', 'soldTime', 'currentListedAt', 'originalListedAt', 'relistAt', 'lastRelistAttemptAt']);
+const numberKeys = new Set(['purchasePrice', 'soldPrice', 'feePrice', 'shippingLabelCost', 'addFeeGeneral', 'finalShippingCost', 'relistAttemptCount', 'relistDiscountPercent', 'relistDiscountMaxPercent', 'relistDiscountBasePrice', 'relistDiscountLastPrice']);
+const booleanKeys = new Set(['relistEnabled', 'relistDiscountEnabled']);
+const metadataDefaults = {
+    relistEnabled: false, relistAt: null, relistAttemptCount: 0,
+    relistDiscountEnabled: false, relistDiscountPercent: 5, relistDiscountMaxPercent: 20,
+    relistDiscountBasePrice: null, relistDiscountLastPrice: null
+};
+
+function castEbayField(key: string, value: unknown): unknown {
+    if (value == null) return value;
+    if (dateKeys.has(key)) {
+        if (!(value instanceof Date) && typeof value !== 'string' && typeof value !== 'number') throw new Error(`Invalid date for ${key}`);
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) throw new Error(`Invalid date for ${key}`);
+        return date;
+    }
+    if (numberKeys.has(key)) {
+        if (typeof value !== 'number' && typeof value !== 'string') throw new Error(`Invalid number for ${key}`);
+        if (value === '') return null;
+        const number = Number(value);
+        if (!Number.isFinite(number)) throw new Error(`Invalid number for ${key}`);
+        return number;
+    }
+    if (booleanKeys.has(key)) {
+        if (value === true || value === 1 || value === 'true' || value === '1' || value === 'yes') return true;
+        if (value === false || value === 0 || value === 'false' || value === '0' || value === 'no') return false;
+        throw new Error(`Invalid boolean for ${key}`);
+    }
+    if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') throw new Error(`Invalid string for ${key}`);
+    return String(value);
+}
+
 // Persist item metadata without allowing later updates to overwrite the original listing date once it is established.
 export async function updateEbayMetadata(userId: string, itemId: string, metaDataModel: MetaDataModel, upsert = false) : Promise<StatusCodes>
 {
@@ -274,37 +278,47 @@ export async function updateEbayMetadata(userId: string, itemId: string, metaDat
     }
 
     try {
-        const existingRecord = await EbayItemMetadata.findOne({ itemId, userId }).exec();
-        const metadataToSet: Partial<MetaDataModel> = { ...metaDataModel };
-        delete metadataToSet.originalListedAt;
+        if (!cachedDb.db) return StatusCodes.NoDatabaseConnection;
+        const items = cachedDb.db.collection('ebayitemmetadatas');
+        const existingRecord = await items.findOne({ itemId, userId });
+        const fieldsToSet: Record<string, unknown> = {};
+        for (const [keys, prefix] of [[listingKeys, 'listing.'], [soldKeys, 'sold.'], [metadataKeys, '']] as const) {
+            for (const key of keys) {
+                if (metaDataModel[key] !== undefined) fieldsToSet[prefix + key] = castEbayField(key, metaDataModel[key]);
+            }
+        }
 
         // Backfill the write-once original date for older records, using the best available listing timestamp.
         const originalListedAtCandidate = metaDataModel.originalListedAt
             ?? metaDataModel.currentListedAt
             ?? metaDataModel.listedTime
+            ?? existingRecord?.listing?.listedTime
             ?? existingRecord?.listedTime;
 
         if (existingRecord && existingRecord.originalListedAt == null && originalListedAtCandidate != null) {
-            await EbayItemMetadata.updateOne(
+            await items.updateOne(
                 {
                     itemId,
                     userId,
                     $or: [{ originalListedAt: null }, { originalListedAt: { $exists: false } }]
                 },
-                { $set: { originalListedAt: originalListedAtCandidate } }
-            ).exec();
+                { $set: { originalListedAt: castEbayField('originalListedAt', originalListedAtCandidate) } }
+            );
         }
 
-        const result = await EbayItemMetadata.findOneAndUpdate(
-            { itemId, userId },         // match by _id and userId
+        const insertDefaults: Record<string, unknown> = { createdAt: new Date(), ...metadataDefaults };
+        for (const key of Object.keys(fieldsToSet)) delete insertDefaults[key];
+        if (originalListedAtCandidate != null) {
+            insertDefaults.originalListedAt = castEbayField('originalListedAt', originalListedAtCandidate);
+        }
+        const result = await items.findOneAndUpdate(
+            { itemId, userId },
             {
-                $set: metadataToSet,
-                $setOnInsert: {
-                    ...(originalListedAtCandidate != null ? { originalListedAt: originalListedAtCandidate } : {})
-                }
+                $set: fieldsToSet,
+                $setOnInsert: insertDefaults
             },
-            { new: true, upsert }       // return updated doc; optionally create if missing
-        ).exec();
+            { returnDocument: 'after', upsert }
+        );
 
         if (!result) {
             // if upsert was false and no doc matched, treat as not found / bad request
@@ -380,20 +394,21 @@ export async function replaceEbayItemId(userId: string, oldItemId: string, newIt
     }
 
     try {
-        const metadataResult = await EbayItemMetadata.updateOne(
+        if (!cachedDb.db) return StatusCodes.NoDatabaseConnection;
+        const metadataResult = await cachedDb.db.collection('ebayitemmetadatas').updateOne(
             { userId, itemId: oldItemId },
             {
                 $set: {
                     itemId: newItemId,
-                    ...(startTime ? { currentListedAt: startTime } : {})
+                    ...(startTime ? { currentListedAt: startTime, 'listing.listedTime': startTime } : {})
                 }
             }
-        ).exec();
+        );
 
-        await EbayActiveItems.updateOne(
+        await cachedDb.db.collection('ebayactiveitems').updateOne(
             { userId, itemId: oldItemId },
             { $set: { itemId: newItemId, ...(startTime ? { StartTime: startTime } : {}) } }
-        ).exec();
+        );
 
         console.log(`replaceEbayItemId: ${oldItemId} -> ${newItemId} user ${userId}, metadata matched=${metadataResult.matchedCount}`);
         return StatusCodes.OK;
@@ -618,29 +633,34 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    const metaData = await EbayItemMetadata.findOne({ itemId, userId }).exec();
+    if (!cachedDb.db) return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    const metaData = await cachedDb.db.collection('ebayitemmetadatas').findOne({ itemId, userId });
 
     if (!metaData) {
         return { ok: false, code: StatusCodes.NotFound };
     }
 
     return { ok: true, data: {
-        purchasePrice: metaData?.purchasePrice || undefined,
+        purchasePrice: metaData?.purchasePrice ?? undefined,
         purchaseDate: metaData?.purchaseDate || undefined,
         purchaseLocation: metaData?.purchaseLocation || undefined,
         storageLocation: metaData?.storageLocation || undefined,
-        pictureURL: metaData?.pictureURL || undefined,
-        listedTime: metaData?.listedTime || undefined,
-        soldTime: metaData?.soldTime || undefined,
-        soldPrice: metaData?.soldPrice || undefined,
-        finalShippingCost: metaData?.finalShippingCost || undefined,
+        title: metaData.listing?.title ?? metaData.title ?? undefined,
+        pictureURL: metaData.listing?.pictureURL ?? metaData.pictureURL ?? undefined,
+        listedTime: metaData.listing?.listedTime ?? metaData.listedTime ?? undefined,
+        soldTime: metaData.sold?.soldTime ?? metaData.soldTime ?? undefined,
+        soldPrice: metaData.sold?.soldPrice ?? metaData.soldPrice ?? undefined,
+        feePrice: metaData.sold?.feePrice ?? metaData.feePrice ?? undefined,
+        shippingLabelCost: metaData.sold?.shippingLabelCost ?? metaData.shippingLabelCost ?? undefined,
+        addFeeGeneral: metaData.sold?.addFeeGeneral ?? metaData.addFeeGeneral ?? undefined,
+        finalShippingCost: metaData.sold?.finalShippingCost ?? metaData.finalShippingCost ?? undefined,
         originalListedAt: metaData?.originalListedAt || undefined,
         currentListedAt: metaData?.currentListedAt || undefined,
-        relistEnabled: metaData?.relistEnabled ?? undefined,
+        relistEnabled: metaData.relistEnabled === undefined ? false : metaData.relistEnabled ?? undefined,
         relistAt: metaData?.relistAt || undefined,
-        relistDiscountEnabled: metaData?.relistDiscountEnabled ?? undefined,
-        relistDiscountPercent: metaData?.relistDiscountPercent ?? undefined,
-        relistDiscountMaxPercent: metaData?.relistDiscountMaxPercent ?? undefined,
+        relistDiscountEnabled: metaData.relistDiscountEnabled === undefined ? false : metaData.relistDiscountEnabled ?? undefined,
+        relistDiscountPercent: metaData.relistDiscountPercent === undefined ? 5 : metaData.relistDiscountPercent ?? undefined,
+        relistDiscountMaxPercent: metaData.relistDiscountMaxPercent === undefined ? 20 : metaData.relistDiscountMaxPercent ?? undefined,
         relistDiscountBasePrice: metaData?.relistDiscountBasePrice ?? undefined,
         relistDiscountLastPrice: metaData?.relistDiscountLastPrice ?? undefined
     }};
@@ -668,21 +688,9 @@ export async function getEbayMetadataByDate(userId: string, fromDate: Date, toDa
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    // Convert to UTC ISO strings
-    const utcFrom = fromDate.toISOString();
-    const utcTo   = toDate.toISOString();
-
-    const metaData = await EbayItemMetadata.find({
-        userId,
-        soldTime: {
-            $gte: new Date(utcFrom),
-            $lte: new Date(utcTo),
-        }
-    }).lean().exec();
-
-    if (!metaData) {
-        return { ok: false, code: StatusCodes.NotFound };
-    }
+    const result = await getEbaySoldItemsForReport(userId, fromDate, toDate);
+    if (!result.ok) return result;
+    const metaData = result.data;
 
     return {
         ok: true,
@@ -720,23 +728,28 @@ export async function getEbaySoldItemsForReport(userId: string, fromDate: Date, 
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    const metaData = await EbayItemMetadata.find({
-        userId,
-        soldTime: { $gte: fromDate, $lte: toDate }
-    }).sort({ soldTime: 1 }).lean().exec();
+    if (!cachedDb.db) return { ok: false, code: StatusCodes.NoDatabaseConnection };
+    const metaData = await cachedDb.db.collection('ebayitemmetadatas').aggregate<EbayReportRow>([
+        { $match: { userId } },
+        { $addFields: { effectiveSoldTime: { $ifNull: ['$sold.soldTime', '$soldTime'] } } },
+        { $match: { effectiveSoldTime: { $gte: fromDate, $lte: toDate } } },
+        { $sort: { effectiveSoldTime: 1 } },
+        { $project: {
+            _id: 0,
+            itemId: 1,
+            title: { $ifNull: ['$listing.title', { $ifNull: ['$title', ''] }] },
+            soldTime: '$effectiveSoldTime',
+            soldPrice: { $ifNull: ['$sold.soldPrice', { $ifNull: ['$soldPrice', 0] }] },
+            purchasePrice: 1,
+            feePrice: { $ifNull: ['$sold.feePrice', { $ifNull: ['$feePrice', 0] }] },
+            addFeeGeneral: { $ifNull: ['$sold.addFeeGeneral', { $ifNull: ['$addFeeGeneral', 0] }] },
+            finalShippingCost: { $ifNull: ['$sold.finalShippingCost', { $ifNull: ['$finalShippingCost', 0] }] }
+        } }
+    ]).toArray();
 
     return {
         ok: true,
-        data: metaData.map(item => ({
-            itemId: item.itemId,
-            title: item.title ?? '',
-            soldTime: item.soldTime as Date,
-            soldPrice: item.soldPrice ?? 0,
-            purchasePrice: item.purchasePrice ?? undefined,
-            feePrice: item.feePrice ?? 0,
-            addFeeGeneral: item.addFeeGeneral ?? 0,
-            finalShippingCost: item.finalShippingCost ?? 0
-        }))
+        data: metaData
     };
 }
 

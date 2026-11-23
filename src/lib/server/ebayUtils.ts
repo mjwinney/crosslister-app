@@ -70,7 +70,7 @@ function getItemIdFromTransaction(transaction: any): string | null {
     if (!transaction) return null;
     const txns = Array.isArray(transaction) ? transaction : [transaction];
     for (const tx of txns) {
-        if (tx?.Item?.ItemID) return tx.Item.ItemID;
+        if (tx?.Item?.ItemID) return String(tx.Item.ItemID);
     }
     return null;
 }
@@ -302,7 +302,10 @@ export async function syncEbayOrdersForRange(locals: App.Locals, fromDate: Date,
                     if (!metadata.title) metadata.title = await fetchItemTitle(locals, String(itemId));
 
                     const status = await updateEbayMetadata(userId, String(itemId), metadata, true);
-                    if (status === StatusCodes.OK) synced++;
+                    if (status !== StatusCodes.OK) {
+                        return { ok: false, status: 500, message: `Failed to save eBay order item ${itemId}` };
+                    }
+                    synced++;
                 }
             }
 
@@ -752,12 +755,21 @@ export async function getMyEbaySellingActive(locals: App.Locals, page: number = 
 
             // Update: Store active items in the database
             for (const item of jsonData.GetMyeBaySellingResponse.ActiveList.ItemArray.Item) {
-                const itemId = item.ItemID;
+                if (!item.ItemID) {
+                    console.error('Active eBay item is missing ItemID');
+                    return { status: 500, data: {} };
+                }
+                const itemId = String(item.ItemID);
                 const startDate = new Date(item.ListingDetails.StartTime);
 
                 console.log(`GetMyeBaySellingResponse startDate: ${startDate}`);
 
-                const status = await updateActiveEbayItem(userId, itemId, { StartTime: startDate }, true);
+                const picture = item.PictureDetails?.PictureURL ?? item.PictureURL ?? item.GalleryURL;
+                const status = await updateActiveEbayItem(userId, itemId, {
+                    listedTime: startDate,
+                    ...(item.Title ? { title: String(item.Title) } : {}),
+                    ...(picture ? { pictureURL: String(Array.isArray(picture) ? picture[0] : picture) } : {})
+                }, true);
                 if (status !== StatusCodes.OK) {
                     console.error(`Failed to insert active eBay item for itemId:${itemId}`);
                     return {
@@ -1532,7 +1544,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
             const getItemId = (transaction: any): string | null => {
                 const txns = Array.isArray(transaction) ? transaction : [transaction];
                 for (const tx of txns) {
-                    if (tx?.Item?.ItemID) return tx.Item.ItemID;
+                    if (tx?.Item?.ItemID) return String(tx.Item.ItemID);
                 }
                 return null;
             };
@@ -1555,7 +1567,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
             const userId = locals?.session?.userId || '';
 
             // Step 3: Map results back to orders
-            orders.forEach(async (item: any, index: number) => {
+            await Promise.all(orders.map(async (item: any, index: number) => {
                 const itemData = itemResults[index];
 
                 if ('data' in itemData && itemData.status === 200 && itemData.data.GetItemResponse?.Item) {
@@ -1566,10 +1578,12 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     const txns = item.TransactionArray.Transaction;
                     const txnArr = Array.isArray(txns) ? txns : [txns];
                     const txn = txnArr[0];
+                    const pictures = ebayItem.PictureDetails?.PictureURL;
+                    const picture = Array.isArray(pictures) ? pictures[0] : pictures;
 
                     const metaData: MetaDataModel = {
-                        // pictureURL: item.PictureURL,
                         ...(ebayItem.Title ? { title: String(ebayItem.Title) } : {}),
+                        ...(picture ? { pictureURL: String(picture) } : {}),
                         soldTime: getOrderSoldTime(item, txn) ?? ebayItem.ListingDetails?.EndTime,
                         listedTime: ebayItem.ListingDetails?.StartTime,
                         soldPrice: txn?.TransactionPrice
@@ -1577,8 +1591,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
 
                     // Upsert into the metadata table
                     const result = await updateEbayMetadata(userId, itemId, metaData, true);
+                    if (result !== StatusCodes.OK) throw new Error(`Failed to save eBay order item ${itemId}`);
                 }
-            });
+            }));
 
             // Parallelize the calls to getTransactions for each order item as they are slow!
             // This contains details about the transaction including fees
@@ -1592,7 +1607,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
             const transactionResults = await Promise.all(transactionPromises);
 
             // Step 3: Map results back to orders
-            orders.forEach(async (item: any, index: number) => {
+            await Promise.all(orders.map(async (item: any, index: number) => {
                 const itemData = transactionResults[index];
 
                 if ('data' in itemData && itemData.status === 200 && itemData.data?.transactions) {
@@ -1644,8 +1659,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
 
                     // Upsert into the metadata table
                     const result = await updateEbayMetadata(userId, itemId, metaData, true);
+                    if (result !== StatusCodes.OK) throw new Error(`Failed to save eBay order finances for item ${itemId}`);
                 }
-            });
+            }));
 
             return {
                 status: response.status,
