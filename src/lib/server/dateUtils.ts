@@ -13,67 +13,60 @@ export function convertToISO(dateStr: string): string {
 }
 
 export function getNowUTCDate(): Date {
-  // Get current local date/time
-  const now = new Date();
-
-  // Create a new Date object using UTC components
-  const utcDate = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      now.getUTCHours(),
-      now.getUTCMinutes(),
-      now.getUTCSeconds(),
-      now.getUTCMilliseconds()
-    )
-  );
-
-  return utcDate;
+  // Returns the current time as UTC (this is typically used for database operations)
+  return new Date();
 }
 
 export function getStartOfWeekUTC(offset: number = 0): Date {
   const now = new Date();
-  const day = now.getUTCDay(); // Sunday = 0, Monday = 1
+  
+  // Use local time to determine the day of week (not UTC)
+  // This ensures week boundaries align with user's local timezone
+  const day = now.getDay(); // Sunday = 0, Monday = 1 in local time
   const diffToMonday = (day + 6) % 7;
-
-  const monday = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() - diffToMonday - (offset * 7),
-    0, 0, 1, 0 // 12:00:01 AM UTC
-  ));
+  
+  // Calculate Monday's date in local time
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() - diffToMonday - (offset * 7));
+  monday.setHours(0, 0, 1, 0); // Set to 12:00:01 AM local time
 
   return monday;
 }
 
 export function getEndOfWeekUTC(offset: number = 0): Date {
   const now = new Date();
-  const day = now.getUTCDay();
+  
+  // Use local time to determine the day of week (not UTC)
+  // This ensures week boundaries align with user's local timezone
+  const day = now.getDay();
   const diffToSunday = (7 - day) % 7;
-
-  const sunday = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + diffToSunday - (offset * 7),
-    0, 0, 0, 0 // Midnight UTC (start of Monday)
-  ));
+  
+  // Calculate Sunday's date in local time
+  const sunday = new Date(now);
+  sunday.setDate(sunday.getDate() + diffToSunday - (offset * 7));
+  sunday.setHours(0, 0, 0, 0); // Set to midnight local time (start of Monday)
 
   return sunday;
 }
 
 export function getStartOfMonthUTC(offset: number = 0): Date {
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() - offset;
+  
+  // Calculate the month offset in local time
+  const year = now.getFullYear();
+  const month = now.getMonth() - offset;
 
-  return new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)); // Midnight UTC
+  const startOfMonth = new Date(year, month, 1, 0, 0, 0, 0); // Midnight local time
+  return startOfMonth;
 }
 
 export function getEndOfMonthUTC(offset: number = 0): Date {
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() - offset + 1;
+  
+  // Calculate the month offset in local time
+  const year = now.getFullYear();
+  const month = now.getMonth() - offset + 1;
 
-  return new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)); // Last day of month
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // Last moment of month in local time
+  return endOfMonth;
 }
