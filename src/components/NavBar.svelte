@@ -21,6 +21,10 @@
 	function toggleTheme() {
 		setAppTheme($appTheme === 'dark' ? 'light' : 'dark');
 	}
+
+	function getInitial(email: string): string {
+		return email.charAt(0).toUpperCase();
+	}
 </script>
 
 <nav class="nav-shell relative z-10 border-b border-slate-700/30">
@@ -55,12 +59,11 @@
 				<div class="relative group">
 					<button
 						type="button"
-						class="user-menu-btn inline-flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full border border-slate-500/70 bg-slate-900/40 p-0 text-slate-200 transition hover:border-cyan-400 hover:text-white"
+						class="user-menu-btn inline-flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full border border-slate-500/70 bg-violet-600 p-0 text-white font-bold text-lg transition hover:border-cyan-400 hover:bg-violet-500"
 						aria-label="User menu"
+						title={$session.data.user?.email}
 					>
-						<svg viewBox="0 0 24 24" class="h-6 w-6" fill="currentColor" aria-hidden="true">
-							<path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" />
-						</svg>
+						{getInitial($session.data.user?.email || '')}
 					</button>
 					<!-- Top padding keeps the panel reachable when the pointer moves down from the icon. -->
 					<div
@@ -164,8 +167,13 @@
 	}
 
 	:global(html[data-theme='light']) .user-menu-btn {
-		background: #ffffff;
-		color: #0f172a;
+		background: #7c3aed;
+		color: #ffffff;
+		border-color: #6d28d9;
+	}
+
+	:global(html[data-theme='light']) .user-menu-btn:hover {
+		background: #6d28d9;
 	}
 
 	:global(html[data-theme='light']) .user-menu-panel {
