@@ -17,15 +17,19 @@ const EbayItemMetadataSchema = new mongoose.Schema({
         addFeeGeneral: Number,
         finalShippingCost: Number,
         transactionLedger: {
+            calculationVersion: Number,
             transactions: [
                 {
                     orderId: String,
+                    transactionId: String,
                     transactionType: String,
                     transactionDate: Date,
                     description: String,
                     amount: Number,
                     bookingEntry: String,
-                    feeType: String
+                    feeType: String,
+                    currency: String,
+                    totalFeeAmount: Number
                 }
             ],
             totalSaleAmount: Number,
@@ -33,6 +37,7 @@ const EbayItemMetadataSchema = new mongoose.Schema({
             totalFees: Number,
             totalShippingLabels: Number,
             totalBuyerShipping: Number,
+            totalOtherAmount: Number,
             netAmount: Number
         }
     },

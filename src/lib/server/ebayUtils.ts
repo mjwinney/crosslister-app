@@ -100,7 +100,7 @@ function getBuyerShippingCost(order: any): number {
     return toNumber(asArray<any>(order?.TransactionArray?.Transaction)[0]?.ActualShippingCost);
 }
 
-// Build a comprehensive transaction ledger from eBay Finance API transactions
+// Finance transaction amounts are already net of any fees included in that transaction.
 export function buildTransactionLedger(financeTransactions: any[] | null, orderId?: string): TransactionLedger | undefined {
     if (!financeTransactions || financeTransactions.length === 0) {
         return undefined;
@@ -111,65 +111,69 @@ export function buildTransactionLedger(financeTransactions: any[] | null, orderI
     let totalRefunds = 0;
     let totalFees = 0;
     let totalShippingLabels = 0;
-    let totalBuyerShipping = 0;
+    let totalOtherAmount = 0;
+    let netAmount = 0;
 
     for (const txn of financeTransactions) {
-        const amount = toNumber(txn.amount?.value ?? 0);
-        const bookingEntry = txn.bookingEntry ?? 'DEBIT';
+        const rawAmount = Number(txn.amount?.value);
+        const bookingEntry = txn.bookingEntry;
+        const currency = txn.amount?.currency;
+        if (txn.amount?.value == null || !Number.isFinite(rawAmount) ||
+            Math.abs(rawAmount * 100 - Math.round(rawAmount * 100)) > 1e-6 ||
+            (bookingEntry !== 'CREDIT' && bookingEntry !== 'DEBIT') ||
+            (currency != null && currency !== 'USD')) {
+            console.error(`Cannot build eBay transaction ledger for order ${orderId ?? '(unknown)'}: invalid amount, currency, or booking entry.`);
+            return undefined;
+        }
+        const amount = Math.round(Math.abs(rawAmount) * 100) * (bookingEntry === 'DEBIT' ? -1 : 1);
         const transactionType = txn.transactionType ?? '';
         const feeType = txn.feeType ?? '';
         const transactionDate = txn.transactionDate ? new Date(txn.transactionDate) : new Date();
 
-        // Build the transaction record
         const record: TransactionRecord = {
             orderId: orderId || txn.orderId,
+            ...(txn.transactionId && { transactionId: String(txn.transactionId) }),
             transactionType,
             transactionDate,
-            amount,
+            amount: amount / 100,
             bookingEntry,
             description: getTransactionDescription(txn),
-            ...(feeType && { feeType })
+            ...(feeType && { feeType }),
+            ...(currency && { currency }),
+            ...(txn.totalFeeAmount?.value != null && { totalFeeAmount: toNumber(txn.totalFeeAmount.value) })
         };
 
         transactions.push(record);
 
-        // Categorize and sum amounts
         if (transactionType === 'SALE') {
             totalSaleAmount += amount;
         } else if (transactionType === 'REFUND') {
-            totalRefunds += amount; // This will be negative
+            totalRefunds += amount;
         } else if (transactionType === 'SHIPPING_LABEL') {
-            totalShippingLabels += amount; // This will be negative
+            totalShippingLabels += amount;
         } else if (transactionType === 'NON_SALE_CHARGE') {
-            // Check if this is a return label charge (treat as shipping label)
             if (feeType === 'RETURN_LABEL_CHARGE') {
                 totalShippingLabels += amount;
             } else {
-                totalFees += amount; // This will be negative (charges) or positive (adjustments)
+                totalFees += amount;
             }
         } else if (transactionType === 'ADJUSTMENT') {
             totalFees += amount;
-        } else if (transactionType === 'CREDIT' || (transactionType === 'NON_SALE_CHARGE' && bookingEntry === 'CREDIT')) {
-            totalFees += amount; // Fee credits are positive
+        } else {
+            totalOtherAmount += amount;
         }
-
-        // Track buyer shipping - look for shipping-related non-sale charges that are credits
-        if (transactionType === 'SALE' && txn.referenceId?.includes('shipping')) {
-            totalBuyerShipping += amount;
-        }
+        netAmount += amount;
     }
 
-    // Calculate net amount (true profit/loss)
-    const netAmount = totalSaleAmount + totalBuyerShipping + totalFees + totalShippingLabels + totalRefunds;
-
     return {
+        calculationVersion: 2,
         transactions,
-        totalSaleAmount: parseFloat(totalSaleAmount.toFixed(2)),
-        totalRefunds: parseFloat(totalRefunds.toFixed(2)),
-        totalFees: parseFloat(totalFees.toFixed(2)),
-        totalShippingLabels: parseFloat(totalShippingLabels.toFixed(2)),
-        totalBuyerShipping: parseFloat(totalBuyerShipping.toFixed(2)),
-        netAmount: parseFloat(netAmount.toFixed(2))
+        totalSaleAmount: totalSaleAmount / 100,
+        totalRefunds: totalRefunds / 100,
+        totalFees: totalFees / 100,
+        totalShippingLabels: totalShippingLabels / 100,
+        totalOtherAmount: totalOtherAmount / 100,
+        netAmount: netAmount / 100
     };
 }
 
@@ -207,7 +211,9 @@ function buildOrderMetadata(order: any, financeTransactions: any[] | null): Meta
 
     // Build the transaction ledger
     const orderId = order.OrderID ? String(order.OrderID) : undefined;
-    const ledger = buildTransactionLedger(financeTransactions, orderId);
+    const ledger = asArray<any>(order?.TransactionArray?.Transaction).length === 1
+        ? buildTransactionLedger(financeTransactions, orderId)
+        : undefined;
     if (ledger) {
         metadata.transactionLedger = ledger;
     }
@@ -664,7 +670,7 @@ export async function getTransactions(locals: App.Locals, orderId: string): Prom
         filter: `orderId:{${orderId}}`
     });
 
-    const endpoint = `${env.EBAY_APIZ_ENDPOINT}sell/finances/v1/transaction?${qsParams.toString()}`;
+    const endpoint = `${env.EBAY_APIZ_ENDPOINT}sell/finances/v1/transaction`;
 
     // console.log('getTransactions endpoint:', JSON.stringify(endpoint));
     // console.log('getTransactions headers:', JSON.stringify(headers));
@@ -672,32 +678,46 @@ export async function getTransactions(locals: App.Locals, orderId: string): Prom
     // console.log(`getTransactions called with ebayAccessToken=${locals.ebayAccessToken}`);
 
     try {
-        const refreshResponse = await fetch(endpoint, {
-            method: 'GET',
-            headers: headers
-        });
+        const transactions: any[] = [];
+        const transactionKeys = new Set<string>();
+        let offset = 0;
+        let data: any;
+        do {
+            if (offset > 0) qsParams.set('offset', String(offset));
+            const response = await fetch(`${endpoint}?${qsParams.toString()}`, { method: 'GET', headers });
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`eBay Finance request failed for order ${orderId}: HTTP ${response.status}`);
+                return { status: response.status, message: JSON.stringify(errorData) };
+            }
+            data = await response.json();
+            const pageTransactions = data.transactions ?? [];
+            if (!Array.isArray(pageTransactions) || (data.next && pageTransactions.length === 0)) {
+                console.error(`Invalid eBay Finance transaction page for order ${orderId} at offset ${offset}`);
+                return { status: 502, message: 'Invalid eBay Finance transaction page' };
+            }
+            for (const transaction of pageTransactions) {
+                if (!transaction.transactionId || !transaction.transactionType) continue;
+                const key = `${transaction.transactionType}:${transaction.transactionId}`;
+                if (transactionKeys.has(key)) {
+                    console.error(`Duplicate eBay Finance transaction for order ${orderId} at offset ${offset}`);
+                    return { status: 502, message: 'Duplicate eBay Finance transaction' };
+                }
+                transactionKeys.add(key);
+            }
+            transactions.push(...pageTransactions);
+            offset += pageTransactions.length;
+            if (data.next && (offset >= 10000 || (typeof data.total === 'number' && offset >= data.total))) {
+                console.error(`Invalid eBay Finance pagination for order ${orderId} at offset ${offset}`);
+                return { status: 502, message: 'Invalid eBay Finance pagination' };
+            }
+        } while (data.next);
 
-        // console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
-
-        if (!refreshResponse.ok) {
-            console.log(`refreshResponse.status: ${JSON.stringify(refreshResponse.status)}`);
-            const data = await refreshResponse.json();
-            console.log(`data: ${JSON.stringify(data)}`);
-
-            return {
-                status: refreshResponse.status,
-                message: JSON.stringify(data)
-            };
+        if (typeof data.total === 'number' && transactions.length < data.total) {
+            console.error(`Incomplete eBay Finance transactions for order ${orderId}: received ${transactions.length} of ${data.total}`);
+            return { status: 502, message: 'Incomplete eBay Finance transactions' };
         }
-
-        const data = await refreshResponse.json();
-
-        // console.log(`getTransactions Callback data: ${JSON.stringify(data)}`);
-
-        return {
-            status: 200,
-            data: data
-        };
+        return { status: 200, data: { ...data, transactions } };
     } catch (error) {
         console.error('Error retrieveAllInventoryItems:', error);
         return {
@@ -1398,6 +1418,11 @@ export async function getMyEbaySellingSold(locals: App.Locals, page: number): Pr
 export async function getMyEbayOrders(locals: App.Locals, page: number): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
     // console.log(`getMyEbayOrders called, using access token: ${locals.ebayAccessToken}`);
 
+    const traceItemId = env.EBAY_ORDER_TRACE_ITEM_ID;
+    if (traceItemId) {
+        console.log(`[eBay order trace] Checking item ${traceItemId} on Sold page ${page}.`);
+    }
+
     const headers = {
         'Content-Type': 'text/xml',
         'Connection': 'Keep-Alive',
@@ -1456,7 +1481,8 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 };
             }
 
-            const orders = jsonData.GetOrdersResponse.OrderArray?.Order;
+            const orders = asArray<any>(jsonData.GetOrdersResponse.OrderArray?.Order);
+            jsonData.GetOrdersResponse.OrderArray.Order = orders;
 
             // console.log('Orders found:', orders?.length);
 
@@ -1497,8 +1523,68 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             // Step 2: Await all promises in parallel
             const transactionResults = await Promise.all(transactionPromises);
 
+            if (traceItemId) {
+                const index = orders.findIndex((order: any) =>
+                    asArray<any>(order.TransactionArray?.Transaction)
+                        .some((transaction: any) => String(transaction.Item?.ItemID) === traceItemId)
+                );
+                if (index === -1) {
+                    console.log(`[eBay order trace] Item ${traceItemId} is not on Sold page ${page}.`);
+                } else {
+                    const order = orders[index];
+                    const itemResult = itemResults[index];
+                    const financeResult = transactionResults[index];
+                    const item = 'data' in itemResult ? itemResult.data?.GetItemResponse?.Item : undefined;
+                    const finance = 'data' in financeResult ? financeResult.data : undefined;
+                    console.log('[eBay order trace]', JSON.stringify({
+                        itemId: traceItemId,
+                        order: {
+                            orderId: order.OrderID,
+                            orderStatus: order.OrderStatus,
+                            returnStatus: order.ReturnStatus,
+                            transactions: asArray<any>(order.TransactionArray?.Transaction)
+                                .filter((transaction: any) => String(transaction.Item?.ItemID) === traceItemId)
+                                .map((transaction: any) => ({
+                                    itemId: transaction.Item?.ItemID,
+                                    transactionId: transaction.TransactionID,
+                                    transactionPrice: transaction.TransactionPrice,
+                                    actualShippingCost: transaction.ActualShippingCost,
+                                    finalValueFee: transaction.FinalValueFee,
+                                    returnStatus: transaction.ReturnStatus
+                                }))
+                        },
+                        item: {
+                            status: itemResult.status,
+                            itemId: item?.ItemID,
+                            returnStatus: item?.ReturnStatus,
+                            startTime: item?.ListingDetails?.StartTime,
+                            endTime: item?.ListingDetails?.EndTime
+                        },
+                        finance: {
+                            status: financeResult.status,
+                            total: finance?.total,
+                            limit: finance?.limit,
+                            offset: finance?.offset,
+                            hasNextPage: Boolean(finance?.next),
+                            transactions: Array.isArray(finance?.transactions)
+                                ? finance.transactions.map((transaction: any) => ({
+                                    transactionId: transaction.transactionId,
+                                    transactionType: transaction.transactionType,
+                                    transactionDate: transaction.transactionDate,
+                                    bookingEntry: transaction.bookingEntry,
+                                    amount: transaction.amount,
+                                    totalFeeAmount: transaction.totalFeeAmount,
+                                    feeType: transaction.feeType,
+                                    orderId: transaction.orderId
+                                }))
+                                : null
+                        }
+                    }));
+                }
+            }
+
             // Step 3: Map results back to orders
-            orders.forEach(async (item: any, index: number) => {
+            orders.forEach((item: any, index: number) => {
                 const itemData = transactionResults[index];
 
                 if ('data' in itemData && itemData.status === 200 && itemData.data?.transactions) {
@@ -1508,20 +1594,16 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                         return transaction.transactionType === "SHIPPING_LABEL";
                     });
 
-                    item.shippingLabelCost = 0;
-                    if (shippingLabel.length > 0) {
-                        item.shippingLabelCost = shippingLabel[0].amount.value;
-                    }
+                    item.shippingLabelCost = shippingLabel.reduce((sum: number, transaction: any) =>
+                        sum + (transaction.bookingEntry === 'CREDIT' ? -1 : 1) * Math.abs(toNumber(transaction.amount?.value)), 0);
 
                     // Find put the add free price
                     const nonSaleCharge = itemData.data?.transactions.filter((transaction: any) => {
                         return transaction.transactionType === "NON_SALE_CHARGE" && transaction.feeType === "AD_FEE";
                     });
 
-                    item.addFeeGeneral = 0;
-                    if (nonSaleCharge.length > 0) {
-                        item.addFeeGeneral = nonSaleCharge[0].amount.value;
-                    }
+                    item.addFeeGeneral = nonSaleCharge.reduce((sum: number, transaction: any) =>
+                        sum + (transaction.bookingEntry === 'CREDIT' ? -1 : 1) * Math.abs(toNumber(transaction.amount?.value)), 0);
 
                     // Find the final value fee
                     const finalValueFee = itemData.data?.transactions.filter((transaction: any) => {
@@ -1530,7 +1612,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
 
                     item.finalValueFee = 0;
                     if (finalValueFee.length > 0) {
-                        item.finalValueFee = finalValueFee[0].totalFeeAmount.value;
+                        item.finalValueFee = finalValueFee[0].totalFeeAmount?.value ?? 0;
                     }
                 }
             });
@@ -1538,18 +1620,38 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
             const userId = locals?.session?.userId || '';
 
             // Gather the metadata for the item and combine it into the returned JSON
-            for (const item of orders) {
+            for (const [index, item] of orders.entries()) {
                 const itemId = getItemIdFromTransaction(item.TransactionArray?.Transaction);
                 if (!itemId) continue;
+                const finance = transactionResults[index];
+                const orderTransactions = asArray<any>(item.TransactionArray?.Transaction);
+                let ledger: TransactionLedger | undefined;
+                if (orderTransactions.length !== 1) {
+                    console.warn(`Skipping eBay Finance ledger for item ${itemId}: order contains multiple line items.`);
+                } else if ('data' in finance && finance.status === 200 && Array.isArray(finance.data?.transactions)) {
+                    ledger = buildTransactionLedger(finance.data.transactions, String(item.OrderID));
+                    if (!ledger) console.warn(`No usable eBay Finance ledger for item ${itemId}.`);
+                } else {
+                    console.error(`Failed to retrieve eBay Finance transactions for item ${itemId}: HTTP ${finance.status}`);
+                }
+
+                if (ledger) {
+                    const status = await updateEbayMetadata(userId, itemId, { transactionLedger: ledger }, true);
+                    if (status !== StatusCodes.OK) {
+                        throw new Error(`Failed to save eBay Finance ledger for item ${itemId}`);
+                    }
+                }
                 const metadata = await getEbayMetadata(userId, itemId);
 
                 if (!metadata.ok) {
-                    // Create empty metadata object
+                    if (metadata.code !== StatusCodes.NotFound) {
+                        throw new Error(`Failed to read eBay metadata for item ${itemId}`);
+                    }
                     item.Metadata = {};
                 }
                 else {
-                    // Must have gotten metadata back so combine the data into the item
                     item.Metadata = metadata.data;
+                    if (!ledger) delete item.Metadata.transactionLedger;
                 }
             };
 
@@ -1560,6 +1662,7 @@ export async function getMyEbayOrders(locals: App.Locals, page: number): Promise
                 data: jsonData
             };
         } else {
+            if (traceItemId) console.error(`[eBay order trace] GetOrders failed with HTTP ${response.status}.`);
             // console.log(`getMyEbayOrders data: ${JSON.stringify(data)}`);
             // console.log(`getMyEbayOrders response.status: ${JSON.stringify(response.status)}`);
 
@@ -1743,7 +1846,9 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     if (!itemId) return;
 
                     // Build transaction ledger from finance data
-                    const transactionLedger = buildTransactionLedger(itemData.data?.transactions, item.OrderID);
+                    const transactionLedger = asArray<any>(item.TransactionArray?.Transaction).length === 1
+                        ? buildTransactionLedger(itemData.data?.transactions, item.OrderID)
+                        : undefined;
 
                     const metaData: MetaDataModel = {
                         shippingLabelCost: sellerShippingLabelCost,

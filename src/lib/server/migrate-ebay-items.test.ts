@@ -3,10 +3,11 @@ import { promisify } from 'node:util';
 import { MongoClient, ObjectId } from 'mongodb';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startTestMongo, stopTestMongo } from '../../test/mongo';
+import { env } from '$env/dynamic/private';
 
 await startTestMongo();
 const database = await import('./DatabaseUtils');
-const { getMyEbayOrdersDates, getMyEbaySellingActive, buildTransactionLedger } = await import('./ebayUtils');
+const { getMyEbayOrders, getMyEbayOrdersDates, getMyEbaySellingActive, buildTransactionLedger } = await import('./ebayUtils');
 const { migrateEbayItems } = await import('./migrate-ebay-items.mjs');
 const client = new MongoClient(process.env.TEST_MONGODB_URI!);
 const execFileAsync = promisify(execFile);
@@ -22,11 +23,61 @@ beforeAll(async () => {
 });
 afterEach(async () => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+	delete env.EBAY_ORDER_TRACE_ITEM_ID;
 	await client.db().dropDatabase();
 });
 afterAll(async () => {
 	await client.close();
 	await stopTestMongo();
+});
+
+describe('sold page order trace', () => {
+	it('logs only the selected item and financial fields when tracing is enabled', async () => {
+		env.EBAY_ORDER_TRACE_ITEM_ID = '147655690984';
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><BuyerUserID>private-buyer</BuyerUserID><ReturnStatus>RETURNED</ReturnStatus><TransactionArray><Transaction><Item><ItemID>147655690984</ItemID></Item><TransactionPrice>42.99</TransactionPrice></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response(
+				'<GetItemResponse><Item><ItemID>147655690984</ItemID><ListingDetails><StartTime>2026-01-02T00:00:00Z</StartTime></ListingDetails></Item></GetItemResponse>'
+			);
+			return Response.json({ total: 1, transactions: [{
+				transactionType: 'REFUND', bookingEntry: 'DEBIT', amount: { value: '42.99', currency: 'USD' },
+				buyer: 'private-buyer'
+			}] });
+		}));
+		const result = await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1);
+		expect(result.status).toBe(200);
+		expect(log).toHaveBeenCalledWith('[eBay order trace] Checking item 147655690984 on Sold page 1.');
+		const traceCall = log.mock.calls.find((args) => args[0] === '[eBay order trace]');
+		expect(traceCall).toBeDefined();
+		const trace = String(traceCall?.[1]);
+		expect(JSON.parse(trace)).toMatchObject({
+			itemId: '147655690984',
+			order: { orderId: 'order-1', returnStatus: 'RETURNED' },
+			finance: { status: 200, total: 1, transactions: [{ transactionType: 'REFUND', bookingEntry: 'DEBIT' }] }
+		});
+		expect(trace).not.toContain('private-buyer');
+		expect(trace).not.toContain('test-token');
+	});
+
+	it('does not log financial details when tracing is disabled', async () => {
+		env.EBAY_ORDER_TRACE_ITEM_ID = '';
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><TransactionArray><Transaction><Item><ItemID>12345</ItemID></Item></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response('<GetItemResponse><Item><ItemID>12345</ItemID></Item></GetItemResponse>');
+			return Response.json({ transactions: [] });
+		}));
+		expect((await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1)).status).toBe(200);
+		expect(log.mock.calls.some((args) => String(args[0]).startsWith('[eBay order trace]'))).toBe(false);
+	});
 });
 
 describe('eBay item migration', () => {
@@ -355,7 +406,8 @@ describe('transaction ledger', () => {
 		expect(ledger?.transactions).toHaveLength(6);
 		expect(ledger?.totalSaleAmount).toBe(42.99);
 		expect(ledger?.totalRefunds).toBe(-42.99);
-		expect(ledger?.totalFees).toBe(-5.17 + 5.17); // Fee credit offsetting FVF
+		expect(ledger?.totalFees).toBe(-5.17);
+		expect(ledger?.totalOtherAmount).toBe(5.17);
 		expect(ledger?.totalShippingLabels).toBe(-6.50 - 7.20); // Both label costs (shipping and return)
 		expect(ledger?.netAmount).toBe(-13.70);
 	});
@@ -431,6 +483,131 @@ describe('transaction ledger', () => {
 	it('returns undefined for empty transaction array', async () => {
 		const ledger = buildTransactionLedger([]);
 		expect(ledger).toBeUndefined();
+	});
+
+	it('persists and returns a refreshed ledger using signed Finance entries', async () => {
+		const itemId = '147655690984';
+		await client.db().collection('ebayitemmetadatas').insertOne({
+			userId, itemId, purchasePrice: 40,
+			sold: { transactionLedger: { netAmount: 999, totalRefunds: 0 } }
+		});
+		const transactions = [
+			{ transactionType: 'CREDIT', bookingEntry: 'CREDIT', amount: { value: '237.95', currency: 'USD' } },
+			{ transactionType: 'NON_SALE_CHARGE', bookingEntry: 'CREDIT', feeType: 'AD_FEE', amount: { value: '10.28', currency: 'USD' } },
+			{ transactionType: 'REFUND', bookingEntry: 'DEBIT', amount: { value: '205.30', currency: 'USD' }, totalFeeAmount: { value: '32.65', currency: 'USD' } },
+			{ transactionType: 'DISPUTE', bookingEntry: 'DEBIT', amount: { value: '237.95', currency: 'USD' } },
+			{ transactionType: 'SHIPPING_LABEL', bookingEntry: 'DEBIT', amount: { value: '10.56', currency: 'USD' } },
+			{ transactionType: 'NON_SALE_CHARGE', bookingEntry: 'DEBIT', feeType: 'AD_FEE', amount: { value: '10.28', currency: 'USD' } },
+			{ transactionType: 'SALE', bookingEntry: 'CREDIT', amount: { value: '204.90', currency: 'USD' }, totalFeeAmount: { value: '33.05', currency: 'USD' } }
+		];
+		vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				`<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><TransactionArray><Transaction><Item><ItemID>${itemId}</ItemID></Item><TransactionPrice>225</TransactionPrice></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>`
+			);
+			if (name === 'GetItem') return new Response('<GetItemResponse><Item><ItemID>147655690984</ItemID></Item></GetItemResponse>');
+			return Response.json({ total: transactions.length, transactions });
+		}));
+		env.EBAY_ORDER_TRACE_ITEM_ID = '';
+		const response = await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1);
+		expect(response.status).toBe(200);
+		if (!('data' in response)) throw new Error('Expected orders');
+		const metadata = response.data.GetOrdersResponse.OrderArray.Order[0].Metadata;
+		expect(response.data.GetOrdersResponse.OrderArray.Order[0].addFeeGeneral).toBe(0);
+		expect(metadata).toMatchObject({
+			purchasePrice: 40,
+			transactionLedger: {
+				calculationVersion: 2, totalRefunds: -205.3, totalShippingLabels: -10.56,
+				totalFees: 0, totalOtherAmount: 0, netAmount: -10.96
+			}
+		});
+		expect(metadata.transactionLedger.transactions).toHaveLength(7);
+		expect(await database.getEbayMetadata(userId, itemId)).toMatchObject({
+			ok: true, data: { transactionLedger: { netAmount: -10.96 } }
+		});
+		expect(await client.db().collection('ebayitemmetadatas').findOne({ userId, itemId })).toMatchObject({
+			purchasePrice: 40, sold: { transactionLedger: { netAmount: -10.96, totalRefunds: -205.3 } }
+		});
+	});
+
+	it('fetches all Finance pages before saving an order ledger', async () => {
+		vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-2</OrderID><TransactionArray><Transaction><Item><ItemID>12345</ItemID></Item></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response('<GetItemResponse><Item><ItemID>12345</ItemID></Item></GetItemResponse>');
+			if (new URL(url, 'https://example.test/').searchParams.get('offset') === '2') return Response.json({
+				total: 3, transactions: [{ transactionType: 'REFUND', bookingEntry: 'DEBIT', amount: { value: '5.00' } }]
+			});
+			return Response.json({ total: 3, next: 'next-page', transactions: [
+				{ transactionType: 'SALE', bookingEntry: 'CREDIT', amount: { value: '20.00' } },
+				{ transactionType: 'SHIPPING_LABEL', bookingEntry: 'DEBIT', amount: { value: '2.00' } }
+			] });
+		}));
+		env.EBAY_ORDER_TRACE_ITEM_ID = '';
+		expect((await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1)).status).toBe(200);
+		expect(await database.getEbayMetadata(userId, '12345')).toMatchObject({
+			ok: true, data: { transactionLedger: { netAmount: 13, totalRefunds: -5 } }
+		});
+	});
+
+	it('does not expose a legacy ledger with unverified calculations', async () => {
+		await client.db().collection('ebayitemmetadatas').insertOne({
+			userId, itemId: 'legacy', sold: { transactionLedger: { netAmount: 100 } }
+		});
+		const metadata = await database.getEbayMetadata(userId, 'legacy');
+		expect(metadata.ok && metadata.data.transactionLedger).toBeUndefined();
+	});
+
+	it('does not overwrite or display a stale ledger if a Finance page fails', async () => {
+		const ledger = { calculationVersion: 2, transactions: [], netAmount: 10 };
+		await client.db().collection('ebayitemmetadatas').insertOne({
+			userId, itemId: '12345', sold: { transactionLedger: ledger }
+		});
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><TransactionArray><Transaction><Item><ItemID>12345</ItemID></Item></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response('<GetItemResponse><Item><ItemID>12345</ItemID></Item></GetItemResponse>');
+			if (new URL(url, 'https://example.test/').searchParams.has('offset')) {
+				return Response.json({ error: 'unavailable' }, { status: 503 });
+			}
+			return Response.json({
+				total: 2, next: 'next-page',
+				transactions: [{ transactionType: 'SALE', bookingEntry: 'CREDIT', amount: { value: '20' } }]
+			});
+		}));
+		env.EBAY_ORDER_TRACE_ITEM_ID = '';
+		const result = await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1);
+		if (!('data' in result)) throw new Error('Expected orders');
+		expect(result.data.GetOrdersResponse.OrderArray.Order[0].Metadata.transactionLedger).toBeUndefined();
+		expect(await client.db().collection('ebayitemmetadatas').findOne({ userId, itemId: '12345' }))
+			.toMatchObject({ sold: { transactionLedger: ledger } });
+	});
+
+	it('does not assign an order-level ledger to a multi-item order', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><TransactionArray><Transaction><Item><ItemID>12345</ItemID></Item></Transaction><Transaction><Item><ItemID>67890</ItemID></Item></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response('<GetItemResponse><Item><ItemID>12345</ItemID></Item></GetItemResponse>');
+			return Response.json({ transactions: [{ transactionType: 'SALE', bookingEntry: 'CREDIT', amount: { value: '20' } }] });
+		}));
+		env.EBAY_ORDER_TRACE_ITEM_ID = '';
+		const result = await getMyEbayOrders({ ebayAccessToken: 'test-token', session: { userId } } as App.Locals, 1);
+		expect(result.status).toBe(200);
+		expect(await client.db().collection('ebayitemmetadatas').countDocuments({ userId })).toBe(0);
+	});
+
+	it('rejects transactions without a valid booking entry or with non-USD currency', () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		expect(buildTransactionLedger([{ transactionType: 'REFUND', amount: { value: '5' } }])).toBeUndefined();
+		expect(buildTransactionLedger([{ transactionType: 'SALE', bookingEntry: 'CREDIT', amount: { value: '5', currency: 'EUR' } }])).toBeUndefined();
 	});
 
 	it('embeds transaction ledger in order metadata', async () => {

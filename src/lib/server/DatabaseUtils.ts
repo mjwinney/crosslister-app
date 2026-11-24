@@ -47,21 +47,26 @@ export enum StatusCodes {
 
 export interface TransactionRecord {
     orderId?: string;
+    transactionId?: string;
     transactionType: string;
     transactionDate: Date;
     description: string;
     amount: number;
     bookingEntry: string;
     feeType?: string;
+    currency?: string;
+    totalFeeAmount?: number;
 }
 
 export interface TransactionLedger {
+    calculationVersion?: number;
     transactions: TransactionRecord[];
     totalSaleAmount?: number;
     totalRefunds?: number;
     totalFees?: number;
     totalShippingLabels?: number;
     totalBuyerShipping?: number;
+    totalOtherAmount?: number;
     netAmount?: number;
 }
 
@@ -681,6 +686,8 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         shippingLabelCost: metaData.sold?.shippingLabelCost ?? metaData.shippingLabelCost ?? undefined,
         addFeeGeneral: metaData.sold?.addFeeGeneral ?? metaData.addFeeGeneral ?? undefined,
         finalShippingCost: metaData.sold?.finalShippingCost ?? metaData.finalShippingCost ?? undefined,
+        transactionLedger: metaData.sold?.transactionLedger?.calculationVersion === 2
+            ? metaData.sold.transactionLedger : undefined,
         originalListedAt: metaData?.originalListedAt || undefined,
         currentListedAt: metaData?.currentListedAt || undefined,
         relistEnabled: metaData.relistEnabled === undefined ? false : metaData.relistEnabled ?? undefined,

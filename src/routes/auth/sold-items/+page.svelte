@@ -311,7 +311,7 @@
 											{/if}
 										</td>
 									</tr>
-									<tr><td>Fee:</td><td class="auth-negative">${formatCurrency(order.finalValueFee)}</td></tr>
+									<tr><td>Sale fee (before refunds):</td><td class="auth-negative">${formatCurrency(order.finalValueFee)}</td></tr>
 									<tr>
 										<td>Shipping:</td>
 										<td class={calculateShipping(order, transaction) >= 0 ? 'auth-positive' : 'auth-negative'}>
@@ -319,20 +319,42 @@
 										</td>
 									</tr>
 									<tr>
-										<td>Promo Fee:</td>
+										<td>Promo fee (net):</td>
 										<td class={order.addFeeGeneral > 0 ? 'auth-negative' : 'auth-muted'}>{order.addFeeGeneral > 0 ? `$${formatCurrency(order.addFeeGeneral)}` : '---'}</td>
 									</tr>
 								</tbody>
 							</table>
 							<table class="auth-table auth-table-compact">
 								<tbody>
-									<tr><td>Profit:</td><td class="auth-positive">${calculateProfit(order, transaction)}</td></tr>
-									<tr><td>ROI:</td><td class="auth-positive">{calculateROI(order, transaction)}</td></tr>
+									<tr>
+										<td>Profit:</td>
+										<td class={Number(calculateProfit(order, transaction)) >= 0 ? 'auth-positive' : 'auth-negative'}>
+											${calculateProfit(order, transaction)}
+										</td>
+									</tr>
+									<tr>
+										<td>ROI:</td>
+										<td class={parseFloat(calculateROI(order, transaction)) >= 0 ? 'auth-positive' : 'auth-negative'}>
+											{calculateROI(order, transaction)}
+										</td>
+									</tr>
 									<tr><td>Time To Sell:</td><td>{getDayDifference(order.StartTime, order.EndTime)}</td></tr>
 									{#if hasReturn(order)}
-										<tr class="return-row" role="button" tabindex="0" onclick={() => { const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? ''); expandedReturns[itemId] = !expandedReturns[itemId]; }} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? ''); expandedReturns[itemId] = !expandedReturns[itemId]; } }}>
-											<td class="return-indicator">Return ↓</td>
-											<td class="auth-negative">${getReturnAmount(order)}</td>
+										<tr class="return-row">
+											<td colspan="2">
+												<button
+													type="button"
+													class="return-toggle"
+													aria-expanded={!!expandedReturns[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}
+													onclick={() => {
+														const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? '');
+														expandedReturns[itemId] = !expandedReturns[itemId];
+													}}
+												>
+													<span class="return-indicator">Return ↓</span>
+													<span class="auth-negative">${getReturnAmount(order)}</span>
+												</button>
+											</td>
 										</tr>
 									{/if}
 								</tbody>
@@ -347,15 +369,9 @@
 								<table class="auth-table auth-table-compact">
 									<tbody>
 										<tr>
-											<td>Refund Amount:</td>
+											<td>Refund transaction:</td>
 											<td class="auth-negative">${getReturnAmount(order)}</td>
 										</tr>
-										{#if order.Metadata?.transactionLedger?.totalShippingLabels}
-											<tr>
-												<td>Return Label Cost:</td>
-												<td class="auth-negative">${formatCurrency(Math.abs(order.Metadata.transactionLedger.totalShippingLabels).toString())}</td>
-											</tr>
-										{/if}
 										{#if order.Metadata?.transactionLedger?.transactions}
 											<tr>
 												<td colspan="2"><strong>All Transactions:</strong></td>
@@ -370,7 +386,7 @@
 											{/each}
 										{/if}
 										<tr class="summary-row">
-											<td><strong>Net Impact:</strong></td>
+											<td><strong>Order net before purchase cost:</strong></td>
 											<td class={order.Metadata?.transactionLedger?.netAmount >= 0 ? 'auth-positive' : 'auth-negative'}>
 												<strong>${formatCurrency(order.Metadata?.transactionLedger?.netAmount?.toString() ?? '0')}</strong>
 											</td>
@@ -426,13 +442,29 @@
 	.item-row:hover .sold-details .auth-table tbody tr { background: var(--auth-surface-hover); }
 
 	.return-row {
-		cursor: pointer;
 		background-color: rgba(255, 193, 7, 0.1);
 		font-weight: 600;
 		user-select: none;
 	}
 	.return-row:hover {
 		background-color: rgba(255, 193, 7, 0.2);
+	}
+	.return-toggle {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.return-toggle:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: 2px;
 	}
 	.return-indicator {
 		color: #f59e0b;

@@ -1,5 +1,31 @@
 # Transaction Ledger Implementation
 
+> **Known limitations:** The Sold page refreshes ledgers only for single-line-item orders.
+> The ledger sums signed Finance transaction amounts, which can include fees and shipping
+> already; its net amount is before purchase cost. Reports and dashboard calculations do not
+> yet use the ledger, and other Finance response formats have not been verified. Earlier claims
+> in this document that the implementation is complete or production-ready are inaccurate.
+
+For the investigated order, eBay's sale and refund transaction amounts are net amounts.
+Their `totalFeeAmount` values are recorded for context, not added or subtracted again.
+The refund transaction amount is therefore not necessarily the buyer's gross refund.
+
+## Debugging a sold item
+
+To trace an item, set `EBAY_ORDER_TRACE_ITEM_ID` in the server environment and restart the app.
+For local PowerShell, run:
+
+```powershell
+$env:EBAY_ORDER_TRACE_ITEM_ID = '147655690984'
+npm run dev
+```
+
+Open the Sold page containing that item and check the **server terminal**, not the browser
+console, for `[eBay order trace]`. The opt-in trace contains selected order, item and Finance
+fields, including transaction types, booking entries, amounts and pagination information.
+It omits buyer details and tokens, but still contains financial information: handle the output
+privately. Unset the variable and restart the app to disable the trace.
+
 ## Quick Summary
 
 The app now tracks all eBay financial transactions in a comprehensive ledger that accurately calculates profit/loss including refunds and fee credits.
