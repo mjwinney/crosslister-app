@@ -1,4 +1,4 @@
-// Shared by the reports page and the PDF route; keep free of server-only imports.
+// Shared by reporting pages, dashboard stats, and PDF routes; keep free of server-only imports.
 
 export type ReportPeriod = 'ytd' | 'lastYear';
 export type ReportSortOrder = 'oldest' | 'latest';
@@ -41,6 +41,13 @@ export type ReportTotals = {
 
 const round2 = (value: number) => Math.round(value * 100) / 100 || 0;
 
+export type DashboardDateRanges = {
+    currentWeek: { from: Date; to: Date };
+    previousWeek: { from: Date; to: Date };
+    previousMonth: { from: Date; to: Date };
+    last6Months: { from: Date; to: Date };
+};
+
 export function parseReportPeriod(value: string | null | undefined): ReportPeriod {
     return value === 'lastYear' ? 'lastYear' : 'ytd';
 }
@@ -62,11 +69,55 @@ function zoneOffsetMs(instant: Date, timeZone: string): number {
     return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
-// UTC instant of local midnight on January 1 in timeZone; two passes handle DST at the boundary.
-export function startOfYearInZone(year: number, timeZone: string): Date {
-    const naive = Date.UTC(year, 0, 1);
+function startOfDateInZone(year: number, month: number, day: number, timeZone: string): Date {
+    const naive = Date.UTC(year, month - 1, day);
     const first = naive - zoneOffsetMs(new Date(naive), timeZone);
     return new Date(naive - zoneOffsetMs(new Date(first), timeZone));
+}
+
+// UTC instant of local midnight on January 1 in timeZone; two passes handle DST at the boundary.
+export function startOfYearInZone(year: number, timeZone: string): Date {
+    return startOfDateInZone(year, 1, 1, timeZone);
+}
+
+export function getDashboardDateRanges(now: Date, timeZone: string): DashboardDateRanges {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+    }).formatToParts(now);
+    const getPart = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    const mondayOffset = (weekday + 6) % 7;
+    const currentMonday = new Date(Date.UTC(year, month - 1, day - mondayOffset));
+    const previousMonday = new Date(currentMonday.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const currentWeekStart = startOfDateInZone(
+        currentMonday.getUTCFullYear(),
+        currentMonday.getUTCMonth() + 1,
+        currentMonday.getUTCDate(),
+        timeZone
+    );
+    const previousWeekStart = startOfDateInZone(
+        previousMonday.getUTCFullYear(),
+        previousMonday.getUTCMonth() + 1,
+        previousMonday.getUTCDate(),
+        timeZone
+    );
+    const currentMonthStart = startOfDateInZone(year, month, 1, timeZone);
+    const previousMonthStart = startOfDateInZone(year, month - 1, 1, timeZone);
+    const sixMonthsAgoStart = startOfDateInZone(year, month - 6, 1, timeZone);
+
+    return {
+        currentWeek: { from: currentWeekStart, to: now },
+        previousWeek: { from: previousWeekStart, to: new Date(currentWeekStart.getTime() - 1) },
+        previousMonth: { from: previousMonthStart, to: new Date(currentMonthStart.getTime() - 1) },
+        last6Months: { from: sixMonthsAgoStart, to: new Date(currentMonthStart.getTime() - 1) }
+    };
 }
 
 export function getReportRange(

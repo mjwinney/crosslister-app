@@ -1,7 +1,28 @@
 // src/lib/reports.test.ts
 import { describe, expect, it } from 'vitest';
-import { getReportRange, sortReportLines, startOfYearInZone, type ReportLine } from './reports';
+import { getDashboardDateRanges, getReportRange, sortReportLines, startOfYearInZone, type ReportLine } from './reports';
 import { isValidTimezone, resolveTimezone } from './timezones';
+
+describe('getDashboardDateRanges', () => {
+    it('includes all of Sunday in the previous week across a daylight-saving transition', () => {
+        const now = new Date('2025-03-10T12:00:00.000Z');
+        const ranges = getDashboardDateRanges(now, 'America/Chicago');
+
+        expect(ranges.previousWeek.from.toISOString()).toBe('2025-03-03T06:00:00.000Z');
+        expect(ranges.previousWeek.to.toISOString()).toBe('2025-03-10T04:59:59.999Z');
+        expect(ranges.currentWeek.from.toISOString()).toBe('2025-03-10T05:00:00.000Z');
+        expect(ranges.currentWeek.to).toEqual(now);
+    });
+
+    it('uses the user timezone for previous-month and six-month boundaries', () => {
+        const ranges = getDashboardDateRanges(new Date('2025-04-15T12:00:00.000Z'), 'America/Chicago');
+
+        expect(ranges.previousMonth.from.toISOString()).toBe('2025-03-01T06:00:00.000Z');
+        expect(ranges.previousMonth.to.toISOString()).toBe('2025-04-01T04:59:59.999Z');
+        expect(ranges.last6Months.from.toISOString()).toBe('2024-10-01T05:00:00.000Z');
+        expect(ranges.last6Months.to).toEqual(ranges.previousMonth.to);
+    });
+});
 
 describe('startOfYearInZone', () => {
     it('returns local midnight Jan 1 for Chicago (UTC-6 in winter)', () => {

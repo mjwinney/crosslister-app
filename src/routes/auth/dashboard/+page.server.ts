@@ -1,5 +1,6 @@
 import { getCurrentWeekStats, getLast6MonthStats, getPreviousMonthStats, getPreviousWeekStats, getSold, StatusCodes, updateEbayToken, updateSold } from '$lib/server/DatabaseUtils';
 import { backfillItemTitles, getMyEbayItem, getMyEbayOrdersDates, getUser } from '$lib/server/ebayUtils';
+import { resolveTimezone } from '$lib/timezones';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -47,10 +48,11 @@ export const load: PageServerLoad = async ({ depends, request, locals }) => {
     // Fill blank titles for older sales (GetOrders only reaches back 90 days)
     await backfillItemTitles(locals, userId, new Date(toDate.getTime() - (365 * 24 * 60 * 60 * 1000)), toDate);
 
-    const weekStatsResult = await getCurrentWeekStats(userId);
-    const previousWeekStatsResult = await getPreviousWeekStats(userId);
-    const previousMonthStatsResult = await getPreviousMonthStats(userId);
-    const last6MonthStatsResult = await getLast6MonthStats(userId);
+    const timeZone = resolveTimezone(locals.user?.timezone);
+    const weekStatsResult = await getCurrentWeekStats(userId, timeZone, toDate);
+    const previousWeekStatsResult = await getPreviousWeekStats(userId, timeZone, toDate);
+    const previousMonthStatsResult = await getPreviousMonthStats(userId, timeZone, toDate);
+    const last6MonthStatsResult = await getLast6MonthStats(userId, timeZone, toDate);
 
     const emptySummary = {
         itemCount: 0,

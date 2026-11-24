@@ -5,9 +5,9 @@ import { EbayToken } from './models/ebay-token';
 import { EbayItemMetadata } from './models/ebay-item-metadata';
 import { EbaySold } from './models/ebay-sold';
 import { EbayReportSync } from './models/ebay-report-sync';
-import { getEndOfMonthUTC, getEndOfWeekUTC, getNowUTCDate, getStartOfMonthUTC, getStartOfWeekUTC } from './dateUtils';
 import { PoshmarkItemMetadata } from './models/poshmark-item-metadata';
 import { getRelistAt } from '$lib/relistSchedule';
+import { getDashboardDateRanges } from '$lib/reports';
 
 let cachedDb: mongoose.Connection | null = null; // Cache for the database connection
 
@@ -937,7 +937,7 @@ export async function getPoshmarkDaysInPastToScrape(userId: string): Promise<{ o
     return { ok: true, code: StatusCodes.OK, days: Math.min(Math.max(diffDays, 0), 90) };
 }
 
-export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSummaryResult>
+export async function getCurrentWeekStats(userId: string, timeZone: string, now = new Date()) : Promise<MetaDataSummaryResult>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -948,15 +948,11 @@ export async function getCurrentWeekStats(userId: string) : Promise<MetaDataSumm
     }
     
     // Go through the metadata for the current week
-    const now = getNowUTCDate();
-    const startOfWeek = getStartOfWeekUTC(); // Monday at 12:00:01 AM
-
-    console.log(`getCurrentWeekStats: startOfWeek:${startOfWeek} now:${now}`);
-
-    return await getEbayMetadataByDate(userId, startOfWeek, now);
+    const range = getDashboardDateRanges(now, timeZone).currentWeek;
+    return await getEbayMetadataByDate(userId, range.from, range.to);
 }
 
-export async function getPreviousWeekStats(userId: string) : Promise<MetaDataSummaryResult>
+export async function getPreviousWeekStats(userId: string, timeZone: string, now = new Date()) : Promise<MetaDataSummaryResult>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -966,16 +962,11 @@ export async function getPreviousWeekStats(userId: string) : Promise<MetaDataSum
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    // Go back to the previous week
-    const startOfWeek = getStartOfWeekUTC(1); // Monday at 12:00:01 AM
-    const endOfWeek = getEndOfWeekUTC(1);     // Sunday at 11:59:59 PM
-
-    console.log(`getPreviousWeekStats: startOfWeek:${startOfWeek} endOfWeek:${endOfWeek}`);
-
-    return await getEbayMetadataByDate(userId, startOfWeek, endOfWeek);
+    const range = getDashboardDateRanges(now, timeZone).previousWeek;
+    return await getEbayMetadataByDate(userId, range.from, range.to);
 }
 
-export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSummaryResult>
+export async function getPreviousMonthStats(userId: string, timeZone: string, now = new Date()) : Promise<MetaDataSummaryResult>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -985,16 +976,11 @@ export async function getPreviousMonthStats(userId: string) : Promise<MetaDataSu
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    // Go back to the previous week
-    const startOfMonth = getStartOfMonthUTC(1); // 1st day of the previous month
-    const endOfMonth = getEndOfMonthUTC(1);     // Last day of the previous month
-
-    console.log(`getPreviousMonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
-    
-    return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
+    const range = getDashboardDateRanges(now, timeZone).previousMonth;
+    return await getEbayMetadataByDate(userId, range.from, range.to);
 }
 
-export async function getLast6MonthStats(userId: string) : Promise<MetaDataSummaryResult>
+export async function getLast6MonthStats(userId: string, timeZone: string, now = new Date()) : Promise<MetaDataSummaryResult>
 {
     // Ensure the database connection is established
     await connectToDatabase();
@@ -1004,12 +990,7 @@ export async function getLast6MonthStats(userId: string) : Promise<MetaDataSumma
         return { ok: false, code: StatusCodes.NoDatabaseConnection };
     }
 
-    // Go back to the previous week
-    const startOfMonth = getStartOfMonthUTC(6); // 1st day of the previous month
-    const endOfMonth = getEndOfMonthUTC(1);     // Last day of the previous month
-
-    console.log(`getLast6MonthStats: startOfMonth:${startOfMonth} endOfMonth:${endOfMonth}`);
-    
-    return await getEbayMetadataByDate(userId, startOfMonth, endOfMonth);
+    const range = getDashboardDateRanges(now, timeZone).last6Months;
+    return await getEbayMetadataByDate(userId, range.from, range.to);
 }
 
