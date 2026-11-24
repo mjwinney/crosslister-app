@@ -738,7 +738,8 @@ export type EbayReportRow = {
     purchasePrice?: number,
     feePrice: number,
     addFeeGeneral: number,
-    finalShippingCost: number
+    finalShippingCost: number,
+    transactionLedger?: TransactionLedger
 }
 
 type EbayReportRowsResult =
@@ -770,7 +771,8 @@ export async function getEbaySoldItemsForReport(userId: string, fromDate: Date, 
             purchasePrice: 1,
             feePrice: { $ifNull: ['$sold.feePrice', { $ifNull: ['$feePrice', 0] }] },
             addFeeGeneral: { $ifNull: ['$sold.addFeeGeneral', { $ifNull: ['$addFeeGeneral', 0] }] },
-            finalShippingCost: { $ifNull: ['$sold.finalShippingCost', { $ifNull: ['$finalShippingCost', 0] }] }
+            finalShippingCost: { $ifNull: ['$sold.finalShippingCost', { $ifNull: ['$finalShippingCost', 0] }] },
+            transactionLedger: { $ifNull: ['$sold.transactionLedger', null] }
         } }
     ]).toArray();
 

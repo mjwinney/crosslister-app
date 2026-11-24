@@ -17,6 +17,10 @@ export type ReportRow = {
     feePrice: number;
     addFeeGeneral: number;
     finalShippingCost: number;
+    transactionLedger?: {
+        netAmount?: number;
+        totalRefunds?: number;
+    };
 };
 
 export type ReportLine = {

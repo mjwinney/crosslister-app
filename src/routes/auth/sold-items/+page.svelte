@@ -111,6 +111,15 @@
 	}
 
 	function calculateProfit(order: any, transaction?: any): string {
+		// Use transaction ledger if available (includes refunds and fee credits)
+		if (order.Metadata?.transactionLedger?.netAmount !== undefined) {
+			const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
+			const ledgerNet = order.Metadata.transactionLedger.netAmount;
+			const profit = ledgerNet - purchase;
+			return `${formatCurrency(profit.toString())}`;
+		}
+
+		// Fallback to old calculation if ledger not available
 		const soldRaw = transaction?.TransactionPrice ?? (Array.isArray(order?.TransactionArray?.Transaction) ? order.TransactionArray.Transaction[0]?.TransactionPrice : order.TransactionArray.Transaction?.TransactionPrice);
 		const sold = parseFloat(soldRaw || '0');
 		const fee = parseFloat(order.finalValueFee || '0');
@@ -149,9 +158,20 @@
 
 	function calculateROI(order: any, transaction?: any): string {
 		const profit = calculateProfit(order, transaction);
-		const purchase = parseFloat(order.Metadata.purchasePrice ? order.Metadata.purchasePrice : '0');
+		const purchase = parseFloat(order.Metadata?.purchasePrice ? order.Metadata.purchasePrice : '0');
+		if (purchase === 0) return '0.00%';
 		const roi = (Number(profit) / purchase) * 100;
 		return roi.toFixed(2) + '%';
+	}
+
+	function hasReturn(order: any): boolean {
+		return order.Metadata?.transactionLedger?.totalRefunds !== undefined && 
+		       order.Metadata.transactionLedger.totalRefunds !== 0;
+	}
+
+	function getReturnAmount(order: any): string {
+		if (!hasReturn(order)) return '0.00';
+		return formatCurrency(Math.abs(order.Metadata.transactionLedger.totalRefunds).toString());
 	}
 
 	function parseISODate(isoString: string): Date {
@@ -217,6 +237,7 @@
 	
 	let purchasePriceErrors = $state<Record<string, string>>({});
 	let purchasePriceSaving = $state<Record<string, boolean>>({});
+	let expandedReturns = $state<Record<string, boolean>>({});
 </script>
 
 <!-- full-screen busy overlay shown during client-side navigation to active-items -->
@@ -308,10 +329,57 @@
 									<tr><td>Profit:</td><td class="auth-positive">${calculateProfit(order, transaction)}</td></tr>
 									<tr><td>ROI:</td><td class="auth-positive">{calculateROI(order, transaction)}</td></tr>
 									<tr><td>Time To Sell:</td><td>{getDayDifference(order.StartTime, order.EndTime)}</td></tr>
+									{#if hasReturn(order)}
+										<tr class="return-row" role="button" tabindex="0" onclick={() => { const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? ''); expandedReturns[itemId] = !expandedReturns[itemId]; }} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { const itemId = String(transactionsOf(order)[0]?.Item?.ItemID ?? ''); expandedReturns[itemId] = !expandedReturns[itemId]; } }}>
+											<td class="return-indicator">Return ↓</td>
+											<td class="auth-negative">${getReturnAmount(order)}</td>
+										</tr>
+									{/if}
 								</tbody>
 							</table>
 						</div>
 					</div>
+					{#if hasReturn(order) && expandedReturns[String(transactionsOf(order)[0]?.Item?.ItemID ?? '')]}
+						<div class="return-details flex border-b p-2">
+							<div style="flex: 0 0 124px;"></div>
+							<div class="flex-1">
+								<h4 class="mb-2">Return Details</h4>
+								<table class="auth-table auth-table-compact">
+									<tbody>
+										<tr>
+											<td>Refund Amount:</td>
+											<td class="auth-negative">${getReturnAmount(order)}</td>
+										</tr>
+										{#if order.Metadata?.transactionLedger?.totalShippingLabels}
+											<tr>
+												<td>Return Label Cost:</td>
+												<td class="auth-negative">${formatCurrency(Math.abs(order.Metadata.transactionLedger.totalShippingLabels).toString())}</td>
+											</tr>
+										{/if}
+										{#if order.Metadata?.transactionLedger?.transactions}
+											<tr>
+												<td colspan="2"><strong>All Transactions:</strong></td>
+											</tr>
+											{#each order.Metadata.transactionLedger.transactions as txn}
+												<tr class="detail-row">
+													<td>{txn.description || txn.transactionType}</td>
+													<td class={txn.amount >= 0 ? 'auth-positive' : 'auth-negative'}>
+														{txn.amount >= 0 ? '+' : ''} ${formatCurrency(txn.amount.toString())}
+													</td>
+												</tr>
+											{/each}
+										{/if}
+										<tr class="summary-row">
+											<td><strong>Net Impact:</strong></td>
+											<td class={order.Metadata?.transactionLedger?.netAmount >= 0 ? 'auth-positive' : 'auth-negative'}>
+												<strong>${formatCurrency(order.Metadata?.transactionLedger?.netAmount?.toString() ?? '0')}</strong>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					{/if}
 				{/each}
 			{/each}
 		</div>
@@ -356,6 +424,43 @@
 	.purchase-price-input { width: 7rem; max-width: 100%; }
 	.sold-details .auth-table tbody tr { transition: background-color 180ms ease; }
 	.item-row:hover .sold-details .auth-table tbody tr { background: var(--auth-surface-hover); }
+
+	.return-row {
+		cursor: pointer;
+		background-color: rgba(255, 193, 7, 0.1);
+		font-weight: 600;
+		user-select: none;
+	}
+	.return-row:hover {
+		background-color: rgba(255, 193, 7, 0.2);
+	}
+	.return-indicator {
+		color: #f59e0b;
+		font-weight: 600;
+	}
+
+	.return-details {
+		background-color: rgba(255, 193, 7, 0.05);
+		gap: 1rem;
+		flex-wrap: nowrap;
+	}
+	.return-details h4 {
+		color: #f59e0b;
+		font-size: 1rem;
+		margin: 0 0 1rem 0;
+	}
+	.return-details .auth-table {
+		width: 100%;
+		max-width: 500px;
+	}
+	.return-details .detail-row {
+		font-size: 0.9rem;
+		opacity: 0.9;
+	}
+	.return-details .summary-row {
+		border-top: 2px solid rgba(255, 193, 7, 0.3);
+		font-size: 1rem;
+	}
 
 	@media (max-width: 900px) {
 		.items-container { max-height: none; }
