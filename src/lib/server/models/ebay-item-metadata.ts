@@ -15,7 +15,26 @@ const EbayItemMetadataSchema = new mongoose.Schema({
         feePrice: Number,
         shippingLabelCost: Number,
         addFeeGeneral: Number,
-        finalShippingCost: Number
+        finalShippingCost: Number,
+        transactionLedger: {
+            transactions: [
+                {
+                    orderId: String,
+                    transactionType: String,
+                    transactionDate: Date,
+                    description: String,
+                    amount: Number,
+                    bookingEntry: String,
+                    feeType: String
+                }
+            ],
+            totalSaleAmount: Number,
+            totalRefunds: Number,
+            totalFees: Number,
+            totalShippingLabels: Number,
+            totalBuyerShipping: Number,
+            netAmount: Number
+        }
     },
     // Legacy fields are read until each user's records have been migrated.
     title: { type: String, required: false },

@@ -6,7 +6,7 @@ import { startTestMongo, stopTestMongo } from '../../test/mongo';
 
 await startTestMongo();
 const database = await import('./DatabaseUtils');
-const { getMyEbayOrdersDates, getMyEbaySellingActive } = await import('./ebayUtils');
+const { getMyEbayOrdersDates, getMyEbaySellingActive, buildTransactionLedger } = await import('./ebayUtils');
 const { migrateEbayItems } = await import('./migrate-ebay-items.mjs');
 const client = new MongoClient(process.env.TEST_MONGODB_URI!);
 const execFileAsync = promisify(execFile);
@@ -277,5 +277,198 @@ describe('embedded eBay data', () => {
 			ok: true,
 			data: { relistEnabled: false, relistDiscountEnabled: false, relistDiscountPercent: 5, relistDiscountMaxPercent: 20 }
 		});
+	});
+});
+
+describe('transaction ledger', () => {
+	it('builds a ledger from a simple sale with fees', async () => {
+		const transactions = [
+			{
+				transactionType: 'SALE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '50.00' },
+				bookingEntry: 'CREDIT'
+			},
+			{
+				transactionType: 'NON_SALE_CHARGE',
+				feeType: 'FINAL_VALUE_FEE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-5.00' },
+				bookingEntry: 'DEBIT'
+			}
+		];
+		const orderId = '12-34567-89101';
+		const ledger = buildTransactionLedger(transactions, orderId);
+
+		expect(ledger).toBeDefined();
+		expect(ledger?.transactions).toHaveLength(2);
+		expect(ledger?.totalSaleAmount).toBe(50.00);
+		expect(ledger?.totalFees).toBe(-5.00);
+		expect(ledger?.netAmount).toBe(45.00);
+	});
+
+	it('builds a ledger from a refunded order', async () => {
+		const transactions = [
+			{
+				transactionType: 'SALE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '42.99' },
+				bookingEntry: 'CREDIT'
+			},
+			{
+				transactionType: 'NON_SALE_CHARGE',
+				feeType: 'FINAL_VALUE_FEE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-5.17' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'SHIPPING_LABEL',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-6.50' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'REFUND',
+				transactionDate: '2026-02-10T00:00:00Z',
+				amount: { value: '-42.99' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'NON_SALE_CHARGE',
+				feeType: 'RETURN_LABEL_CHARGE',
+				transactionDate: '2026-02-10T00:00:00Z',
+				amount: { value: '-7.20' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'CREDIT',
+				transactionDate: '2026-02-10T00:00:00Z',
+				amount: { value: '5.17' },
+				bookingEntry: 'CREDIT'
+			}
+		];
+		const orderId = '12-34567-89101';
+		const ledger = buildTransactionLedger(transactions, orderId);
+
+		expect(ledger).toBeDefined();
+		expect(ledger?.transactions).toHaveLength(6);
+		expect(ledger?.totalSaleAmount).toBe(42.99);
+		expect(ledger?.totalRefunds).toBe(-42.99);
+		expect(ledger?.totalFees).toBe(-5.17 + 5.17); // Fee credit offsetting FVF
+		expect(ledger?.totalShippingLabels).toBe(-6.50 - 7.20); // Both label costs (shipping and return)
+		expect(ledger?.netAmount).toBe(-13.70);
+	});
+
+	it('handles a partial refund with selective fee credit', async () => {
+		const transactions = [
+			{
+				transactionType: 'SALE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '100.00' },
+				bookingEntry: 'CREDIT'
+			},
+			{
+				transactionType: 'NON_SALE_CHARGE',
+				feeType: 'FINAL_VALUE_FEE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-10.00' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'REFUND',
+				transactionDate: '2026-02-10T00:00:00Z',
+				amount: { value: '-50.00' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'CREDIT',
+				transactionDate: '2026-02-10T00:00:00Z',
+				amount: { value: '5.00' },
+				bookingEntry: 'CREDIT'
+			}
+		];
+		const ledger = buildTransactionLedger(transactions);
+
+		expect(ledger?.netAmount).toBe(45.00);
+	});
+
+	it('handles shipping labels correctly', async () => {
+		const transactions = [
+			{
+				transactionType: 'SALE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '30.00' },
+				bookingEntry: 'CREDIT'
+			},
+			{
+				transactionType: 'SHIPPING_LABEL',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-5.00' },
+				bookingEntry: 'DEBIT'
+			},
+			{
+				transactionType: 'NON_SALE_CHARGE',
+				feeType: 'FINAL_VALUE_FEE',
+				transactionDate: '2026-02-02T00:00:00Z',
+				amount: { value: '-3.00' },
+				bookingEntry: 'DEBIT'
+			}
+		];
+		const ledger = buildTransactionLedger(transactions);
+
+		expect(ledger?.totalSaleAmount).toBe(30.00);
+		expect(ledger?.totalShippingLabels).toBe(-5.00);
+		expect(ledger?.totalFees).toBe(-3.00);
+		expect(ledger?.netAmount).toBe(22.00);
+	});
+
+	it('returns undefined for empty transactions', async () => {
+		const ledger = buildTransactionLedger(null);
+		expect(ledger).toBeUndefined();
+	});
+
+	it('returns undefined for empty transaction array', async () => {
+		const ledger = buildTransactionLedger([]);
+		expect(ledger).toBeUndefined();
+	});
+
+	it('embeds transaction ledger in order metadata', async () => {
+		vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+			const name = new Headers(init?.headers).get('X-EBAY-API-CALL-NAME');
+			if (name === 'GetOrders') return new Response(
+				'<GetOrdersResponse><OrderArray><Order><OrderID>order-1</OrderID><PaidTime>2026-02-02T00:00:00Z</PaidTime><TransactionArray><Transaction><Item><ItemID>12345</ItemID></Item><TransactionPrice>50</TransactionPrice><ActualShippingCost>8</ActualShippingCost></Transaction></TransactionArray></Order></OrderArray></GetOrdersResponse>'
+			);
+			if (name === 'GetItem') return new Response(
+				'<GetItemResponse><Item><Title>Test Item</Title><PictureDetails><PictureURL>https://example.test/item.jpg</PictureURL></PictureDetails><ListingDetails><StartTime>2026-01-02T00:00:00Z</StartTime></ListingDetails></Item></GetItemResponse>'
+			);
+			return Response.json({ transactions: [
+				{
+					transactionType: 'SALE',
+					transactionDate: '2026-02-02T00:00:00Z',
+					amount: { value: '50.00' },
+					bookingEntry: 'CREDIT'
+				},
+				{
+					transactionType: 'NON_SALE_CHARGE',
+					feeType: 'FINAL_VALUE_FEE',
+					transactionDate: '2026-02-02T00:00:00Z',
+					amount: { value: '-5.00' },
+					bookingEntry: 'DEBIT'
+				},
+				{
+					transactionType: 'SHIPPING_LABEL',
+					transactionDate: '2026-02-02T00:00:00Z',
+					amount: { value: '-8.00' },
+					bookingEntry: 'DEBIT'
+				}
+			] });
+		}));
+		const locals = { ebayAccessToken: 'test-token', session: { userId } } as App.Locals;
+		expect((await getMyEbayOrdersDates(locals, to, from)).status).toBe(200);
+		const item = await client.db().collection('ebayitemmetadatas').findOne({ userId, itemId: '12345' });
+		expect(item?.sold?.transactionLedger).toBeDefined();
+		expect(item?.sold?.transactionLedger?.transactions).toHaveLength(3);
+		expect(item?.sold?.transactionLedger?.netAmount).toBe(37.00);
 	});
 });

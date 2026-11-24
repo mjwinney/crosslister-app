@@ -45,6 +45,26 @@ export enum StatusCodes {
     EmptyTable
 }
 
+export interface TransactionRecord {
+    orderId?: string;
+    transactionType: string;
+    transactionDate: Date;
+    description: string;
+    amount: number;
+    bookingEntry: string;
+    feeType?: string;
+}
+
+export interface TransactionLedger {
+    transactions: TransactionRecord[];
+    totalSaleAmount?: number;
+    totalRefunds?: number;
+    totalFees?: number;
+    totalShippingLabels?: number;
+    totalBuyerShipping?: number;
+    netAmount?: number;
+}
+
 export interface UpdateEbayTokenParams {
     userId: string;
     accessToken?: string;
@@ -205,6 +225,7 @@ export type MetaDataModel = {
     shippingLabelCost?: number,
     addFeeGeneral?: number,
     finalShippingCost?: number,
+    transactionLedger?: TransactionLedger,
     title?: string,
     originalListedAt?: Date | string | null,
     currentListedAt?: Date | string | null,
@@ -221,7 +242,7 @@ export type MetaDataModel = {
 }
 
 const listingKeys = ['title', 'pictureURL', 'listedTime'] as const;
-const soldKeys = ['soldPrice', 'soldTime', 'feePrice', 'shippingLabelCost', 'addFeeGeneral', 'finalShippingCost'] as const;
+const soldKeys = ['soldPrice', 'soldTime', 'feePrice', 'shippingLabelCost', 'addFeeGeneral', 'finalShippingCost', 'transactionLedger'] as const;
 const metadataKeys = [
     'purchasePrice', 'purchaseDate', 'purchaseLocation', 'storageLocation',
     'currentListedAt', 'relistEnabled', 'relistAt', 'lastRelistAttemptAt',
@@ -240,6 +261,12 @@ const metadataDefaults = {
 
 function castEbayField(key: string, value: unknown): unknown {
     if (value == null) return value;
+    
+    // Handle transactionLedger as a pass-through (already well-typed)
+    if (key === 'transactionLedger') {
+        return value;
+    }
+    
     if (dateKeys.has(key)) {
         if (!(value instanceof Date) && typeof value !== 'string' && typeof value !== 'number') throw new Error(`Invalid date for ${key}`);
         const date = new Date(value);

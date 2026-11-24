@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
-import { type MetaDataModel, getEbayMetadata,  StatusCodes, replaceEbayItemId, updateActiveEbayItem, updateEbayMetadata, updateEbayToken } from "./DatabaseUtils";
+import { type MetaDataModel, getEbayMetadata, StatusCodes, replaceEbayItemId, updateActiveEbayItem, updateEbayMetadata, updateEbayToken, type TransactionRecord, type TransactionLedger } from "./DatabaseUtils";
 import { XMLParser } from "fast-xml-parser";
 import { da } from "date-fns/locale";
 import { MAX_DISCOUNT_PERCENT, nextDiscountPrice, validateRelistDiscount } from "$lib/relistDiscount";
@@ -100,6 +100,96 @@ function getBuyerShippingCost(order: any): number {
     return toNumber(asArray<any>(order?.TransactionArray?.Transaction)[0]?.ActualShippingCost);
 }
 
+// Build a comprehensive transaction ledger from eBay Finance API transactions
+export function buildTransactionLedger(financeTransactions: any[] | null, orderId?: string): TransactionLedger | undefined {
+    if (!financeTransactions || financeTransactions.length === 0) {
+        return undefined;
+    }
+
+    const transactions: TransactionRecord[] = [];
+    let totalSaleAmount = 0;
+    let totalRefunds = 0;
+    let totalFees = 0;
+    let totalShippingLabels = 0;
+    let totalBuyerShipping = 0;
+
+    for (const txn of financeTransactions) {
+        const amount = toNumber(txn.amount?.value ?? 0);
+        const bookingEntry = txn.bookingEntry ?? 'DEBIT';
+        const transactionType = txn.transactionType ?? '';
+        const feeType = txn.feeType ?? '';
+        const transactionDate = txn.transactionDate ? new Date(txn.transactionDate) : new Date();
+
+        // Build the transaction record
+        const record: TransactionRecord = {
+            orderId: orderId || txn.orderId,
+            transactionType,
+            transactionDate,
+            amount,
+            bookingEntry,
+            description: getTransactionDescription(txn),
+            ...(feeType && { feeType })
+        };
+
+        transactions.push(record);
+
+        // Categorize and sum amounts
+        if (transactionType === 'SALE') {
+            totalSaleAmount += amount;
+        } else if (transactionType === 'REFUND') {
+            totalRefunds += amount; // This will be negative
+        } else if (transactionType === 'SHIPPING_LABEL') {
+            totalShippingLabels += amount; // This will be negative
+        } else if (transactionType === 'NON_SALE_CHARGE') {
+            // Check if this is a return label charge (treat as shipping label)
+            if (feeType === 'RETURN_LABEL_CHARGE') {
+                totalShippingLabels += amount;
+            } else {
+                totalFees += amount; // This will be negative (charges) or positive (adjustments)
+            }
+        } else if (transactionType === 'ADJUSTMENT') {
+            totalFees += amount;
+        } else if (transactionType === 'CREDIT' || (transactionType === 'NON_SALE_CHARGE' && bookingEntry === 'CREDIT')) {
+            totalFees += amount; // Fee credits are positive
+        }
+
+        // Track buyer shipping - look for shipping-related non-sale charges that are credits
+        if (transactionType === 'SALE' && txn.referenceId?.includes('shipping')) {
+            totalBuyerShipping += amount;
+        }
+    }
+
+    // Calculate net amount (true profit/loss)
+    const netAmount = totalSaleAmount + totalBuyerShipping + totalFees + totalShippingLabels + totalRefunds;
+
+    return {
+        transactions,
+        totalSaleAmount: parseFloat(totalSaleAmount.toFixed(2)),
+        totalRefunds: parseFloat(totalRefunds.toFixed(2)),
+        totalFees: parseFloat(totalFees.toFixed(2)),
+        totalShippingLabels: parseFloat(totalShippingLabels.toFixed(2)),
+        totalBuyerShipping: parseFloat(totalBuyerShipping.toFixed(2)),
+        netAmount: parseFloat(netAmount.toFixed(2))
+    };
+}
+
+// Get human-readable description for a transaction
+export function getTransactionDescription(txn: any): string {
+    const type = txn.transactionType ?? 'UNKNOWN';
+    const feeType = txn.feeType ?? '';
+
+    const descriptions: Record<string, string> = {
+        'SALE': 'Order Sale',
+        'REFUND': 'Refund',
+        'SHIPPING_LABEL': 'Shipping Label',
+        'ADJUSTMENT': 'Adjustment',
+        'CREDIT': 'Credit',
+        'NON_SALE_CHARGE': feeType ? `${feeType} Fee` : 'Charge'
+    };
+
+    return descriptions[type] || type;
+}
+
 // Fields are set only when known so a partial sync never overwrites stored values or user-entered purchase data.
 function buildOrderMetadata(order: any, financeTransactions: any[] | null): MetaDataModel {
     const txn: any = asArray<any>(order?.TransactionArray?.Transaction)[0];
@@ -113,6 +203,13 @@ function buildOrderMetadata(order: any, financeTransactions: any[] | null): Meta
     if (!financeTransactions) {
         if (txn?.FinalValueFee != null) metadata.feePrice = toNumber(txn.FinalValueFee);
         return metadata;
+    }
+
+    // Build the transaction ledger
+    const orderId = order.OrderID ? String(order.OrderID) : undefined;
+    const ledger = buildTransactionLedger(financeTransactions, orderId);
+    if (ledger) {
+        metadata.transactionLedger = ledger;
     }
 
     // totalFeeAmount on the SALE transaction already includes payment processing fees.
@@ -1645,10 +1742,14 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
                     const itemId = getItemIdFromTransaction(item.TransactionArray?.Transaction);
                     if (!itemId) return;
 
+                    // Build transaction ledger from finance data
+                    const transactionLedger = buildTransactionLedger(itemData.data?.transactions, item.OrderID);
+
                     const metaData: MetaDataModel = {
                         shippingLabelCost: sellerShippingLabelCost,
                         addFeeGeneral: addFeeGeneral,
-                        finalShippingCost: parseFloat((buyerShippingCost - sellerShippingLabelCost).toFixed(2))
+                        finalShippingCost: parseFloat((buyerShippingCost - sellerShippingLabelCost).toFixed(2)),
+                        ...(transactionLedger && { transactionLedger })
                     };
 
                     // SALE totalFeeAmount includes payment processing fees
