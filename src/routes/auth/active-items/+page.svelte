@@ -9,6 +9,7 @@
 	import CrosslistMenu from '$lib/components/CrosslistMenu.svelte';
 	import type { MetaDataModel } from '$lib/server/DatabaseUtils.js';
 	import Pagination from '$lib/components/Pagination.svelte';
+	import RelistBadge from '$lib/components/RelistBadge.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { page } from '$app/state';
 	import DatePicker from '$lib/components/DatePicker.svelte';
@@ -433,10 +434,11 @@
 						<p class="auth-muted text-sm m-0">Item ID: {item.itemId}</p>
 						<p class="auth-positive text-sm m-0 price-line">
 							${formatCurrency(item.price)}
-							{#if item.metadata?.relistEnabled}
-								{@const daysRemaining = relistDaysRemaining(item.metadata?.relistAt, relistClock)}
-								<img src="/relist-{daysRemaining}.svg" class="relist-badge" alt="Relists in {daysRemaining} days" title="Relists in {daysRemaining} days" />
-							{/if}
+							<RelistBadge
+								enabled={!!item.metadata?.relistEnabled}
+								daysRemaining={relistDaysRemaining(item.metadata?.relistAt, relistClock)}
+								lastRelistResult={item.metadata?.lastRelistResult}
+							/>
 							{#if item.metadata?.relistDiscountEnabled}
 								<img src="/relist-discount-30.svg" class="relist-badge" alt="Relists with discount every 30 days" title="Relists with discount every 30 days" />
 							{/if}

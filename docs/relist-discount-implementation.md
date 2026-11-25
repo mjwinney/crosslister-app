@@ -149,6 +149,8 @@ Notes from the current code:
    - Without `discount` and `discountPercent > 0`, the price is simply discounted from the live price (used by the test action).
    - The result data now includes `newPrice` and `basePrice`.
 10. `relist-due/+server.ts` passes the discount settings when `relistDiscountEnabled` is true. If the stored percent and max are invalid, the item is skipped with the result `invalid relist discount settings` instead of relisting at an unintended price. After a successful relist it saves `relistDiscountBasePrice` and `relistDiscountLastPrice` (the new price) with the existing success update. At the floor the relist still happens, at the unchanged price.
+
+Failed GetItem and AddItem attempts record the operation, HTTP status, and eBay error details in `lastRelistResult`. If the replacement is created but EndItem fails, the result records the error and warns that the old listing remains active; the replacement is still treated as successful to avoid creating duplicates on retry.
 11. The test action `relistEbayItemsWithPriceChange` in `+page.server.ts` now passes `10` (a 10% discount) instead of `-10`.
 
 Checked by running `nextDiscountPrice` repeatedly from a base of 100: 5/20 gives 95, 90.25, 85.74, 81.45, 80, 80; 10/15 gives 90, 85, 85; 3/7 gives 97, 94.09, 93, 93.

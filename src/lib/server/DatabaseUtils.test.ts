@@ -144,6 +144,14 @@ describe('relist reads', () => {
 		if (!result.ok) return;
 		expect(result.data).toMatchObject(discountFields);
 	});
+
+	it('getEbayMetadata returns the latest relist failure for the owning user', async () => {
+		await db.updateEbayMetadata(USER, 'item-1', { relistEnabled: true, lastRelistResult: 'failed: eBay rejected listing' }, true);
+		await db.updateEbayMetadata('user-2', 'item-1', { lastRelistResult: 'success' }, true);
+
+		const result = await db.getEbayMetadata(USER, 'item-1');
+		expect(result).toMatchObject({ ok: true, data: { lastRelistResult: 'failed: eBay rejected listing' } });
+	});
 });
 
 describe('replaceEbayItemId', () => {

@@ -103,7 +103,7 @@ export const GET: RequestHandler = async ({ request }) => {
                         );
                         ok = response.status === 200;
                         if (ok && 'data' in response && response.data?.newItemId) {
-                            const { newItemId, oldListingEnded, idSwapped, newPrice, basePrice, startTime } = response.data;
+                            const { newItemId, oldListingEnded, oldListingEndFailure, idSwapped, newPrice, basePrice, startTime } = response.data;
                             if (startTime && !Number.isNaN(new Date(startTime).getTime())) {
                                 listedAt = new Date(startTime);
                             }
@@ -118,6 +118,9 @@ export const GET: RequestHandler = async ({ request }) => {
                                 // Row still has the old id; update it so relistAt moves forward and the item is not relisted again.
                                 result = `relisted as ${newItemId} but DB itemId swap failed`;
                                 console.error(`relist-due: item ${itemId} ${result}`);
+                            }
+                            if (oldListingEnded === false) {
+                                result += `; old listing still active: ${oldListingEndFailure ?? 'EndItem failed without error details'}`;
                             }
                         } else {
                             result = ok ? 'success' : `failed: ${'message' in response ? response.message : response.status}`;

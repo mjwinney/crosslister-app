@@ -10,11 +10,13 @@ const locals = { ebayAccessToken: 'token', session: { userId: 'user-1' } } as un
 let livePrice: number | string;
 let calls: { name: string; body: string }[];
 let getItemStatus: number;
+let responses: Record<string, { body: string; status?: number }>;
 
 beforeEach(() => {
 	livePrice = 100;
 	getItemStatus = 200;
 	calls = [];
+	responses = {};
 
 	vi.stubGlobal(
 		'fetch',
@@ -22,6 +24,9 @@ beforeEach(() => {
 			const name = init.headers['X-EBAY-API-CALL-NAME'];
 			calls.push({ name, body: init.body });
 
+			if (responses[name]) {
+				return new Response(responses[name].body, { status: responses[name].status });
+			}
 			if (name === 'GetItem') {
 				const xml = `<GetItemResponse><Ack>Success</Ack><Item><Title>Test item</Title><SellingStatus><CurrentPrice currencyID="USD">${livePrice}</CurrentPrice></SellingStatus></Item></GetItemResponse>`;
 				return new Response(xml, { status: getItemStatus });
@@ -91,6 +96,62 @@ describe('relistEbayItemsWithPriceChange validation', () => {
 
 		expect(result.status).toBe(400);
 		expect(calls.map((call) => call.name)).toEqual(['GetItem']);
+	});
+});
+
+describe('relist eBay failure details', () => {
+	it.each(['GetItem', 'AddItem'])('preserves %s errors returned with HTTP 200', async (operation) => {
+		responses[operation] = {
+			body: `<${operation}Response><Ack>Failure</Ack><Errors><ErrorCode>123</ErrorCode><ShortMessage>Invalid listing</ShortMessage><LongMessage>Choose a valid category.</LongMessage></Errors><Errors><ErrorCode>456</ErrorCode><LongMessage>Update shipping.</LongMessage></Errors></${operation}Response>`
+		};
+
+		const result = await relistEbayItemsWithPriceChange(locals, 'item-1', 0);
+
+		expect(result).toMatchObject({
+			status: 400,
+			message: expect.stringContaining(`${operation} failed (HTTP 200)`)
+		});
+		if (!('message' in result)) throw new Error('Expected failure');
+		expect(result.message).toContain('"ErrorCode":123');
+		expect(result.message).toContain('Choose a valid category.');
+		expect(result.message).toContain('Update shipping.');
+		expect(calls.some((call) => call.name === 'EndItem')).toBe(false);
+	});
+
+	it('preserves a non-200 eBay response and status', async () => {
+		responses.AddItem = { status: 503, body: '<error>eBay temporarily unavailable</error>' };
+
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
+			status: 400,
+			message: 'AddItem failed (HTTP 503): <error>eBay temporarily unavailable</error>'
+		});
+	});
+
+	it('preserves a network error and reports when no eBay details were returned', async () => {
+		vi.mocked(fetch).mockRejectedValueOnce(new Error('connection reset'));
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
+			message: 'GetItem request failed: connection reset'
+		});
+
+		responses.AddItem = { body: '<AddItemResponse />' };
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
+			message: 'AddItem failed (HTTP 200): no error details returned'
+		});
+	});
+
+	it('returns EndItem errors without retrying a successfully created replacement', async () => {
+		responses.EndItem = {
+			body: '<EndItemResponse><Ack>Failure</Ack><Errors><ErrorCode>42</ErrorCode><LongMessage>Cannot end listing.</LongMessage></Errors></EndItemResponse>'
+		};
+
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
+			status: 200,
+			data: {
+				newItemId: '999',
+				oldListingEnded: false,
+				oldListingEndFailure: expect.stringContaining('Cannot end listing.')
+			}
+		});
 	});
 });
 

@@ -1891,7 +1891,7 @@ export async function getMyEbayOrdersDates(locals: App.Locals, toDate: Date, fro
     }
 }
 
-export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSelector: string[]): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSelector: string[]): Promise<{ status: number; data: any; } | { status: number; message: string; transportError?: true; }> {
     // console.log(`getMyEbayItem called, using access token: ${locals.ebayAccessToken} and ItemID: ${ItemID}`);
 
     const headers = {
@@ -1946,7 +1946,7 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
                 console.log('No items found in the response.');
                 return {
                     status: response.status,
-                    data: {}
+                    data: jsonData
                 };
             }
 
@@ -1985,14 +1985,15 @@ export async function getMyEbayItem(locals: App.Locals, ItemID: string, OutputSe
 
             return {
                 status: response.status,
-                message: JSON.stringify(data)
+                message: data
             };
         }
     } catch (error) {
         console.error('Error getMyEbayItem:', error);
         return {
             status: 500,
-            data: {}
+            message: error instanceof Error ? error.message : String(error),
+            transportError: true
         };
     }
 }
@@ -2711,7 +2712,7 @@ export function buildAddItemXml(ebayAuthToken: string, item: any): string {
 </AddItemRequest>`;
 }
 
-export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ status: number; data: any; } | { status: number; message: string; transportError?: true; }> {
     console.log(`addEbayItem: called, using access token: ${locals.ebayAccessToken}`);
 
     console.log('addEbayItem: AddItem XML:', xmlBody);
@@ -2747,7 +2748,7 @@ export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ s
                 console.log('No items found in the response.');
                 return {
                     status: response.status,
-                    data: {}
+                    data: jsonData
                 };
             }
 
@@ -2761,14 +2762,15 @@ export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ s
 
             return {
                 status: response.status,
-                message: JSON.stringify(data)
+                message: data
             };
         }
     } catch (error) {
         console.error('Error addEbayItem:', error);
         return {
             status: 500,
-            data: {}
+            message: error instanceof Error ? error.message : String(error),
+            transportError: true
         };
     }
 
@@ -2779,7 +2781,7 @@ export async function addEbayItem(locals: App.Locals, xmlBody: any): Promise<{ s
     };
 }
 
-export async function delistEbayItem(locals: App.Locals, itemId: string): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+export async function delistEbayItem(locals: App.Locals, itemId: string): Promise<{ status: number; data: any; } | { status: number; message: string; transportError?: true; }> {
     console.log(`ebayUtils: delistEbayItem called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}`);
 
     const headers = {
@@ -2824,7 +2826,7 @@ export async function delistEbayItem(locals: App.Locals, itemId: string): Promis
                 console.log('No items found in the response.');
                 return {
                     status: response.status,
-                    data: {}
+                    data: jsonData
                 };
             }
 
@@ -2838,14 +2840,15 @@ export async function delistEbayItem(locals: App.Locals, itemId: string): Promis
 
             return {
                 status: response.status,
-                message: JSON.stringify(data)
+                message: data
             };
         }
     } catch (error) {
         console.error('Error delistEbayItem:', error);
         return {
             status: 500,
-            data: {}
+            message: error instanceof Error ? error.message : String(error),
+            transportError: true
         };
     }
 }
@@ -2855,6 +2858,20 @@ export type RelistDiscountOptions = {
     basePrice?: number | null;
     lastPrice?: number | null;
 };
+
+function describeRelistEbayFailure(
+    operation: 'GetItem' | 'AddItem' | 'EndItem',
+    result: { status: number; data: any } | { status: number; message: string; transportError?: true }
+): string {
+    if ('message' in result && result.transportError) {
+        return `${operation} request failed: ${result.message}`;
+    }
+    const response = 'data' in result ? result.data?.[`${operation}Response`] : undefined;
+    const details = 'message' in result
+        ? result.message
+        : JSON.stringify({ Ack: response?.Ack, Errors: response?.Errors });
+    return `${operation} failed (HTTP ${result.status}): ${details && details !== '{}' ? details : 'no error details returned'}`;
+}
 
 // `discountPercent` is a whole-number discount (0 = unchanged price); with `discount` it is applied to the live price but never below the floor.
 // Create a replacement listing, move its database references to the new ID, then end the prior listing.
@@ -2883,7 +2900,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         console.error('Failed to fetch item details from eBay API');
         return {
             status: 400,
-            message: 'Failed to fetch item details from eBay API'
+            message: describeRelistEbayFailure('GetItem', itemData)
         };
     }
 
@@ -2930,7 +2947,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         console.error('Failed to add item to eBay API');
         return {
             status: 400,
-            message: 'Failed to add item to eBay API'
+            message: describeRelistEbayFailure('AddItem', addItemResult)
         };
     }
 
@@ -2940,7 +2957,7 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         console.error(`relistEbayItemsWithPriceChange: AddItem failed, Ack=${addItemResponse?.Ack} Errors=${JSON.stringify(addItemResponse?.Errors)}`);
         return {
             status: 400,
-            message: 'Failed to add item to eBay API'
+            message: describeRelistEbayFailure('AddItem', addItemResult)
         };
     }
     const startTime = addItemResponse.StartTime ? new Date(addItemResponse.StartTime) : undefined;
@@ -2969,7 +2986,10 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
 
     return {
         status: 200,
-        data: { newItemId, startTime, oldListingEnded, idSwapped, newPrice, basePrice }
+        data: {
+            newItemId, startTime, oldListingEnded, idSwapped, newPrice, basePrice,
+            ...(!oldListingEnded ? { oldListingEndFailure: describeRelistEbayFailure('EndItem', delistResult) } : {})
+        }
     };
 }
 

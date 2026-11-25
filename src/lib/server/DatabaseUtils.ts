@@ -692,6 +692,7 @@ export async function getEbayMetadata(userId: string, itemId: string) : Promise<
         currentListedAt: metaData?.currentListedAt || undefined,
         relistEnabled: metaData.relistEnabled === undefined ? false : metaData.relistEnabled ?? undefined,
         relistAt: metaData?.relistAt || undefined,
+        lastRelistResult: metaData?.lastRelistResult ?? undefined,
         relistDiscountEnabled: metaData.relistDiscountEnabled === undefined ? false : metaData.relistDiscountEnabled ?? undefined,
         relistDiscountPercent: metaData.relistDiscountPercent === undefined ? 5 : metaData.relistDiscountPercent ?? undefined,
         relistDiscountMaxPercent: metaData.relistDiscountMaxPercent === undefined ? 20 : metaData.relistDiscountMaxPercent ?? undefined,
