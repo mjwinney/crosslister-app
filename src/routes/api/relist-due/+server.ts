@@ -71,6 +71,7 @@ export const GET: RequestHandler = async ({ request }) => {
                 console.log(`relist-due: relisting item ${itemId} for user ${userId} (relistAt=${metadata.relistAt?.toString()}, attempts=${metadata.relistAttemptCount ?? 0})`);
                 let result = 'unknown error';
                 let ok = false;
+                let requiresManualReview = false;
                 // Relisting creates a new eBay item id; metadata must be updated under it.
                 let currentItemId = itemId;
                 let listedAt: Date | undefined;
@@ -102,12 +103,13 @@ export const GET: RequestHandler = async ({ request }) => {
                                 : undefined
                         );
                         ok = response.status === 200;
+                        requiresManualReview = 'requiresManualReview' in response && response.requiresManualReview === true;
                         if (ok && 'data' in response && response.data?.newItemId) {
-                            const { newItemId, oldListingEnded, oldListingEndFailure, idSwapped, newPrice, basePrice, startTime } = response.data;
+                            const { newItemId, idSwapped, newPrice, basePrice, startTime } = response.data;
                             if (startTime && !Number.isNaN(new Date(startTime).getTime())) {
                                 listedAt = new Date(startTime);
                             }
-                            console.log(`relist-due: item ${itemId} relisted as ${newItemId}, oldListingEnded=${oldListingEnded}, idSwapped=${idSwapped}, newPrice=${newPrice}`);
+                            console.log(`relist-due: item ${itemId} relisted as ${newItemId}, idSwapped=${idSwapped}, newPrice=${newPrice}`);
                             if (discountEnabled && typeof basePrice === 'number' && typeof newPrice === 'number') {
                                 discountUpdate = { relistDiscountBasePrice: basePrice, relistDiscountLastPrice: newPrice };
                             }
@@ -118,9 +120,6 @@ export const GET: RequestHandler = async ({ request }) => {
                                 // Row still has the old id; update it so relistAt moves forward and the item is not relisted again.
                                 result = `relisted as ${newItemId} but DB itemId swap failed`;
                                 console.error(`relist-due: item ${itemId} ${result}`);
-                            }
-                            if (oldListingEnded === false) {
-                                result += `; old listing still active: ${oldListingEndFailure ?? 'EndItem failed without error details'}`;
                             }
                         } else {
                             result = ok ? 'success' : `failed: ${'message' in response ? response.message : response.status}`;
@@ -138,6 +137,7 @@ export const GET: RequestHandler = async ({ request }) => {
                     lastRelistAttemptAt: attemptTime,
                     lastRelistResult: result,
                     relistAttemptCount: ok ? 0 : (metadata.relistAttemptCount ?? 0) + 1,
+                    ...(requiresManualReview ? { relistEnabled: false } : {}),
                     ...(ok
                         ? {
                               currentListedAt: listedAt ?? attemptTime,

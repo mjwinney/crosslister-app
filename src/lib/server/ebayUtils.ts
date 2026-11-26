@@ -2874,8 +2874,8 @@ function describeRelistEbayFailure(
 }
 
 // `discountPercent` is a whole-number discount (0 = unchanged price); with `discount` it is applied to the live price but never below the floor.
-// Create a replacement listing, move its database references to the new ID, then end the prior listing.
-export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, discountPercent: number, discount?: RelistDiscountOptions): Promise<{ status: number; data: any; } | { status: number; message: string; }> {
+// End the prior listing before creating a replacement and moving its database references.
+export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId: string, discountPercent: number, discount?: RelistDiscountOptions): Promise<{ status: number; data: any; } | { status: number; message: string; requiresManualReview?: true; }> {
     console.log(`ebayUtils: relistEbayItemsWithPriceChange called, using access token: ${locals.ebayAccessToken}, ItemId: ${itemId}, DiscountPercent: ${discountPercent}`);
 
     // Reject invalid caller settings before making any eBay requests.
@@ -2933,21 +2933,24 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
     const clonedItem = mapGetItemToAddItem(ebayItem);
 
     clonedItem.StartPrice = newPrice;
-    if (!clonedItem.Title.includes('🔥')) {
-        clonedItem.Title += ' 🔥';
-    }
 
     const addItemRequest = buildAddItemXml(locals.ebayAccessToken as string, clonedItem);
     console.log(`relistEbayItemsWithPriceChange: addItemRequest=${JSON.stringify(addItemRequest)}`);
 
-    // Publish the replacement before changing the database or ending the currently active listing.
+    const delistResult = await delistEbayItem(locals, itemId);
+    const delistAck = 'data' in delistResult ? delistResult.data?.EndItemResponse?.Ack : undefined;
+    if (delistResult.status !== 200 || !['Success', 'Warning'].includes(delistAck)) {
+        return { status: 400, message: describeRelistEbayFailure('EndItem', delistResult) };
+    }
+
     const addItemResult = await addEbayItem(locals, addItemRequest);
 
     if (addItemResult.status !== 200 || !('data' in addItemResult)) {
         console.error('Failed to add item to eBay API');
         return {
             status: 400,
-            message: describeRelistEbayFailure('AddItem', addItemResult)
+            message: `Original listing ${itemId} was ended; replacement was not confirmed. Check eBay before retrying. ${describeRelistEbayFailure('AddItem', addItemResult)}`,
+            requiresManualReview: true
         };
     }
 
@@ -2957,12 +2960,13 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
         console.error(`relistEbayItemsWithPriceChange: AddItem failed, Ack=${addItemResponse?.Ack} Errors=${JSON.stringify(addItemResponse?.Errors)}`);
         return {
             status: 400,
-            message: describeRelistEbayFailure('AddItem', addItemResult)
+            message: `Original listing ${itemId} was ended; replacement was not confirmed. Check eBay before retrying. ${describeRelistEbayFailure('AddItem', addItemResult)}`,
+            requiresManualReview: true
         };
     }
     const startTime = addItemResponse.StartTime ? new Date(addItemResponse.StartTime) : undefined;
 
-    // Move database records to the new ID before ending the old listing, so a crash cannot leave records pointing at it.
+    // Move database records to the newly created listing.
     let replaceStatus = await replaceEbayItemId(locals.session?.userId as string, itemId, newItemId, startTime);
     if (replaceStatus !== StatusCodes.OK) {
         console.error(`relistEbayItemsWithPriceChange: failed to replace itemId ${itemId} with ${newItemId}, retrying once`);
@@ -2975,21 +2979,9 @@ export async function relistEbayItemsWithPriceChange(locals: App.Locals, itemId:
 
     console.log(`relistEbayItemsWithPriceChange: addItemResult=${JSON.stringify(addItemResult)}`);
 
-    // End the old listing only after the replacement is live; report an EndItem failure without undoing the relist.
-    const delistResult = await delistEbayItem(locals, itemId);
-    const delistAck = 'data' in delistResult ? delistResult.data?.EndItemResponse?.Ack : undefined;
-    const oldListingEnded = delistResult.status === 200 && ['Success', 'Warning'].includes(delistAck);
-    if (!oldListingEnded) {
-        console.error(`relistEbayItemsWithPriceChange: failed to end old item ${itemId}, new item ${newItemId} is live`);
-    }
-    console.log(`relistEbayItemsWithPriceChange: delistResult=${JSON.stringify(delistResult)}`);
-
     return {
         status: 200,
-        data: {
-            newItemId, startTime, oldListingEnded, idSwapped, newPrice, basePrice,
-            ...(!oldListingEnded ? { oldListingEndFailure: describeRelistEbayFailure('EndItem', delistResult) } : {})
-        }
+        data: { newItemId, startTime, oldListingEnded: true, idSwapped, newPrice, basePrice }
     };
 }
 

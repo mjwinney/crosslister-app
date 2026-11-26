@@ -193,28 +193,22 @@ describe('relist-due with a discount', () => {
 		expect(saved!.relistAt).toEqual(due);
 	});
 
-	it('records an EndItem failure while keeping the successful replacement scheduled', async () => {
-		relistMock.mockImplementation(async (_locals, itemId: string) => {
-			await db.replaceEbayItemId(USER, itemId, `${itemId}-relisted`);
-			return {
-				status: 200,
-				data: {
-					newItemId: `${itemId}-relisted`,
-					idSwapped: true,
-					oldListingEnded: false,
-					oldListingEndFailure: 'EndItem failed (HTTP 200): Cannot end listing.'
-				}
-			};
+	it('disables automatic relisting when a replacement is not confirmed after ending the original', async () => {
+		relistMock.mockResolvedValue({
+			status: 400,
+			message: 'Original listing item-1 was ended; replacement was not confirmed. Check eBay before retrying.',
+			requiresManualReview: true
 		});
 		await seed('item-1');
 
-		expect(await (await callCron(authorized)).json()).toEqual({ processed: 1, succeeded: 1, failed: 0 });
-		const saved = await load('item-1-relisted');
+		expect(await (await callCron(authorized)).json()).toEqual({ processed: 1, succeeded: 0, failed: 1 });
+		const saved = await load('item-1');
 		expect(saved).toMatchObject({
-			lastRelistResult: 'success; old listing still active: EndItem failed (HTTP 200): Cannot end listing.',
-			relistAttemptCount: 0
+			relistEnabled: false,
+			lastRelistResult: expect.stringContaining('replacement was not confirmed'),
+			relistAttemptCount: 1
 		});
-		expect(saved!.relistAt!.getTime()).toBeGreaterThan(Date.now());
+		expect(await (await callCron(authorized)).json()).toEqual({ processed: 0, succeeded: 0, failed: 0 });
 	});
 
 	it('records a thrown error as a failure without touching the price anchors', async () => {

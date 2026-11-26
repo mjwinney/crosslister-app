@@ -8,12 +8,14 @@ const { relistEbayItemsWithPriceChange } = await import('./ebayUtils');
 const locals = { ebayAccessToken: 'token', session: { userId: 'user-1' } } as unknown as App.Locals;
 
 let livePrice: number | string;
+let liveTitle: string;
 let calls: { name: string; body: string }[];
 let getItemStatus: number;
 let responses: Record<string, { body: string; status?: number }>;
 
 beforeEach(() => {
 	livePrice = 100;
+	liveTitle = 'Test item';
 	getItemStatus = 200;
 	calls = [];
 	responses = {};
@@ -28,7 +30,7 @@ beforeEach(() => {
 				return new Response(responses[name].body, { status: responses[name].status });
 			}
 			if (name === 'GetItem') {
-				const xml = `<GetItemResponse><Ack>Success</Ack><Item><Title>Test item</Title><SellingStatus><CurrentPrice currencyID="USD">${livePrice}</CurrentPrice></SellingStatus></Item></GetItemResponse>`;
+				const xml = `<GetItemResponse><Ack>Success</Ack><Item><Title>${liveTitle}</Title><SellingStatus><CurrentPrice currencyID="USD">${livePrice}</CurrentPrice></SellingStatus></Item></GetItemResponse>`;
 				return new Response(xml, { status: getItemStatus });
 			}
 			if (name === 'AddItem') {
@@ -115,7 +117,9 @@ describe('relist eBay failure details', () => {
 		expect(result.message).toContain('"ErrorCode":123');
 		expect(result.message).toContain('Choose a valid category.');
 		expect(result.message).toContain('Update shipping.');
-		expect(calls.some((call) => call.name === 'EndItem')).toBe(false);
+		expect(calls.map((call) => call.name)).toEqual(
+			operation === 'GetItem' ? ['GetItem'] : ['GetItem', 'EndItem', 'AddItem']
+		);
 	});
 
 	it('preserves a non-200 eBay response and status', async () => {
@@ -123,7 +127,8 @@ describe('relist eBay failure details', () => {
 
 		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
 			status: 400,
-			message: 'AddItem failed (HTTP 503): <error>eBay temporarily unavailable</error>'
+			message: expect.stringContaining('AddItem failed (HTTP 503): <error>eBay temporarily unavailable</error>'),
+			requiresManualReview: true
 		});
 	});
 
@@ -135,22 +140,35 @@ describe('relist eBay failure details', () => {
 
 		responses.AddItem = { body: '<AddItemResponse />' };
 		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
-			message: 'AddItem failed (HTTP 200): no error details returned'
+			message: expect.stringContaining('AddItem failed (HTTP 200): no error details returned'),
+			requiresManualReview: true
 		});
 	});
 
-	it('returns EndItem errors without retrying a successfully created replacement', async () => {
+	it('stops before creating a replacement when EndItem fails', async () => {
 		responses.EndItem = {
 			body: '<EndItemResponse><Ack>Failure</Ack><Errors><ErrorCode>42</ErrorCode><LongMessage>Cannot end listing.</LongMessage></Errors></EndItemResponse>'
 		};
 
 		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
-			status: 200,
-			data: {
-				newItemId: '999',
-				oldListingEnded: false,
-				oldListingEndFailure: expect.stringContaining('Cannot end listing.')
-			}
+			status: 400,
+			message: expect.stringContaining('Cannot end listing.')
+		});
+		expect(calls.map((call) => call.name)).toEqual(['GetItem', 'EndItem']);
+	});
+
+	it('accepts an EndItem warning before creating the replacement', async () => {
+		responses.EndItem = { body: '<EndItemResponse><Ack>Warning</Ack></EndItemResponse>' };
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({ status: 200 });
+		expect(calls.map((call) => call.name)).toEqual(['GetItem', 'EndItem', 'AddItem']);
+	});
+
+	it('reports that the original ended when creating the replacement fails', async () => {
+		responses.AddItem = { body: '<AddItemResponse><Ack>Failure</Ack></AddItemResponse>' };
+		expect(await relistEbayItemsWithPriceChange(locals, 'item-1', 0)).toMatchObject({
+			status: 400,
+			message: expect.stringContaining('Original listing item-1 was ended; replacement was not confirmed.'),
+			requiresManualReview: true
 		});
 	});
 });
@@ -161,7 +179,14 @@ describe('relistEbayItemsWithPriceChange without discount options', () => {
 
 		expect(result).toMatchObject({ status: 200, data: { newItemId: '999', newPrice: 100 } });
 		expect(addItemPrice()).toBe(100);
-		expect(calls.map((call) => call.name)).toEqual(['GetItem', 'AddItem', 'EndItem']);
+		expect(calls.map((call) => call.name)).toEqual(['GetItem', 'EndItem', 'AddItem']);
+		expect(calls.find((call) => call.name === 'AddItem')?.body).toContain('<Title>Test item</Title>');
+	});
+
+	it('preserves a fire icon already present in the title', async () => {
+		liveTitle = 'Test item 🔥';
+		await relistEbayItemsWithPriceChange(locals, 'item-1', 0);
+		expect(calls.find((call) => call.name === 'AddItem')?.body).toContain('<Title>Test item 🔥</Title>');
 	});
 
 	it('applies a plain discount to the live price', async () => {
